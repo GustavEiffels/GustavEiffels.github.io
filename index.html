@@ -1,0 +1,4941 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><title>Vanilla JS</title><style>
+/* cspell:disable-file */
+/* webkit printing magic: print all background colors */
+html {
+	-webkit-print-color-adjust: exact;
+}
+* {
+	box-sizing: border-box;
+	-webkit-print-color-adjust: exact;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+}
+@media only screen {
+	body {
+		margin: 2em auto;
+		max-width: 900px;
+		color: rgb(55, 53, 47);
+	}
+}
+
+body {
+	line-height: 1.5;
+	white-space: pre-wrap;
+}
+
+a,
+a.visited {
+	color: inherit;
+	text-decoration: underline;
+}
+
+.pdf-relative-link-path {
+	font-size: 80%;
+	color: #444;
+}
+
+h1,
+h2,
+h3 {
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	font-weight: 600;
+	margin-bottom: 0;
+}
+
+.page-title {
+	font-size: 2.5rem;
+	font-weight: 700;
+	margin-top: 0;
+	margin-bottom: 0.75em;
+}
+
+h1 {
+	font-size: 1.875rem;
+	margin-top: 1.875rem;
+}
+
+h2 {
+	font-size: 1.5rem;
+	margin-top: 1.5rem;
+}
+
+h3 {
+	font-size: 1.25rem;
+	margin-top: 1.25rem;
+}
+
+.source {
+	border: 1px solid #ddd;
+	border-radius: 3px;
+	padding: 1.5em;
+	word-break: break-all;
+}
+
+.callout {
+	border-radius: 3px;
+	padding: 1rem;
+}
+
+figure {
+	margin: 1.25em 0;
+	page-break-inside: avoid;
+}
+
+figcaption {
+	opacity: 0.5;
+	font-size: 85%;
+	margin-top: 0.5em;
+}
+
+mark {
+	background-color: transparent;
+}
+
+.indented {
+	padding-left: 1.5em;
+}
+
+hr {
+	background: transparent;
+	display: block;
+	width: 100%;
+	height: 1px;
+	visibility: visible;
+	border: none;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+img {
+	max-width: 100%;
+}
+
+@media only print {
+	img {
+		max-height: 100vh;
+		object-fit: contain;
+	}
+}
+
+@page {
+	margin: 1in;
+}
+
+.collection-content {
+	font-size: 0.875rem;
+}
+
+.column-list {
+	display: flex;
+	justify-content: space-between;
+}
+
+.column {
+	padding: 0 1em;
+}
+
+.column:first-child {
+	padding-left: 0;
+}
+
+.column:last-child {
+	padding-right: 0;
+}
+
+.table_of_contents-item {
+	display: block;
+	font-size: 0.875rem;
+	line-height: 1.3;
+	padding: 0.125rem;
+}
+
+.table_of_contents-indent-1 {
+	margin-left: 1.5rem;
+}
+
+.table_of_contents-indent-2 {
+	margin-left: 3rem;
+}
+
+.table_of_contents-indent-3 {
+	margin-left: 4.5rem;
+}
+
+.table_of_contents-link {
+	text-decoration: none;
+	opacity: 0.7;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.18);
+}
+
+table,
+th,
+td {
+	border: 1px solid rgba(55, 53, 47, 0.09);
+	border-collapse: collapse;
+}
+
+table {
+	border-left: none;
+	border-right: none;
+}
+
+th,
+td {
+	font-weight: normal;
+	padding: 0.25em 0.5em;
+	line-height: 1.5;
+	min-height: 1.5em;
+	text-align: left;
+}
+
+th {
+	color: rgba(55, 53, 47, 0.6);
+}
+
+ol,
+ul {
+	margin: 0;
+	margin-block-start: 0.6em;
+	margin-block-end: 0.6em;
+}
+
+li > ol:first-child,
+li > ul:first-child {
+	margin-block-start: 0.6em;
+}
+
+ul > li {
+	list-style: disc;
+}
+
+ul.to-do-list {
+	padding-inline-start: 0;
+}
+
+ul.to-do-list > li {
+	list-style: none;
+}
+
+.to-do-children-checked {
+	text-decoration: line-through;
+	opacity: 0.375;
+}
+
+ul.toggle > li {
+	list-style: none;
+}
+
+ul {
+	padding-inline-start: 1.7em;
+}
+
+ul > li {
+	padding-left: 0.1em;
+}
+
+ol {
+	padding-inline-start: 1.6em;
+}
+
+ol > li {
+	padding-left: 0.2em;
+}
+
+.mono ol {
+	padding-inline-start: 2em;
+}
+
+.mono ol > li {
+	text-indent: -0.4em;
+}
+
+.toggle {
+	padding-inline-start: 0em;
+	list-style-type: none;
+}
+
+/* Indent toggle children */
+.toggle > li > details {
+	padding-left: 1.7em;
+}
+
+.toggle > li > details > summary {
+	margin-left: -1.1em;
+}
+
+.selected-value {
+	display: inline-block;
+	padding: 0 0.5em;
+	background: rgba(206, 205, 202, 0.5);
+	border-radius: 3px;
+	margin-right: 0.5em;
+	margin-top: 0.3em;
+	margin-bottom: 0.3em;
+	white-space: nowrap;
+}
+
+.collection-title {
+	display: inline-block;
+	margin-right: 1em;
+}
+
+.page-description {
+    margin-bottom: 2em;
+}
+
+.simple-table {
+	margin-top: 1em;
+	font-size: 0.875rem;
+	empty-cells: show;
+}
+.simple-table td {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table th {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table-header-color {
+	background: rgb(247, 246, 243);
+	color: black;
+}
+.simple-table-header {
+	font-weight: 500;
+}
+
+time {
+	opacity: 0.5;
+}
+
+.icon {
+	display: inline-block;
+	max-width: 1.2em;
+	max-height: 1.2em;
+	text-decoration: none;
+	vertical-align: text-bottom;
+	margin-right: 0.5em;
+}
+
+img.icon {
+	border-radius: 3px;
+}
+
+.user-icon {
+	width: 1.5em;
+	height: 1.5em;
+	border-radius: 100%;
+	margin-right: 0.5rem;
+}
+
+.user-icon-inner {
+	font-size: 0.8em;
+}
+
+.text-icon {
+	border: 1px solid #000;
+	text-align: center;
+}
+
+.page-cover-image {
+	display: block;
+	object-fit: cover;
+	width: 100%;
+	max-height: 30vh;
+}
+
+.page-header-icon {
+	font-size: 3rem;
+	margin-bottom: 1rem;
+}
+
+.page-header-icon-with-cover {
+	margin-top: -0.72em;
+	margin-left: 0.07em;
+}
+
+.page-header-icon img {
+	border-radius: 3px;
+}
+
+.link-to-page {
+	margin: 1em 0;
+	padding: 0;
+	border: none;
+	font-weight: 500;
+}
+
+p > .user {
+	opacity: 0.5;
+}
+
+td > .user,
+td > time {
+	white-space: nowrap;
+}
+
+input[type="checkbox"] {
+	transform: scale(1.5);
+	margin-right: 0.6em;
+	vertical-align: middle;
+}
+
+p {
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
+}
+
+.image {
+	border: none;
+	margin: 1.5em 0;
+	padding: 0;
+	border-radius: 0;
+	text-align: center;
+}
+
+.code,
+code {
+	background: rgba(135, 131, 120, 0.15);
+	border-radius: 3px;
+	padding: 0.2em 0.4em;
+	border-radius: 3px;
+	font-size: 85%;
+	tab-size: 2;
+}
+
+code {
+	color: #eb5757;
+}
+
+.code {
+	padding: 1.5em 1em;
+}
+
+.code-wrap {
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+.code > code {
+	background: none;
+	padding: 0;
+	font-size: 100%;
+	color: inherit;
+}
+
+blockquote {
+	font-size: 1.25em;
+	margin: 1em 0;
+	padding-left: 1em;
+	border-left: 3px solid rgb(55, 53, 47);
+}
+
+.bookmark {
+	text-decoration: none;
+	max-height: 8em;
+	padding: 0;
+	display: flex;
+	width: 100%;
+	align-items: stretch;
+}
+
+.bookmark-title {
+	font-size: 0.85em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	height: 1.75em;
+	white-space: nowrap;
+}
+
+.bookmark-text {
+	display: flex;
+	flex-direction: column;
+}
+
+.bookmark-info {
+	flex: 4 1 180px;
+	padding: 12px 14px 14px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+.bookmark-image {
+	width: 33%;
+	flex: 1 1 180px;
+	display: block;
+	position: relative;
+	object-fit: cover;
+	border-radius: 1px;
+}
+
+.bookmark-description {
+	color: rgba(55, 53, 47, 0.6);
+	font-size: 0.75em;
+	overflow: hidden;
+	max-height: 4.5em;
+	word-break: break-word;
+}
+
+.bookmark-href {
+	font-size: 0.75em;
+	margin-top: 0.25em;
+}
+
+.sans { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol"; }
+.code { font-family: "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace; }
+.serif { font-family: Lyon-Text, Georgia, ui-serif, serif; }
+.mono { font-family: iawriter-mono, Nitti, Menlo, Courier, monospace; }
+.pdf .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK JP'; }
+.pdf:lang(zh-CN) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK SC'; }
+.pdf:lang(zh-TW) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK TC'; }
+.pdf:lang(ko-KR) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK KR'; }
+.pdf .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.pdf .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK JP'; }
+.pdf:lang(zh-CN) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK SC'; }
+.pdf:lang(zh-TW) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK TC'; }
+.pdf:lang(ko-KR) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK KR'; }
+.pdf .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.highlight-default {
+	color: rgba(55, 53, 47, 1);
+}
+.highlight-gray {
+	color: rgba(120, 119, 116, 1);
+	fill: rgba(120, 119, 116, 1);
+}
+.highlight-brown {
+	color: rgba(159, 107, 83, 1);
+	fill: rgba(159, 107, 83, 1);
+}
+.highlight-orange {
+	color: rgba(217, 115, 13, 1);
+	fill: rgba(217, 115, 13, 1);
+}
+.highlight-yellow {
+	color: rgba(203, 145, 47, 1);
+	fill: rgba(203, 145, 47, 1);
+}
+.highlight-teal {
+	color: rgba(68, 131, 97, 1);
+	fill: rgba(68, 131, 97, 1);
+}
+.highlight-blue {
+	color: rgba(51, 126, 169, 1);
+	fill: rgba(51, 126, 169, 1);
+}
+.highlight-purple {
+	color: rgba(144, 101, 176, 1);
+	fill: rgba(144, 101, 176, 1);
+}
+.highlight-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.highlight-red {
+	color: rgba(212, 76, 71, 1);
+	fill: rgba(212, 76, 71, 1);
+}
+.highlight-gray_background {
+	background: rgba(241, 241, 239, 1);
+}
+.highlight-brown_background {
+	background: rgba(244, 238, 238, 1);
+}
+.highlight-orange_background {
+	background: rgba(251, 236, 221, 1);
+}
+.highlight-yellow_background {
+	background: rgba(251, 243, 219, 1);
+}
+.highlight-teal_background {
+	background: rgba(237, 243, 236, 1);
+}
+.highlight-blue_background {
+	background: rgba(231, 243, 248, 1);
+}
+.highlight-purple_background {
+	background: rgba(244, 240, 247, 0.8);
+}
+.highlight-pink_background {
+	background: rgba(249, 238, 243, 0.8);
+}
+.highlight-red_background {
+	background: rgba(253, 235, 236, 1);
+}
+.block-color-default {
+	color: inherit;
+	fill: inherit;
+}
+.block-color-gray {
+	color: rgba(120, 119, 116, 1);
+	fill: rgba(120, 119, 116, 1);
+}
+.block-color-brown {
+	color: rgba(159, 107, 83, 1);
+	fill: rgba(159, 107, 83, 1);
+}
+.block-color-orange {
+	color: rgba(217, 115, 13, 1);
+	fill: rgba(217, 115, 13, 1);
+}
+.block-color-yellow {
+	color: rgba(203, 145, 47, 1);
+	fill: rgba(203, 145, 47, 1);
+}
+.block-color-teal {
+	color: rgba(68, 131, 97, 1);
+	fill: rgba(68, 131, 97, 1);
+}
+.block-color-blue {
+	color: rgba(51, 126, 169, 1);
+	fill: rgba(51, 126, 169, 1);
+}
+.block-color-purple {
+	color: rgba(144, 101, 176, 1);
+	fill: rgba(144, 101, 176, 1);
+}
+.block-color-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.block-color-red {
+	color: rgba(212, 76, 71, 1);
+	fill: rgba(212, 76, 71, 1);
+}
+.block-color-gray_background {
+	background: rgba(241, 241, 239, 1);
+}
+.block-color-brown_background {
+	background: rgba(244, 238, 238, 1);
+}
+.block-color-orange_background {
+	background: rgba(251, 236, 221, 1);
+}
+.block-color-yellow_background {
+	background: rgba(251, 243, 219, 1);
+}
+.block-color-teal_background {
+	background: rgba(237, 243, 236, 1);
+}
+.block-color-blue_background {
+	background: rgba(231, 243, 248, 1);
+}
+.block-color-purple_background {
+	background: rgba(244, 240, 247, 0.8);
+}
+.block-color-pink_background {
+	background: rgba(249, 238, 243, 0.8);
+}
+.block-color-red_background {
+	background: rgba(253, 235, 236, 1);
+}
+.select-value-color-interactiveBlue { background-color: rgba(35, 131, 226, .07); }
+.select-value-color-pink { background-color: rgba(245, 224, 233, 1); }
+.select-value-color-purple { background-color: rgba(232, 222, 238, 1); }
+.select-value-color-green { background-color: rgba(219, 237, 219, 1); }
+.select-value-color-gray { background-color: rgba(227, 226, 224, 1); }
+.select-value-color-translucentGray { background-color: rgba(255, 255, 255, 0.0375); }
+.select-value-color-orange { background-color: rgba(250, 222, 201, 1); }
+.select-value-color-brown { background-color: rgba(238, 224, 218, 1); }
+.select-value-color-red { background-color: rgba(255, 226, 221, 1); }
+.select-value-color-yellow { background-color: rgba(253, 236, 200, 1); }
+.select-value-color-blue { background-color: rgba(211, 229, 239, 1); }
+.select-value-color-pageGlass { background-color: undefined; }
+.select-value-color-washGlass { background-color: undefined; }
+
+.checkbox {
+	display: inline-flex;
+	vertical-align: text-bottom;
+	width: 16;
+	height: 16;
+	background-size: 16px;
+	margin-left: 2px;
+	margin-right: 5px;
+}
+
+.checkbox-on {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20width%3D%2216%22%20height%3D%2216%22%20fill%3D%22%2358A9D7%22%2F%3E%0A%3Cpath%20d%3D%22M6.71429%2012.2852L14%204.9995L12.7143%203.71436L6.71429%209.71378L3.28571%206.2831L2%207.57092L6.71429%2012.2852Z%22%20fill%3D%22white%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+
+.checkbox-off {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20x%3D%220.75%22%20y%3D%220.75%22%20width%3D%2214.5%22%20height%3D%2214.5%22%20fill%3D%22white%22%20stroke%3D%22%2336352F%22%20stroke-width%3D%221.5%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+	
+</style></head><body><article id="07d1e813-67e6-48e3-8232-0b8ee5fd6e9c" class="page mono"><header><div class="page-header-icon undefined"><img class="icon" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/free-icon-js-5968292.png"/></div><h1 class="page-title">Vanilla JS</h1><p class="page-description"></p></header><div class="page-body"><hr id="377212df-a566-4950-a3a0-eb1f6fd90e7f"/><p id="209d454a-1b03-40fc-ac77-898b3935e633" class="">
+</p><h3 id="f090ef93-b591-4eb9-a45f-3b910e8f42e4" class=""><em>HTML, CSS, JS</em></h3><hr id="7d2341a2-f082-4d66-a015-d148c79ea14a"/><ul id="74e1196a-bd93-4589-9523-03cbb31747e8" class="toggle"><li><details open=""><summary>Question : html span 데이터 들고오기     → 2023-05-11</summary><hr id="7b4770c2-9a62-42ea-a0e3-85db0d5bf67b"/><p id="1aac6e07-7610-4b54-8c1e-e75ea689edb0" class="">
+</p><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="d6a35bb2-aed2-4049-b7c4-64270ec77eda"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">여기 있는 데이터 가져오려면<pre id="42f2b6d8-6498-425e-b27a-65765992ff24" class="code"><code>&lt;span id=&quot;time&quot; class=&quot;time&quot;&gt;00:00:00&lt;/span&gt;</code></pre><p id="4d0ff45a-a803-43e5-adb8-26c2e69b99ea" class="">Js 에서 다음과 같이 하면 된다. <div class="indented"><pre id="82056426-9151-468a-ba4b-a550321f835f" class="code"><code>document.getElementById(&quot;time&quot;).textContent</code></pre></div></p><p id="e3a96c2c-a893-4b0d-9b6b-53b819610b72" class="">
+</p><p id="a569bfbe-c72c-41c8-a153-6b152db69583" class="">
+</p><p id="ed56f1f4-ef77-4442-90bd-ac425b656a1c" class="">
+</p></div></figure></details></li></ul><ul id="241d28e0-f498-4992-8a45-9c83d88dc437" class="toggle"><li><details open=""><summary>Question : div 요소들 수직으로 정렬하기 → 2023-05-11</summary><hr id="4dfe1047-af92-4941-a654-c7dfe838a5e3"/><p id="a821f1cc-f910-413b-b410-08fad5b108c6" class="">
+</p></details></li></ul><ul id="9699dbef-fb10-4abd-95e2-19bcfe451ed8" class="toggle"><li><details open=""><summary>Question : 가운데 수직 정렬                      → 2023-05-15</summary><hr id="b9e0aebb-68d7-498b-9331-b3318d83c3c8"/><pre id="f7e629ce-241d-444e-9c82-b0a73965d602" class="code"><code>.box .table{
+    padding-top: 1em;
+    display: flex;
+    justify-content: center; /* 수평 가운데 정렬 */
+    align-items: center; /* 수직 가운데 정렬 */
+}</code></pre><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="061538cb-804d-41b3-b4b1-56da6050eeb7"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">HTML<p id="e456db78-9f02-4200-98bf-19a35f223b47" class="">—</p><pre id="39e16d2c-0dd4-446f-a387-fbb3d474af19" class="code"><code>&lt;div id=&#x27;box&#x27; class=&quot;box&quot;&gt;
+
+		&lt;div id=&#x27;timerBox&#x27; class=&quot;timerBox&quot;&gt;
+			&lt;p&gt;
+				&lt;span id=&quot;time&quot; class=&quot;time&quot;&gt;00:00:00&lt;/span&gt;&lt;span id=&quot;timeMil&quot; class=&quot;timeMil&quot;&gt;:000&lt;/span&gt;
+			&lt;/p&gt;
+		&lt;/div&gt;
+		
+		&lt;div class=&quot;btnBox&quot;&gt;
+			&lt;i id=&quot;startbtn&quot; onclick=&quot;startBtnOperate()&quot; class=&quot;fa fa-play&quot;  aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+			&lt;i id=&quot;pausebtn&quot; onclick=&quot;pauseBtn()&quot;        class=&quot;fa fa-pause&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+			&lt;i id=&quot;stopbtn&quot;  onclick=&quot;stopBtn()&quot;         class=&quot;fa fa-stop&quot;  aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+		&lt;/div&gt;
+
+
+		&lt;div class=&quot;table&quot;&gt;
+			&lt;table&gt;
+				&lt;thead&gt;
+					&lt;tr&gt;
+						&lt;th&gt; No       &lt;/th&gt;
+						&lt;th&gt; 지역선택 &lt;/th&gt;
+					&lt;/tr&gt;
+				&lt;/thead&gt;
+				&lt;tbody&gt;
+		
+				&lt;/tbody&gt;
+			&lt;/table&gt;	
+		&lt;/div&gt;
+
+	&lt;/div&gt;</code></pre><p id="190e213e-6f3b-4c6e-bdf5-b2d1031012e2" class="">
+</p><p id="08e6e1de-5a59-4bf5-aac9-60160fb2e58b" class="">
+</p><p id="5e751caa-6a08-4c10-a9aa-8a1696f51b8f" class=""><em><strong>Before</strong></em></p><hr id="2714ff8f-05d4-4138-a79e-8641b2dc0bd7"/><figure id="3c55578a-49c0-448a-a71e-93783486caf5" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled.png"><img style="width:816px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled.png"/></a></figure><p id="2841afc7-a67c-4300-94dc-7d775f07d8da" class="">
+</p><p id="c39cfef1-c9f1-40cc-b749-135849d8ff79" class="">
+</p><p id="c8737e26-c00f-48bc-afad-a501327118cd" class=""><em><strong>After</strong></em></p><hr id="3bb92298-86a2-4474-8000-a775f36f084a"/><pre id="c8f87fd3-7fcf-488c-a99e-ec252c02e408" class="code"><code>.box .table{
+    padding-top: 1em;
+    display: flex;
+    justify-content: center; /* 수평 가운데 정렬 */
+    align-items: center; /* 수직 가운데 정렬 */
+}</code></pre><p id="0c334bc4-5422-4332-b84c-6588007245bb" class="">⇒ 해당 code 추가 </p><p id="48ee02b1-d41c-4ba0-bbb2-96fe60676f56" class="">
+</p><figure id="a3b97d7e-16bb-4abc-851c-dfc2c2cbafa3" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%201.png"><img style="width:816px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%201.png"/></a></figure><p id="e68c62f2-e1c5-4f05-b7d4-9784060c97ca" class="">
+</p><p id="33313037-5fde-4b4d-8818-8a1055ddd7ec" class=""><em><strong>전체 css code</strong></em></p><pre id="56412a13-9ed1-461f-b6c5-718228bb72b9" class="code"><code>*{
+    margin: 0px;
+    padding: 0px;
+    background-color: rgb(148, 80, 224);
+}
+  body{
+    height: 100vh;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+ }
+ .box{
+    background-color: rgb(148, 80, 224);
+    border-radius: 10px;
+    width: 400px;
+    height: 300px;
+}
+.timerBox{
+    width: 400px;
+    justify-content: center;
+    text-align: center;
+}
+.timerBox .time{
+    font-size: 80pt;
+    color: grey;
+    text-align: center;
+    font-family: sans-serif;
+}
+
+.timerBox .timeMil{
+    font-size: 40pt;
+    color: grey;
+    font-family: sans-serif;
+}
+
+.btnBox{
+    margin: 10px auto;
+    text-align: center;
+}
+.btnBox .fa{
+    margin: 0px 5px;
+    font-size: 30pt;
+    color: grey;
+    cursor: pointer;
+}
+
+.box .table{
+    padding-top: 1em;
+    display: flex;
+    justify-content: center; /* 수평 가운데 정렬 */
+    align-items: center; /* 수직 가운데 정렬 */
+}</code></pre><p id="e1bfdbc3-b54e-41cf-9bbc-b00d663c9226" class="">
+</p><p id="8187eefa-b390-405d-ba79-129a7c9eb109" class="">
+</p></div></figure><p id="0ee3c584-7a56-488f-b318-0cc2d6403b77" class="">
+</p><p id="16f214a7-6e19-41f2-88e7-6ebc598c3699" class="">
+</p><p id="e5e9e13c-c839-4aaa-b409-efc549059c26" class="">
+</p><p id="af42579e-09cf-4b8d-a4cd-3850889f5bc6" class="">
+</p><p id="debd635d-e907-437e-b898-c6e7ac0c72c9" class="">
+</p><p id="3de2e5be-d028-4f59-9397-a66ffa310d44" class="">
+</p></details></li></ul><ul id="52bbcefb-c938-430d-9c71-c1ef8a4a7c6e" class="toggle"><li><details open=""><summary>Question : Table Footer , Border                → 2023-05-16</summary><hr id="075ac89a-33e6-42a0-8a15-b962525ce3e6"/><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="a70e7e1d-30ca-4494-9da8-95dfced0a025"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">Table Footer , Border<p id="2580fefc-3d01-452f-af10-a90fd08a01bb" class="">⇒ DataTable 형태를 다루면서 tfoot 이 있는지 처음 알았다. </p><p id="d6bedbe9-1ab0-404c-a89b-75c67499952a" class="">발견한 계기는 DataTable 형태를 구하려다 보면 결과만 나타내는 칸이 있는데 그 칸이 필요했다. </p><p id="3537514b-f57b-4793-9a5e-8f708cf72762" class="">그래서 찾아본 결과 tfoot 엘리먼트가 존재했다.</p><figure id="60dbd6d9-0911-4224-89b7-9d1a670e556d" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%202.png"><img style="width:480px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%202.png"/></a></figure><figure id="b014b76d-f976-4af9-aa02-f0e90f2f7a20"><a href="https://m31phy.tistory.com/65" class="bookmark source"><div class="bookmark-info"><div class="bookmark-text"><div class="bookmark-title">[HTML/CSS] 테이블 만들기</div><div class="bookmark-description">개인적으로 HTML에서 테이블을 어떻게 만드는지를 정리한 글입니다. (Revised: 2020/10/01). 참고한 레퍼런스들은 아래에 있습니다. 1. 테이블의 요소 HTML에서 테이블을 만들기 위해서 필요한 요소들은 다음과 같다; , , , , , , , 1) HTML에서 기본적인 테이블을 만드는 순서 ■ 태그를 이용하여 만들 테이블을 정의 ■ 태그를 사용하여 테이블에서 사용할 행들을 선언 ■ 태그 내부에 태그를 사용하여 나타낼 테이터/셀 칸들을 정의 &gt; 2) 요약 ■ : 작성할 테이블을 정의 ■ : 작성할 테이블의 행을 정의 (table row) ■ : 작성할 테이블의 열의 제목을 정의 (table headline) ■ : 작성할 테이블 내의 데이터가 들어갈 셀을 정의 (table data) ■ //..</div></div><div class="bookmark-href"><img src="https://t1.daumcdn.net/tistory_admin/favicon/tistory_favicon_32x32.ico" class="icon bookmark-icon"/>https://m31phy.tistory.com/65</div></div><img src="https://img1.daumcdn.net/thumb/R800x0/?scode=mtistory2&amp;fname=https%3A%2F%2Ft1.daumcdn.net%2Ftistory_admin%2Fstatic%2Fimages%2FopenGraph%2Fopengraph.png" class="bookmark-image"/></a></figure><p id="af518111-ea07-4739-9949-5cc1e75ccabf" class="">
+</p><p id="bacc2f6e-392a-46fd-abea-5fda5830074e" class="">
+</p><pre id="b4b377e7-ed9d-4905-a7e7-a10f36338dc4" class="code"><code>&lt;div id=&quot;dataTable&quot; class=&quot;styled-table&quot; style=&quot;display: none;&quot;&gt;
+			&lt;table id=&quot;firstTable&quot;&gt;
+				&lt;thead&gt;
+				  &lt;tr&gt;
+					&lt;th&gt;No&lt;/th&gt;
+					&lt;th&gt;Title&lt;/th&gt;
+					&lt;th&gt;Time&lt;/th&gt;
+					&lt;th&gt;Option&lt;/th&gt;
+				  &lt;/tr&gt;
+				&lt;/thead&gt;
+				&lt;tbody&gt;
+	
+				&lt;/tbody&gt;
+				&lt;tfoot class=&quot;tfootBorder&quot;&gt;
+					&lt;th&gt;&lt;/th&gt;
+					&lt;th&gt;&lt;/th&gt;
+					&lt;th&gt;&lt;/th&gt;
+					&lt;th&gt;총 : 12시간&lt;/th&gt;
+				&lt;/tfoot&gt;
+			  &lt;/table&gt;</code></pre><p id="2d76ae58-2b2a-416e-b6e3-982ce774f574" class="">
+</p><p id="0343cc43-02d8-44d5-844c-fda836ff8b26" class="">
+</p><p id="ff800b37-5a2d-4835-90c2-94daeb110d72" class="">⇒ 해당 경계선을 설정하기 위해서 border 를 사용해봤다</p><p id="5ec35cd6-64c6-411d-902f-c80845247aca" class="">해당 관련된 참조는 다음과 같다.</p><p id="633021bc-8858-4c61-88c3-dc83bc8a2cd8" class=""><a href="http://jun.hansung.ac.kr/CWP/css/CSS%20Border.html">http://jun.hansung.ac.kr/CWP/css/CSS Border.html</a></p><p id="deb956b9-c911-471a-8dfe-0e76731c41a4" class="">
+</p></div></figure><p id="9afac907-d501-4486-bf60-fed43b83a8f1" class="">
+</p><hr id="b036cedd-a895-4b2f-9ae2-62a8e39be3c2"/><p id="7d6cb8ee-8b4e-410f-a517-ef6009ef7e87" class="">
+</p></details></li></ul><ul id="041d6f90-e5f9-4d17-a153-6372a5ea2517" class="toggle"><li><details open=""><summary>Question : Data Table 에 동적으로 Button 만들기                                         → 2023-05-16</summary><hr id="ff46f198-bcfb-4c31-97ea-e4367f32cf18"/><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="44dd0252-e965-42ef-adf1-627219fe5d45"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%"><em><strong>Data Table 에 동적으로 Button 만들기              </strong></em><pre id="b50e7186-739e-4fb6-b60b-6039ca521173" class="code"><code>    let cel4   = document.createElement(&quot;td&quot;);
+    let button = document.createElement(&quot;button&quot;);
+    button.className=&quot;btn&quot;;
+    button.textContent = &quot;delete&quot;
+    button.addEventListener(&quot;click&quot;,()=&gt;{
+      console.log(&#x27;test&#x27;);
+    }) 
+    cel4.appendChild(button); 
+    row.appendChild(cel4)
+
+    tbody.appendChild(row);</code></pre><p id="5fd3707f-e519-402e-a1b9-d1f4fded23cc" class="">⇒ 생각보다 쉽다.</p><p id="00d26aa7-4f92-4197-80f8-1ad223f7dd3f" class="">
+</p><ol type="1" id="ca825295-869b-4b7e-8fc0-b6814931d300" class="numbered-list" start="1"><li>cel 을 생성 <pre id="5c71627b-7861-48c3-9f6e-c89c8c9d0fb5" class="code"><code>let cel4   = document.createElement(&quot;td&quot;);</code></pre></li></ol><p id="2d6fe2de-db58-4e09-9dbd-c34b4b9c63df" class="">
+</p><ol type="1" id="8dc076ce-7450-498b-a68c-9a897eb41c45" class="numbered-list" start="2"><li>셀에 들어갈 버튼 생성 <pre id="a3057ca9-7ceb-48a2-897a-b1593aef96e2" class="code"><code>let button = document.createElement(&quot;button&quot;);</code></pre></li></ol><p id="578e3ee4-45dc-43fa-b594-40a20b64bbc0" class="">
+</p><ol type="1" id="28127f62-770f-4064-8a10-a8c4bfe5b834" class="numbered-list" start="3"><li>Button 에 대한 정의<pre id="f3923955-133c-41f7-9bbd-e8167e1764e7" class="code"><code> button.className=&quot;btn&quot;;
+    button.textContent = &quot;delete&quot;
+    button.addEventListener(&quot;click&quot;,()=&gt;{
+      console.log(&#x27;test&#x27;);
+    }) </code></pre></li></ol><p id="191d3fc0-d07b-4d96-a891-6710d20bf68e" class="">
+</p><ol type="1" id="d813c23d-a694-4d4f-bf49-f4e1eeee7bce" class="numbered-list" start="4"><li>Button 을 Cel 에 넣음 <pre id="f5adabc9-adf2-4743-b34d-51cc285c94ac" class="code"><code>cel4.appendChild(button); </code></pre></li></ol><p id="680e3893-2236-47b2-ad9d-4c94c79af1b8" class="">
+</p><ol type="1" id="44e5a374-5366-410e-8c4e-b85cc8ef6dcb" class="numbered-list" start="5"><li>해당 셀을 행에 넣음<pre id="41e540b9-581c-4bfa-a826-3ca600483a8c" class="code"><code>row.appendChild(cel4)</code></pre></li></ol></div></figure><p id="714138ff-66d8-4f7c-a837-cf2f8981126f" class="">
+</p><p id="6c2eb2ab-728c-44f3-8f13-8e7e41f3e595" class="">
+</p><p id="e3f3d92d-1b59-486a-b906-51e033bac53e" class="">
+</p><p id="3b65b3f7-5471-4641-8983-8eb0a69f9cbe" class="">
+</p><p id="91addee4-00ed-41e4-9a1c-c7a652f490ca" class="">
+</p><hr id="9a77e4be-f35a-4042-baa6-5d398496d7c1"/><p id="9f348f48-0561-4f45-8138-50dd70dc3ac2" class="">
+</p></details></li></ul><ul id="3bc3ee59-08ec-4c68-a575-a6a27af53109" class="toggle"><li><details open=""><summary>Question : element 내부에 중앙 정렬 및 해당 element 내부 text 중앙 정렬 → 2023-05-16</summary><hr id="a7986e73-9f63-47ef-a486-58102ddcdea0"/><p id="dfd3a1a0-19f6-4dbf-944d-2f9aab44287f" class="">
+</p><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="5e1f2f52-0ff5-4949-af0c-806ddcaf0a72"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">—<ol type="1" id="fe2df8b0-7060-402a-8945-a18d1c198a8e" class="numbered-list" start="1"><li>element 자체 중앙 정렬 <ul id="6945059c-c9a2-4d29-b727-7380ffee9aff" class="toggle"><li><details open=""><summary>before</summary><hr id="3c601137-a779-4a33-abca-fb640466eb9a"/><figure id="74237427-02f4-40d2-9b4d-f7724ddf7b4a" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%203.png"><img style="width:480px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%203.png"/></a></figure><p id="a89fdbbd-62fa-4898-bbf1-0e6c4ea6b4e1" class="">
+</p></details></li></ul><ul id="36ec5f27-6a1b-45ff-a593-3b997697c8c2" class="toggle"><li><details open=""><summary>after</summary><hr id="0d58346d-ca11-4861-a5d4-ffa698bf83a7"/><figure id="68fd217a-9935-4690-84ab-a3157d4a63df" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%204.png"><img style="width:528px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%204.png"/></a></figure><p id="e20b3d44-84b0-4afb-aae6-c0e6c59b1e76" class="">추가된 css</p><pre id="aab87131-5ee6-421e-987b-9bb6cee45b68" class="code"><code>display: flex;
+justify-content: center;</code></pre><p id="d468f5d2-1d59-49b5-a493-4af7bc9f99b6" class="">
+</p><hr id="d375a167-4e56-45ac-bd9b-9768a61c8fc5"/><p id="4ef716d2-94bb-48d9-b076-5775781e9ac0" class="">
+</p></details></li></ul></li></ol><p id="5d080d12-0dfa-4a50-a259-ce3c401e4a50" class="">
+</p><ol type="1" id="4688ddce-fe03-474f-8ff5-f03cf6aac817" class="numbered-list" start="2"><li>해당 element 내부 text 중앙 정렬<ul id="e6e18cca-4f83-4170-bfae-ea53fb08da8b" class="toggle"><li><details open=""><summary>before. after , code</summary><hr id="56b8d317-39e5-4825-a831-5fdb46a6a37a"/><p id="aa6e0dda-096e-44f2-bc01-318f5da06587" class="">before</p><figure id="16c59dec-0ae9-4459-96f4-171b9b593e0b" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%204.png"><img style="width:528px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%204.png"/></a></figure><p id="18f67068-156e-4c81-b356-9af40af1112e" class="">
+</p><p id="7268b5da-a96f-4ac2-ab92-9c64d36f4d25" class="">after</p><figure id="9bcf86ec-5bac-4744-b568-356864387834" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%205.png"><img style="width:528px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%205.png"/></a></figure><p id="5f458c38-5574-4bfd-9e60-a871a05b559e" class="">
+</p><p id="56f4cc32-ef95-4f3c-81d7-cc3a4ee31000" class="">추가된 code</p><pre id="66584354-ee52-4d08-80f1-e3afcfde55f9" class="code"><code>align-items: center;</code></pre><p id="53e638fc-9580-415b-8158-632dffdf76fd" class="">
+</p><p id="9de6d987-b5c5-4e2d-bca2-aae5511eb87b" class="">
+</p><hr id="9d986d06-9bfa-4978-bcd1-a062ae23f118"/><p id="aa79fa38-8da1-40a9-b7d6-0c71e64fb89f" class="">
+</p></details></li></ul></li></ol><p id="3915ad09-13ec-4575-9eb9-426d94eb98a0" class="">
+</p></div></figure><p id="1e1fba0e-7c89-4418-b23a-bb209289ecb3" class="">
+</p><p id="f9bec50e-7122-41bc-bd46-bb4907aa0ffd" class="">
+</p><p id="9b6c1ac3-365a-4c7a-b95b-2ea1ec47901d" class="">
+</p><hr id="4b136c75-317c-4431-88be-c72a5cb5440b"/><p id="c573cf30-7ffe-4a60-aa1e-e1c34783ba45" class="">
+</p></details></li></ul><ul id="2861d970-34f6-4f67-8619-db39ef808cff" class="toggle"><li><details open=""><summary>Question : JS 에서 split, 현재 시간 구하기                                                     → 2023-05-16</summary><hr id="bd98ef56-bb91-42bb-9262-4c548252ee72"/><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="a04b6de4-58a4-4006-9655-d34b58798c1e"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">—<ol type="1" id="57751594-4e09-40a6-9eb4-65299d854697" class="numbered-list" start="1"><li>Js 에서 Split 구현하기 </li></ol><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="b8b95dbc-5102-48ed-a319-5bd20a4a5008"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">00:00:01<p id="089c1564-6e33-41b5-9854-9243fcc5af9a" class="">⇒ 이렇게 나오는 값을 변경 시,분, 초 로 나눔 </p><pre id="53e09453-848c-4072-b97a-48b963cd2ccd" class="code"><code>let token = tempTime.split(&quot;:&quot;);</code></pre><p id="26f05ba5-270d-4644-bda4-7b17b38562c5" class="">→ split 함수를 사용 , java 의 StringTokenizer 객체와 비슷하다 느낌 </p><p id="02aa2c46-698e-4c08-b0ec-77222e0697d3" class="">
+</p><p id="ee8ab7a1-4534-4790-86df-bc88992af270" class="">
+</p><pre id="00e86a4e-fdfd-4edb-9c97-979a8d9f914f" class="code"><code>    let tempTime     = item.time;
+    cel3.textContent = tempTime;
+
+    let token = tempTime.split(&quot;:&quot;);
+    hourSub += parseInt(token[0]);
+    minSub  += parseInt(token[1]);
+    secSub  += parseInt(token[2]);</code></pre><p id="c40ad586-30fe-4572-bdbf-1dedef38ef62" class="">
+</p></div></figure><p id="ce83da22-f9d6-4835-b3cc-5625400ee481" class="">
+</p><p id="433a339c-7e65-47e5-9b5a-31ab3727dbfa" class="">
+</p><ol type="1" id="080d56f1-d00d-4b35-94cc-392721a978d8" class="numbered-list" start="2"><li>현재 시간 구하기 <figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="f9357d7d-a88d-4055-bc80-f60420a407a9"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">2023.05.16 뭐 이렇게 값을 얻고 싶다 <p id="b40b222f-6f8f-4ba1-86c5-ef42eb0c5b3c" class="">⇒ javaScript 에 Date 객체를 사용하면 된다. </p><pre id="29181faa-d61a-415e-9d01-b577a33878b1" class="code"><code>let todayTime = document.getElementById(&#x27;todayTime&#x27;);
+  let dateTime = new Date();
+  todayTime.textContent = dateTime.getFullYear()+&#x27;.&#x27;+(dateTime.getMonth()+1)+&#x27;.&#x27;+dateTime.getDate();</code></pre><p id="51c93644-399b-4c05-9752-ec8e87e8e7a6" class="">
+</p><p id="615414c0-aac9-4f44-a17e-050585af618c" class="">Date 함수의 내부 함수를 사용하면 </p><figure id="540bf09a-0a71-4f13-bc68-82aec1f9fb79" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%206.png"><img style="width:471px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%206.png"/></a></figure><p id="6926a720-8d43-4a04-b275-277aa6ddf568" class="">⇒ 다음과 같은 결과를 얻을 수 있다.</p><p id="f5cfacab-64a9-4ba7-b8eb-58981d5545a2" class="">
+</p><p id="f40652d5-b0bd-44a4-bb9d-aeb1f3e98c7b" class="">
+</p></div></figure></li></ol><p id="93f49c0f-c184-483b-bc74-b247949ec739" class="">
+</p></div></figure><p id="06a30456-f0a5-4e18-87eb-cd2488575bbb" class="">
+</p><p id="1cf1eec6-315d-45d4-b12b-783f5ae272e3" class="">
+</p><hr id="278bb961-8a00-4484-b211-46ae4e63c2c0"/><p id="21f04598-b267-448f-8498-3fc6fac90361" class="">
+</p></details></li></ul><ul id="b85af33f-7096-4770-b861-99a260591d8c" class="toggle"><li><details open=""><summary>Question : setInterval 을 사용할 때, boolean 값을 사용하는 이유                 → 2023-05-17 </summary><hr id="8b063e10-88d7-4b18-87c3-47102cf15352"/><p id="d5364884-ec24-4974-a018-2771d594b1df" class="">
+</p><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="72808831-7491-4e32-829c-de9e6c6d0b56"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%"><strong>setInterval 을 사용할 때, boolean 값을 사용하는 이유</strong><hr id="360932af-5b90-4cac-a2e3-e1a6f1a955b8"/><p id="71dfdea6-7976-408a-bb29-cc5ef8898fb1" class="">
+</p><pre id="224f22dc-338e-4eb6-9707-59c0f1ded5a1" class="code"><code>timerStart = false;
+...
+
+
+startBtnClickEventListener()
+    {
+
+        this.template.querySelector(&#x27;[class=&quot;second&quot;]&#x27;)  .style    = &#x27;font-size: 40px; color: green;&#x27;;
+        this.template.querySelector(&#x27;[class=&quot;mil&quot;]&#x27;)     .style    = &#x27;font-size: 20px; color: rgb(18, 218, 84);&#x27;;
+        this.template.querySelector(&#x27;[class=&quot;triangle&quot;]&#x27;).style    = &#x27;border-bottom: 30px solid green&#x27;;
+        this.startTime = Date.now() -this.time;
+        this.timerStart = true;
+        this.renderedCallback();
+    }
+
+
+renderedCallback()
+    {
+
+        if(this.timerStart)
+        {
+            this.timerStart = false;
+            this.intervalVal =  setInterval(()=&gt;{
+                this.currentTime = Date.now();
+                this.time = this.currentTime - this.startTime;
+                this.calculate();            
+            },10);
+        }
+
+
+
+pauseBtnClickEventListener()
+    {
+        if(this.time != 0)
+        {
+            // this.intervalVal = &#x27;&#x27;;
+            clearInterval(this.intervalVal);
+            console.log(&#x27;clearInterval&#x27;);
+        }
+        
+        
+    }</code></pre><p id="d82bbfed-3e90-4278-a4a0-947e88a0c08a" class="">⇒ 거창한 이유는 아니고 button 을 눌렀을 때 중복 실행 되서  <em><strong>clearInterval </strong></em>가 작동하지 않을 수 있다.</p><p id="bc249b0d-d37b-4fff-93c3-b1e2189d7d2a" class="">
+</p></div></figure><p id="81da89e6-144c-42de-bc1c-12c47e2a53c2" class="">
+</p><hr id="b5f8fe1a-d545-4267-93f8-1d1e8351e221"/><p id="efde2c1c-1d7e-4e17-b5b5-2ed385cf7c2e" class="">
+</p></details></li></ul><ul id="a04d95e3-6495-482d-b4f9-df41ae7ecf85" class="toggle"><li><details open=""><summary>Question : Js 에서 처음 무조건 실행하는 함수                                               → 2023-05-17</summary><hr id="8bf64ca5-2d7f-4159-be8d-4d1c74c4c626"/><p id="92ca6408-8e5d-4ddc-be9b-ae1b8467277c" class="">
+</p><p id="3ff21d86-9ca9-4783-8815-e0fc2df169a7" class="">
+</p><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="d1b48874-4648-449b-9e3d-db6236de3c58"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">IIFE(Immediately Invoked Function Expression)<hr id="9d896c69-db15-4562-97f5-3c593cd342a9"/><figure id="9e13f222-0ca3-4c7e-ae81-3ffffe7704a5" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%207.png"><img style="width:1056px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%207.png"/></a></figure><p id="b805cdf4-455e-432b-b98f-b55685cd520d" class="">
+</p><pre id="ef0db9da-e154-4172-8531-117d434b6d09" class="code"><code>(function() {
+  // 초기화 작업을 수행하는 코드
+  console.log(&#x27;This function is executed immediately.&#x27;);
+})();</code></pre><p id="4d43a4ef-ba1d-48cc-a3dd-558f53de6f23" class="">
+</p></div></figure><p id="3e05f930-f4b5-4bcd-8eaf-aeadc265a5b7" class="">
+</p><hr id="f28b4b2d-4133-4509-80cf-ca1355085e40"/><p id="f4904367-ea55-4f6e-a1e8-356f090f6912" class="">
+</p></details></li></ul><ul id="4d918220-4b9f-40fc-b6a5-53a4c3812d86" class="toggle"><li><details open=""><summary>Question : Js 에서 localStorage 사용하는 방법                                               → 2023-05-18</summary><hr id="1f96605e-9617-4dfc-b519-4a59b147f1e1"/><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="1032b186-cd11-4590-a45e-2e6dc1a0e198"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%"><em><strong>LocalStorage 에 대해서</strong></em> <hr id="d18d7893-7490-4ef1-aaff-3bc346a0dd4c"/><p id="c121d36a-70a7-4e40-be56-51ac494b3325" class="">localStorage는 웹 브라우저에서 데이터를 로컬에 영구적으로 저장하는 기능을 제공하는 웹 스토리지 API입니다. </p><p id="ddb8c719-a177-43f4-ba6e-5d9d00f7e8e8" class="">이 API를 사용하면 웹 페이지에서 데이터를 로컬에 저장하고, 나중에 다시 검색하거나 수정할 수 있습니다. </p><p id="88d63398-c91d-4e51-87a4-07874f9a92cd" class="">localStorage는 키-값 쌍으로 데이터를 저장하며, 저장된 데이터는 도메인 및 프로토콜에 한정되어 </p><p id="bdbb9343-1731-49a8-8474-f02a87beb20a" class="">해당 도메인과 프로토콜을 사용하는 모든 웹 페이지에서 접근할 수 있습니다.</p><p id="3b2c7f7f-656d-48ea-8ace-028595cc1123" class="">localStorage를 사용하면 다음과 같은 기능을 수행할 수 있습니다:</p><ol type="1" id="9048f127-073b-49c1-aa64-264a85e6f8bb" class="numbered-list" start="1"><li>데이터 저장: localStorage.setItem(key, value) 메서드를 사용하여 특정 키와 값을 localStorage에 저장할 수 있습니다. 값은 문자열 형태로 저장됩니다.</li></ol><ol type="1" id="266db618-28a5-48f2-9b2c-45843c93e08a" class="numbered-list" start="2"><li>데이터 검색: localStorage.getItem(key) 메서드를 사용하여 특정 키에 대응하는 값을 가져올 수 있습니다. 가져온 값은 문자열 형태로 반환됩니다.</li></ol><ol type="1" id="548a06af-90e2-452f-bf55-58fc7fca1245" class="numbered-list" start="3"><li>데이터 수정: localStorage.setItem(key, value) 메서드를 사용하여 특정 키에 대응하는 값을 수정할 수 있습니다. 해당 키가 이미 존재한다면 값이 업데이트됩니다.</li></ol><ol type="1" id="951c8359-4537-492c-a236-61ddb56ff3c4" class="numbered-list" start="4"><li>데이터 삭제: localStorage.removeItem(key) 메서드를 사용하여 특정 키에 대응하는 값을 삭제할 수 있습니다.</li></ol><p id="ec27ad27-c7bc-41a5-8ef8-a14195cb8082" class="">localStorage는 주로 웹 애플리케이션에서 사용자의 기본 설정, 사용자 세션, 캐시 데이터 등을 저장하는 데 사용됩니다. 또한 웹 페이지 간에 데이터를 공유하거나 임시 데이터를 저장하는 데에도 유용합니다.</p><p id="ffac22ed-abab-4eea-b8bb-0a15a2c80f41" class="">단, localStorage에 저장된 데이터는 웹 브라우저를 닫고 다시 열어도 유지되므로, 사용자의 동의 없이 무분별하게 개인 정보를 저장하면 개인 정보 보호에 문제가 발생할 수 있으므로 주의해야 합니다.</p><p id="c9d20562-df9b-4891-bf97-34eec0a1865e" class="">이는 localStorage의 간단한 소개이며, 더 자세한 사용 방법 및 API에 대해서는 공식 문서나 관련 자료를 참조하시면 됩니다.</p><p id="d8409f17-0f87-483b-89e4-c134f3d6da2d" class="">
+</p><p id="9227b7a2-14c9-461e-a063-0ca501f79d30" class="">
+</p><pre id="d3aa8e02-6066-4bc0-aee5-ea324a3f82ad" class="code"><code>(function() {
+  
+
+  let cacheData = localStorage.getItem(&#x27;data&#x27;);
+
+  if(cacheData == null )
+  {
+    localStorage.setItem(&#x27;data&#x27;, JSON.stringify(dataTable));
+  }
+  else
+  {
+    dataTable = JSON.parse(cacheData);
+    console.log(dataTable);
+  }
+...
+
+
+window.onload = function() {
+    // 오늘 날짜를 표시할 element 를 변수에 지정 
+    let todayTime = document.getElementById(&#x27;todayTime&#x27;);
+
+    // 오늘 날짜를 yyyy.MM.dd 형태로 만들어 element 에 값을 변경 
+    let dateTime = new Date();
+    todayTime.textContent = dateTime.getFullYear()+&#x27;.&#x27;+(dateTime.getMonth()+1)+&#x27;.&#x27;+dateTime.getDate();
+    todayTime.style.display = &#x27;block&#x27;; // 해당 element 를 보이게 설정 
+
+
+    if(dataTable.length != 0)
+    {
+      document.getElementById(&#x27;dataTable&#x27;).style = &#x27;block&#x27;;
+    }
+
+    console.log(dataTable);
+    console.log(&#x27;before rendering&#x27;);
+    rendering();
+  
+}
+
+
+...
+
+function insertTimeData(title, time)
+{
+
+
+
+  // 배열의 크기가 0 =&gt; 오늘 생성된 시간 데이터가 없을 경우 
+  if(dataTable.length == 0)
+  {
+    // index 직접 설정  
+    dataTable.push({&quot;number&quot;:1, &quot;title&quot;:title, &quot;time&quot;:time} );
+  }
+  // 배열의 크기가 1 이상인 경우 -&gt; 시간 데이터가 이미 존재 
+  else
+  {
+    // 이전 record 의 index 를 가져와서 +1 을 추가한 것을 number 로 가진다. 
+    dataTable.push({&quot;number&quot;:dataTable[dataTable.length-1].number+1, &quot;title&quot;:title, &quot;time&quot;:time} );
+  }
+
+  localStorage.setItem(&#x27;data&#x27;, JSON.stringify(dataTable));
+
+  
+  rendering();
+}
+</code></pre><p id="d3bb5713-8b45-421d-acdd-937cb90fd5c3" class="">
+</p><p id="29ee8a01-eade-455b-a279-e80e9ba19110" class="">
+</p></div></figure><p id="e4c67515-ca87-4860-acb0-166d34fa9ddd" class="">
+</p><hr id="44f20a73-f6cd-49d9-a966-7a87a5cbcc88"/><p id="3aa23d63-1701-4e20-8516-438697eea7dd" class=""><code>localStorage.clear();</code></p></details></li></ul><ul id="cd991a1e-09fb-48f4-945b-5151b3964a74" class="toggle"><li><details open=""><summary>Question : JS 에서 CSS 로 수직 수평 나열                                                        → 2023-05-25</summary><hr id="ba8337fa-9219-4d8a-bc30-7f20418fe255"/><p id="2a67699b-631f-4eaf-8273-7e1c24808e6a" class="">
+</p><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="a1cf6d5d-025c-4b6a-80a7-552f48b03863"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%"><strong>전체적으로는 수직 나열이고 특정 class 안에서는 수직 나열을 하기 위한 html. css 설정</strong><hr id="93976631-6400-4718-8554-e56a6548b55e"/><figure id="851f86f2-d2c7-49ff-9290-638ab70c5a58" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%208.png"><img style="width:912px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%208.png"/></a></figure><ul id="ddd3f60c-8bbf-4a90-bc89-e85b5a19f60c" class="toggle"><li><details open=""><summary><em><strong>html</strong></em></summary><hr id="2caa81c3-8741-4be1-b6fe-82dd068209c7"/><pre id="9ffbe159-7ae9-4884-ba31-7610cafac9fc" class="code"><code>&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;dynamic.css&quot;&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;meta http-equiv=&quot;X-UA-Compatible&quot; content=&quot;IE=edge&quot;&gt;
+    &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;&gt;
+    &lt;title&gt; Create Checkbox dynamically &lt;/title&gt;
+
+&lt;/head&gt;
+&lt;body&gt;
+
+    &lt;main&gt;
+        &lt;h2&gt;hi!&lt;/h2&gt;
+        &lt;div&gt;test&lt;/div&gt;
+        &lt;div&gt;test&lt;/div&gt;
+
+        &lt;div class=&quot;test1&quot;&gt;
+            &lt;h2&gt;1&lt;/h2&gt;
+            &lt;h2&gt;2&lt;/h2&gt;
+            &lt;h2&gt;3&lt;/h2&gt;
+            &lt;h2&gt;4&lt;/h2&gt;
+        &lt;/div&gt;
+    &lt;/main&gt;
+
+
+
+    &lt;script type=&quot;text/javascript&quot; src=&quot;./dynamic.js&quot;&gt;&lt;/script&gt;
+    
+&lt;/body&gt;
+&lt;/html&gt;</code></pre><hr id="bbc51a01-86d7-4a72-bebd-57f8c0ef226b"/><p id="d82cab67-9943-43db-89ff-e81f17924ffc" class="">
+</p></details></li></ul><ul id="bb7aeb49-79d4-4d92-a4eb-40a5a24969fc" class="toggle"><li><details open=""><summary><em><strong>css</strong></em></summary><hr id="10825d45-8e19-4cc6-bae3-b8c814c5cecd"/><pre id="83c3578e-a033-4204-bf56-dc8413d6cc6f" class="code"><code>/* body 정의 -&gt; 세로 중앙 정렬 */
+body{
+
+
+     display: flex;
+     align-items: center; /* 요소를 수직으로 가운데로 정렬합니다. */
+     justify-content: center; /* 요소를 수평으로 가운데로 정렬합니다. */
+     padding-top: 1em;
+     background-color: brown;
+     height: 100vh; /* 컨테이너의 높이를 전체 뷰포트 높이로 설정합니다. */
+}
+
+
+.test1{
+    display: flex;
+}</code></pre><hr id="5ac52a40-acbc-4b58-949b-926660fb11d4"/><p id="fe663abb-2904-43e1-94cb-4e9c63587ba1" class="">
+</p></details></li></ul><p id="e744b35a-a13b-4254-b835-dfbfd1964e53" class="">
+</p></div></figure><p id="ab088873-9fa6-429a-b991-906d9a820d71" class="">
+</p><p id="7fe31c33-e5f0-4c1e-a9c8-c3c264fb0922" class="">
+</p><hr id="c56ec483-f43f-49d6-8362-d51e5b2c7272"/><p id="b41cfb9b-0766-45a5-bf7e-d7fc926bda6c" class="">
+</p></details></li></ul><ul id="e397c6e2-7c21-4185-afd9-57d69f631c01" class="toggle"><li><details open=""><summary>Question : input tag 의 <em><strong>oninput</strong></em><strong>  </strong>attribute 에 대해서                                       → 2023-06-07  </summary><hr id="a5a7b930-ff04-4a22-a2d7-acb7c3427875"/><p id="9e20b251-6e8f-4057-88ec-3a917688f545" class="">
+</p><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="5037dc8a-080a-49f4-b8fb-1d3a27134e3b"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%"><em><strong>oninput</strong></em><strong> ()</strong><hr id="d99d6aeb-f489-4948-a7d4-83af70d431cd"/><p id="2b38fe04-4169-4aab-b54c-bc275ce57025" class=""><strong>oninput 과 onchange 의 차이</strong></p><p id="7f41ff51-8acd-479d-95e9-3bb10b3834ac" class="">→ oninput</p><p id="d5436951-5a67-4526-9008-496a622adc81" class="">: input tag 안의 값들이 변경될 때 마다 이벤트가 발생한다. </p><p id="f5c3e51b-e205-4845-9cbf-50fe8cb05122" class="">
+</p><p id="1842197c-0505-45c4-a195-45275be800a4" class="">→ onchnage </p><p id="c9cbf991-6e5a-4ae4-83d8-c4829a0a3293" class="">: input tag 의 포커스를 벗어났을 때 ( 입력이 종료 되었을 때 ) 발생하는 이벤트</p><p id="fa445c0f-7010-4d6a-9305-d340caba7907" class="">
+</p></div></figure><p id="8d3d8856-dc97-424d-ba05-c3e9fb86db8d" class="">
+</p><p id="7d195fde-2f16-4286-af8d-2334dbbe483c" class="">
+</p></details></li></ul><ul id="d6f46c57-136b-4bd7-8754-0bfc8ebd4f16" class="toggle"><li><details open=""><summary>Question : canvas 를 사용해서 그림판 만들기                                                  → 2023-06-07</summary><hr id="930732b1-c015-4bf6-a120-aeb6912906a5"/><p id="36073eae-26e2-485e-9f32-13cb9a1bcbd7" class="">
+</p></details></li></ul><p id="af943b05-df35-44ba-93eb-a808a622eea7" class="">
+</p><h2 id="12320d00-9fea-4e5b-bac0-c844a1c8be1b" class=""><em><strong>Function </strong></em></h2><hr id="e8fd7379-c7e9-4199-b5f4-4e01f31b234d"/><ul id="259059a1-c251-4547-998e-45fb885d397d" class="toggle"><li><details open=""><summary><em><strong>Stop Watch : Mili Seconds</strong></em></summary><hr id="251a2563-1e5a-49a2-8ee9-194e99392fe7"/><ul id="e1f91add-c068-4fcc-b78b-a108118f7053" class="toggle"><li><details open=""><summary><em><strong>Version 0</strong></em></summary><ul id="34fb6cdc-246d-4ec2-9c33-19ee7b38f405" class="toggle"><li><details open=""><summary><em><strong>HTML → stopWatch.html</strong></em></summary><hr id="071b561f-e562-4c1f-b570-1522bde637b5"/><pre id="b77cd12d-3788-46b0-be2c-0f0461972610" class="code"><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+	&lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;style.css&quot;&gt;
+
+&lt;meta charset=&quot;UTF-8&quot;&gt;
+&lt;title&gt;StopWatch&lt;/title&gt;
+&lt;link href=&quot;https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css&quot; rel=&quot;stylesheet&quot; integrity=&quot;sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN&quot; crossorigin=&quot;anonymous&quot;&gt;
+&lt;script src=&quot;http://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js&quot;&gt;&lt;/script&gt;
+&lt;script type=&quot;text/javascript&quot; src=&quot;stopwatch.js&quot;&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+	&lt;div id=&#x27;box&#x27; class=&quot;box&quot;&gt;
+		&lt;div id=&#x27;timerBox&#x27; class=&quot;timerBox&quot;&gt;
+			&lt;p&gt;
+				&lt;span id=&quot;time&quot; class=&quot;time&quot;&gt;00:00:00&lt;/span&gt;&lt;span id=&quot;timeMil&quot; class=&quot;timeMil&quot;&gt;:000&lt;/span&gt;
+			&lt;/p&gt;
+			&lt;!-- &lt;div id=&quot;time&quot; class=&quot;time&quot;&gt;00:00:00.00&lt;/div&gt; --&gt;
+		&lt;/div&gt;
+		&lt;div class=&quot;btnBox&quot;&gt;
+			&lt;i id=&quot;startbtn&quot; onclick=&quot;startBtnOperate()&quot; class=&quot;fa fa-play&quot;  aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+			&lt;i id=&quot;pausebtn&quot; onclick=&quot;pauseBtn()&quot;        class=&quot;fa fa-pause&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+			&lt;i id=&quot;stopbtn&quot;  onclick=&quot;stopBtn()&quot;         class=&quot;fa fa-stop&quot;  aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+		&lt;/div&gt;
+	&lt;/div&gt;
+	&lt;table&gt;
+		&lt;thead&gt;
+
+		&lt;/thead&gt;
+		&lt;tbody&gt;
+
+		&lt;/tbody&gt;
+	&lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre><p id="40c6fd3e-b02b-4b19-93aa-fa8998884259" class="">
+</p></details></li></ul><ul id="995e7b1f-0fe0-4bdd-8dc1-6394e5d4b4f3" class="toggle"><li><details open=""><summary><em><strong>JavaScript → stopwatch.js</strong></em></summary><hr id="a345f503-4bf9-4e8f-b40d-abb725c077b6"/><pre id="2094b3ad-0e2e-4186-a5b7-f137ed39f465" class="code"><code>let time = 0;
+var starFlag = true;
+
+let hour  = 0;
+let min   = 0;
+let sec   = 0;
+let mil   = 0;
+let timer;
+
+
+
+let startTime;
+let timerInterval;
+
+
+function init(){
+  document.getElementById(&quot;time&quot;).innerHTML = &quot;00:00:00&quot;;
+  document.getElementById(&quot;timeMil&quot;).innerHTML = &quot;:000&quot;;
+  hour  = 0;
+  min   = 0;
+  sec   = 0;
+  mil   = 0;
+}
+
+// parameter : start, pause, stop
+// function  : if a timer start change number color
+async function changeFontColor(command)
+{
+  $(&quot;.fa&quot;).css(&quot;color&quot;,&quot;grey&quot;);
+  document.getElementById(command+&#x27;btn&#x27;).style = &#x27;color: white;&#x27;;
+
+}
+
+
+
+  // document.getElementById(&#x27;startbtn&#x27;).addEventListener(&#x27;click&#x27;,startBtnOperate);
+
+
+  // start btn
+  function startBtnOperate()
+  {
+
+    document.getElementById(&#x27;time&#x27;).style=&#x27;color: white;&#x27;
+    document.getElementById(&#x27;timeMil&#x27;).style=&#x27;color: red;&#x27;
+
+    if(starFlag)
+    {
+      
+
+      changeFontColor(&#x27;start&#x27;);
+        starFlag = false;
+        if(time == 0)
+        {
+          init();
+        }
+        startTime = Date.now() - time;
+        timerInterval = setInterval(updateTimer, 10);
+      
+    }
+  }
+
+
+  function updateTimer() {
+    let currentTime = Date.now();
+    time = currentTime - startTime
+    presentCurrentTime();
+  }
+
+
+
+  // pause btn
+  function pauseBtn()
+    {
+      // when time is not zero -&gt; start button was operated 
+      if(time != 0)
+      {
+        changeFontColor(&#x27;pause&#x27;);
+        clearInterval(timerInterval);
+        starFlag = true;
+      }
+    };
+
+  // stop btn
+  function stopBtn()
+  {
+    if(time != 0){
+      changeFontColor(&#x27;stop&#x27;).then(()=&gt;{
+        clearInterval(timerInterval);
+        confirm(document.getElementById(&quot;time&quot;).textContent+document.getElementById(&quot;timeMil&quot;).textContent);
+        starFlag = true;
+        time = 0;
+        init();
+      })
+    }
+  }
+    
+
+
+  function presentCurrentTime()
+  {
+      if( mil == 1000 ) { mil  = 0; }
+      
+      mil  = time%1000;
+      sec  = Math.floor(time/1000);
+      min  = Math.floor(sec/60);
+      hour = Math.floor(min/60);
+      sec  = sec%60;
+      min  = min%60;
+
+    let th    = hour;
+    let tm    = min;
+    let ts    = sec;
+    let tmil  = mil; 
+    
+    if       (   th  &lt; 10  )  { th   = &quot;0&quot;   + hour;  }
+    if       (   tm  &lt; 10  )  { tm   = &quot;0&quot;   + min;   }
+    if       (   ts  &lt; 10  )  { ts   = &quot;0&quot;   + sec;   }
+    if       (  tmil &lt; 10  )  { tmil = &quot;00&quot;  + mil;   }
+    else { if( tmil  &lt; 100 )  { tmil = &quot;0&quot;   + mil; } }
+
+    document.getElementById(&quot;time&quot;).innerHTML    = th + &quot;:&quot; + tm + &quot;:&quot; + ts;
+    document.getElementById(&quot;timeMil&quot;).innerHTML = &quot;:&quot;+tmil;
+  }</code></pre><p id="57404bec-504e-44de-bfa8-7ba37cbad68c" class="">
+</p></details></li></ul><ul id="ffd06e0d-8158-4a0b-bb32-71172264bb98" class="toggle"><li><details open=""><summary><em><strong>CSS→ style.css</strong></em></summary><pre id="ea3bf280-7e2b-47f8-b9fe-8a20b8c8f947" class="code"><code>*{
+    margin: 0px;
+    padding: 0px;
+    background-color: rgb(148, 80, 224);
+}
+  body{
+    height: 100vh;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+ }
+ .box{
+    width: 400px;
+    height: 300px;
+}
+.timerBox{
+    width: 400px;
+    text-align: center;
+}
+.timerBox .time{
+    font-size: 80pt;
+    color: grey;
+    text-align: center;
+    font-family: sans-serif;
+}
+
+.timerBox .timeMil{
+    font-size: 40pt;
+    color: grey;
+    font-family: sans-serif;
+}
+
+.btnBox{
+    margin: 10px auto;
+    text-align: center;
+}
+.btnBox .fa{
+    margin: 0px 5px;
+    font-size: 30pt;
+    color: grey;
+    cursor: pointer;
+}</code></pre></details></li></ul><p id="1dd9f3c7-7168-442c-a840-970afee047bf" class="">
+</p><figure id="006e0172-ad50-4e5a-b450-2c432919cec8" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%209.png"><img style="width:720px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%209.png"/></a></figure></details></li></ul><ul id="80c6d555-eaf8-49c4-b02e-051029bda27f" class="toggle"><li><details open=""><summary><em><strong>Version 1</strong></em></summary><hr id="32c536c4-458a-4320-a8bc-f6814da791a3"/><figure id="911d37fc-57ee-41ca-bbb2-3ab4e52e6c16" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/E76B70B7-A59B-4AA1-B1BC-C28A13DA08AC.jpeg"><img style="width:432px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/E76B70B7-A59B-4AA1-B1BC-C28A13DA08AC.jpeg"/></a></figure><ul id="250cea35-1196-4794-a1e4-832d32e55d10" class="toggle"><li><details open=""><summary><em><strong>HTML → stopWatch.html</strong></em></summary><hr id="46151557-63eb-4014-b12e-fb9fab7c5c76"/><pre id="9a96a3f9-e4e6-4f7e-ba27-db3fb670dcba" class="code"><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+	&lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;style.css&quot;&gt;
+
+&lt;meta charset=&quot;UTF-8&quot;&gt;
+&lt;title&gt;StopWatch&lt;/title&gt;
+&lt;link href=&quot;https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css&quot; rel=&quot;stylesheet&quot; integrity=&quot;sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN&quot; crossorigin=&quot;anonymous&quot;&gt;
+&lt;script src=&quot;http://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js&quot;&gt;&lt;/script&gt;
+&lt;script type=&quot;text/javascript&quot; src=&quot;stopwatch.js&quot;&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+	&lt;div id=&#x27;box&#x27; class=&quot;box&quot;&gt;
+		&lt;div id=&#x27;timerBox&#x27; class=&quot;timerBox&quot;&gt;
+			&lt;p&gt;
+				&lt;span id=&quot;time&quot; class=&quot;time&quot;&gt;00:00:00&lt;/span&gt;&lt;span id=&quot;timeMil&quot; class=&quot;timeMil&quot;&gt;:000&lt;/span&gt;
+			&lt;/p&gt;
+			&lt;!-- &lt;div id=&quot;time&quot; class=&quot;time&quot;&gt;00:00:00.00&lt;/div&gt; --&gt;
+		&lt;/div&gt;
+		&lt;div class=&quot;btnBox&quot;&gt;
+			&lt;i id=&quot;startbtn&quot; onclick=&quot;startBtnOperate()&quot; class=&quot;fa fa-play&quot;  aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+			&lt;i id=&quot;pausebtn&quot; onclick=&quot;pauseBtn()&quot;        class=&quot;fa fa-pause&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+			&lt;i id=&quot;stopbtn&quot;  onclick=&quot;stopBtn()&quot;         class=&quot;fa fa-stop&quot;  aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+		&lt;/div&gt;
+	&lt;/div&gt;
+	&lt;table&gt;
+		&lt;thead&gt;
+
+		&lt;/thead&gt;
+		&lt;tbody&gt;
+
+		&lt;/tbody&gt;
+	&lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre><p id="0e61e0d4-3f1c-4bd2-b707-ec1df4fe1128" class="">
+</p></details></li></ul><ul id="0c308375-713a-42fa-9028-45c97a661e02" class="toggle"><li><details open=""><summary><em><strong>JavaScript → stopwatch.js</strong></em></summary><hr id="0a64074e-f6bb-41a1-ac34-c735793eb5b0"/><pre id="e48970d8-ecd0-489c-a0d7-868c660ae4ec" class="code"><code>let time = 0;
+var starFlag = true;
+
+let hour  = 0;
+let min   = 0;
+let sec   = 0;
+let mil   = 0;
+let timer;
+
+
+
+let startTime;
+let timerInterval;
+
+
+function init(){
+  document.getElementById(&quot;time&quot;).innerHTML = &quot;00:00:00&quot;;
+  document.getElementById(&quot;timeMil&quot;).innerHTML = &quot;:000&quot;;
+  hour  = 0;
+  min   = 0;
+  sec   = 0;
+  mil   = 0;
+}
+
+// parameter : start, pause, stop
+// function  : if a timer start change number color
+async function changeFontColor(command)
+{
+  $(&quot;.fa&quot;).css(&quot;color&quot;,&quot;grey&quot;);
+  document.getElementById(command+&#x27;btn&#x27;).style = &#x27;color: white;&#x27;;
+
+}
+
+
+
+  // document.getElementById(&#x27;startbtn&#x27;).addEventListener(&#x27;click&#x27;,startBtnOperate);
+
+
+  // start btn
+  function startBtnOperate()
+  {
+
+    document.getElementById(&#x27;time&#x27;).style=&#x27;color: white;&#x27;
+    document.getElementById(&#x27;timeMil&#x27;).style=&#x27;color: red;&#x27;
+
+    if(starFlag)
+    {
+      
+
+      changeFontColor(&#x27;start&#x27;);
+        starFlag = false;
+        if(time == 0)
+        {
+          init();
+        }
+        startTime = Date.now() - time;
+        timerInterval = setInterval(updateTimer, 10);
+      
+    }
+  }
+
+
+  function updateTimer() {
+    let currentTime = Date.now();
+    time = currentTime - startTime
+    presentCurrentTime();
+  }
+
+
+
+  // pause btn
+  function pauseBtn()
+    {
+      // when time is not zero -&gt; start button was operated 
+      if(time != 0)
+      {
+        changeFontColor(&#x27;pause&#x27;);
+        clearInterval(timerInterval);
+        starFlag = true;
+      }
+    };
+
+  // stop btn
+  function stopBtn()
+  {
+    if(time != 0){
+      changeFontColor(&#x27;stop&#x27;).then(()=&gt;{
+        clearInterval(timerInterval);
+        confirm(document.getElementById(&quot;time&quot;).textContent+document.getElementById(&quot;timeMil&quot;).textContent);
+        starFlag = true;
+        time = 0;
+        init();
+      })
+    }
+  }
+    
+
+
+  function presentCurrentTime()
+  {
+      if( mil == 1000 ) { mil  = 0; }
+      
+      mil  = time%1000;
+      sec  = Math.floor(time/1000);
+      min  = Math.floor(sec/60);
+      hour = Math.floor(min/60);
+      sec  = sec%60;
+      min  = min%60;
+
+    let th    = hour;
+    let tm    = min;
+    let ts    = sec;
+    let tmil  = mil; 
+    
+    if       (   th  &lt; 10  )  { th   = &quot;0&quot;   + hour;  }
+    if       (   tm  &lt; 10  )  { tm   = &quot;0&quot;   + min;   }
+    if       (   ts  &lt; 10  )  { ts   = &quot;0&quot;   + sec;   }
+    if       (  tmil &lt; 10  )  { tmil = &quot;00&quot;  + mil;   }
+    else { if( tmil  &lt; 100 )  { tmil = &quot;0&quot;   + mil; } }
+
+    document.getElementById(&quot;time&quot;).innerHTML    = th + &quot;:&quot; + tm + &quot;:&quot; + ts;
+    document.getElementById(&quot;timeMil&quot;).innerHTML = &quot;:&quot;+tmil;
+  }</code></pre><p id="f52b637c-c34c-48c1-bd3a-1722ca01859a" class="">
+</p></details></li></ul><ul id="076eb3f8-ea26-45c1-9038-cc4de583b3b8" class="toggle"><li><details open=""><summary><em><strong>CSS→ style.css</strong></em></summary><pre id="d35ef60d-1af0-41a5-9696-5d401eec4221" class="code"><code>*{
+    margin: 0px;
+    padding: 0px;
+    background-color: rgb(148, 80, 224);
+}
+  body{
+    height: 100vh;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+ }
+ .box{
+    width: 400px;
+    height: 300px;
+}
+.timerBox{
+    width: 400px;
+    text-align: center;
+}
+.timerBox .time{
+    font-size: 80pt;
+    color: grey;
+    text-align: center;
+    font-family: sans-serif;
+}
+
+.timerBox .timeMil{
+    font-size: 40pt;
+    color: grey;
+    font-family: sans-serif;
+}
+
+.btnBox{
+    margin: 10px auto;
+    text-align: center;
+}
+.btnBox .fa{
+    margin: 0px 5px;
+    font-size: 30pt;
+    color: grey;
+    cursor: pointer;
+}</code></pre></details></li></ul></details></li></ul><p id="d4763057-90a5-462f-b58f-c7674a97286a" class="">
+</p><ul id="3e947b34-e4b2-4bae-9b19-5ca99afe356c" class="toggle"><li><details open=""><summary><em><strong>Version 2 → 2023-05-15</strong></em></summary><hr id="e0336029-70fe-4020-b6ab-610afd41a31b"/><p id="6f14df03-d765-4195-8e48-3a9ca17c52b3" class="">
+</p><figure id="d8ea01a2-f035-4cb1-862a-1842d6740e6b" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2010.png"><img style="width:720px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2010.png"/></a></figure><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="e3d47fda-8a33-4cc0-bb72-7c39a1d94024"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">정지 버튼을 누르면 data table 이 생성되게 했다. <p id="824715f2-e4b6-434a-b80b-0d74ef99e824" class="">html 에서는 datatable 을 만들어 본적이 없어서 힘들었다. 그래도 lwc 에서 많이 했던 내용이라서 </p><p id="eace65b0-d882-4767-a7cc-4e2ddeb559f0" class="">내용 자체는 어렵지 않았는데 css 가 너무 어려웠다. </p><ul id="9a78c7f1-298b-4c26-a857-324596b14967" class="toggle"><li><details open=""><summary><em><strong>HTML → stopWatch.html</strong></em></summary><hr id="70142f80-ca60-4cb8-a8a8-876c5b7028d1"/><pre id="df8a629a-616f-43b0-860b-39244d71f815" class="code"><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+	&lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;style.css&quot;&gt;
+
+&lt;meta charset=&quot;UTF-8&quot;&gt;
+&lt;title&gt;StopWatch&lt;/title&gt;
+&lt;link href=&quot;https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css&quot; rel=&quot;stylesheet&quot; integrity=&quot;sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN&quot; crossorigin=&quot;anonymous&quot;&gt;
+&lt;script src=&quot;http://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js&quot;&gt;&lt;/script&gt;
+&lt;script type=&quot;text/javascript&quot; src=&quot;stopwatch.js&quot;&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+	&lt;div id=&#x27;box&#x27; class=&quot;box&quot;&gt;
+
+		&lt;div id=&#x27;timerBox&#x27; class=&quot;timerBox&quot;&gt;
+			&lt;p&gt;
+				&lt;span id=&quot;time&quot; class=&quot;time&quot;&gt;00:00:00&lt;/span&gt;&lt;span id=&quot;timeMil&quot; class=&quot;timeMil&quot;&gt;:000&lt;/span&gt;
+			&lt;/p&gt;
+		&lt;/div&gt;
+		
+		&lt;div class=&quot;btnBox&quot;&gt;
+			&lt;i id=&quot;startbtn&quot; onclick=&quot;startBtnOperate()&quot; class=&quot;fa fa-play&quot;  aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+			&lt;i id=&quot;pausebtn&quot; onclick=&quot;pauseBtn()&quot;        class=&quot;fa fa-pause&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+			&lt;i id=&quot;stopbtn&quot;  onclick=&quot;stopBtn()&quot;         class=&quot;fa fa-stop&quot;  aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+		&lt;/div&gt;
+
+
+		&lt;div id=&quot;dataTable&quot; class=&quot;styled-table&quot; style=&quot;display: none;&quot;&gt;
+			&lt;table id=&quot;firstTable&quot;&gt;
+				&lt;thead&gt;
+				  &lt;tr&gt;
+					&lt;th&gt;No&lt;/th&gt;
+					&lt;th&gt;Title&lt;/th&gt;
+					&lt;th&gt;Time&lt;/th&gt;
+				  &lt;/tr&gt;
+				&lt;/thead&gt;
+				&lt;tbody&gt;
+	
+				&lt;/tbody&gt;
+			  &lt;/table&gt;	
+		&lt;/div&gt;
+
+	&lt;/div&gt;
+
+
+		
+	
+&lt;/body&gt;
+&lt;/html&gt;</code></pre><p id="08772454-ef02-4313-a953-2ce8a993e34f" class="">
+</p></details></li></ul><ul id="63e96e8c-52a9-43b3-a9dc-36c98cc846e3" class="toggle"><li><details open=""><summary><em><strong>JavaScript → stopwatch.js</strong></em></summary><hr id="5377ef89-55aa-4275-9e5f-371d474894c5"/><pre id="a135f139-1871-43cc-a17b-dcdbcc702faa" class="code"><code>let time = 0;
+var starFlag = true;
+
+let hour  = 0;
+let min   = 0;
+let sec   = 0;
+let mil   = 0;
+let timer;
+let startTime;
+let timerInterval;
+
+
+
+
+
+let dataTable =[];
+
+function insertTimeData(title, time)
+{
+  if(dataTable.length == 0)
+  {
+    dataTable.push({&quot;number&quot;:1, &quot;title&quot;:title, &quot;time&quot;:time} );
+  }
+  else
+  {
+    dataTable.push({&quot;number&quot;:dataTable[dataTable.length-1].number+1, &quot;title&quot;:title, &quot;time&quot;:time} );
+  }
+
+  rendering();
+}
+
+function rendering()
+{
+  let table = document.getElementById(&#x27;firstTable&#x27;);
+  let tbody = table.querySelector(&quot;tbody&quot;);
+  tbody.innerHTML = &quot;&quot;;
+
+  dataTable.forEach((item)=&gt;{
+
+    let row = document.createElement(&quot;tr&quot;);
+
+    let cel1 = document.createElement(&quot;td&quot;);
+    cel1.textContent = item.number;
+    row.appendChild(cel1);
+
+
+    let cel2 = document.createElement(&quot;td&quot;);
+    cel2.textContent = item.title;
+    row.appendChild(cel2);
+
+
+    let cel3 = document.createElement(&quot;td&quot;);
+    cel3.textContent = item.time;
+    row.appendChild(cel3);
+
+    tbody.appendChild(row);
+
+  })
+}
+
+
+
+function init(){
+  document.getElementById(&quot;time&quot;).innerHTML = &quot;00:00:00&quot;;
+  document.getElementById(&quot;timeMil&quot;).innerHTML = &quot;:000&quot;;
+  hour  = 0;
+  min   = 0;
+  sec   = 0;
+  mil   = 0;
+}
+
+// parameter : start, pause, stop
+// function  : if a timer start change number color
+async function changeFontColor(command)
+{
+  $(&quot;.fa&quot;).css(&quot;color&quot;,&quot;grey&quot;);
+  document.getElementById(command+&#x27;btn&#x27;).style = &#x27;color: white;&#x27;;
+
+}
+
+
+
+  // document.getElementById(&#x27;startbtn&#x27;).addEventListener(&#x27;click&#x27;,startBtnOperate);
+
+
+  // start btn
+  function startBtnOperate()
+  {
+
+    document.getElementById(&#x27;time&#x27;).style=&#x27;color: white;&#x27;
+    document.getElementById(&#x27;timeMil&#x27;).style=&#x27;color: red;&#x27;
+
+    if(starFlag)
+    {
+      
+
+      changeFontColor(&#x27;start&#x27;);
+        starFlag = false;
+        if(time == 0)
+        {
+          init();
+        }
+        startTime = Date.now() - time;
+        timerInterval = setInterval(updateTimer, 10);
+      
+    }
+  }
+
+
+  function updateTimer() {
+    let currentTime = Date.now();
+    time = currentTime - startTime
+    presentCurrentTime();
+  }
+
+
+
+  // pause btn
+  function pauseBtn()
+    {
+      // when time is not zero -&gt; start button was operated 
+      if(time != 0)
+      {
+        changeFontColor(&#x27;pause&#x27;);
+        clearInterval(timerInterval);
+        starFlag = true;
+    
+      }
+    };
+
+
+
+
+
+
+  // stop btn
+  function stopBtn()
+  {
+    if(time != 0){
+      changeFontColor(&#x27;stop&#x27;).then(()=&gt;{
+        clearInterval(timerInterval);
+        confirm(document.getElementById(&quot;time&quot;).textContent+document.getElementById(&quot;timeMil&quot;).textContent);
+  
+        starFlag = true;
+        time = 0;
+        let title = prompt();
+
+        document.getElementById(&#x27;dataTable&#x27;).style = &#x27;block&#x27;;
+
+        insertTimeData(title,document.getElementById(&quot;time&quot;).textContent);
+        init();
+      })
+    }
+  }
+    
+
+
+  function presentCurrentTime()
+  {
+      if( mil == 1000 ) { mil  = 0; }
+      
+      mil  = time%1000;
+      sec  = Math.floor(time/1000);
+      min  = Math.floor(sec/60);
+      hour = Math.floor(min/60);
+      sec  = sec%60;
+      min  = min%60;
+
+    let th    = hour;
+    let tm    = min;
+    let ts    = sec;
+    let tmil  = mil; 
+    
+    if       (   th  &lt; 10  )  { th   = &quot;0&quot;   + hour;  }
+    if       (   tm  &lt; 10  )  { tm   = &quot;0&quot;   + min;   }
+    if       (   ts  &lt; 10  )  { ts   = &quot;0&quot;   + sec;   }
+    if       (  tmil &lt; 10  )  { tmil = &quot;00&quot;  + mil;   }
+    else { if( tmil  &lt; 100 )  { tmil = &quot;0&quot;   + mil; } }
+
+    document.getElementById(&quot;time&quot;)   .innerHTML    = th + &quot;:&quot; + tm + &quot;:&quot; + ts;
+    document.getElementById(&quot;timeMil&quot;).innerHTML = &quot;:&quot;+tmil;
+  }</code></pre><p id="268a72ad-7856-49a2-a299-ac0dbe32f400" class="">
+</p></details></li></ul><ul id="79b646c2-d707-46d5-8728-1a741cb6da54" class="toggle"><li><details open=""><summary><em><strong>CSS→ style.css</strong></em></summary><hr id="65fbc352-8c66-4eac-b128-1179a1d6faf5"/><pre id="683b7545-33d7-4156-a4af-5d9cd9b85ceb" class="code"><code>*{
+    margin: 0px;
+    padding: 0px;
+    background-color: rgb(148, 80, 224);
+}
+  body{
+    height: 100vh;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+ }
+ .box{
+    background-color: rgb(148, 80, 224);
+    border-radius: 10px;
+    width: 400px;
+    height: 300px;
+}
+.timerBox{
+    width: 400px;
+    justify-content: center;
+    text-align: center;
+}
+.timerBox .time{
+    font-size: 80pt;
+    color: grey;
+    text-align: center;
+    font-family: sans-serif;
+}
+
+.timerBox .timeMil{
+    font-size: 40pt;
+    color: grey;
+    font-family: sans-serif;
+}
+
+.btnBox{
+    margin: 10px auto;
+    text-align: center;
+}
+.btnBox .fa{
+    margin: 0px 5px;
+    font-size: 30pt;
+    color: grey;
+    cursor: pointer;
+}
+
+
+.box .styled-table {
+    padding-top: 1em;
+    display: flex;
+    justify-content: center; /* 수평 가운데 정렬 */
+    align-items: center; /* 수직 가운데 정렬 */
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Arial, sans-serif;
+    color: #333;
+  }
+  
+  .box .styled-table thead th {
+    border-radius: 5px;
+    background-color: #c24bc2; 
+    text-align: center;
+    color: white;
+    padding: 10px;
+  }
+
+
+  .box .styled-table thead th:hover {
+    background-color: #e72a53; 
+  }
+  
+
+  
+  .box .styled-table tbody td {
+    border-bottom: 1px solid rgb(148, 80, 224);
+    padding: 10px;
+    color: white;
+  }
+  
+  .box .styled-table tbody tr:nth-child(even) {
+    background-color: #f5f5f5;
+  }
+  
+  .box .styled-table tbody tr:hover {
+    background-color: yellow;
+  }</code></pre></details></li></ul><p id="e78174d8-4502-405c-bfe3-e3c7a708e702" class="">
+</p><p id="5293373d-f931-4585-873f-79cbf50153f8" class="">
+</p><ol type="1" id="7a7c61f3-e3bb-4b70-b5fd-a700ceab97e1" class="numbered-list" start="1"><li>맨처음에 곤란 했던 것은 해당 세로로 정렬하는 것이 안되어서 애를 좀 먹었다 <pre id="4439118d-8b7b-4a39-9351-cc86345e4020" class="code"><code>.box .table{
+    padding-top: 1em;
+    display: flex;
+    justify-content: center; /* 수평 가운데 정렬 */
+    align-items: center; /* 수직 가운데 정렬 */
+}</code></pre></li></ol><p id="acc73775-99bf-4f49-95b7-25f07eeb21d4" class="">
+</p><ol type="1" id="f4ddf176-b3c6-4a81-81b5-1c2ab8a70d4a" class="numbered-list" start="2"><li>data table css ⇒ chat gpt <pre id="7234b85d-6dfe-4c4f-b22b-1a2dce05141e" class="code"><code>.box .styled-table {
+    padding-top: 1em;
+    display: flex;
+    justify-content: center; /* 수평 가운데 정렬 */
+    align-items: center; /* 수직 가운데 정렬 */
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Arial, sans-serif;
+    color: #333;
+  }
+  
+  .box .styled-table thead th {
+    border-radius: 5px;
+    background-color: #c24bc2; 
+    text-align: center;
+    color: white;
+    padding: 10px;
+  }
+
+
+  .box .styled-table thead th:hover {
+    background-color: #e72a53; 
+  }
+  
+
+  
+  .box .styled-table tbody td {
+    border-bottom: 1px solid rgb(148, 80, 224);
+    padding: 10px;
+    color: white;
+  }
+  
+  .box .styled-table tbody tr:nth-child(even) {
+    background-color: #f5f5f5;
+  }
+  
+  .box .styled-table tbody tr:hover {
+    background-color: yellow;</code></pre></li></ol><p id="6530fb58-34a8-4bfe-97ce-7062efe377f9" class="">
+</p><ol type="1" id="1c4b19f1-a498-42e9-b312-78a24190d1e5" class="numbered-list" start="3"><li>이번에 생성한 js <pre id="1ffca420-f5ba-4915-adb7-8be7fcf49f53" class="code"><code>let title = prompt();
+
+        document.getElementById(&#x27;dataTable&#x27;).style = &#x27;block&#x27;;
+
+        insertTimeData(title,document.getElementById(&quot;time&quot;).textContent);
+        init();</code></pre><p id="5d73686e-e458-43aa-ab33-005da192916d" class="">⇒ prompt 를 설정해서 html 에서 해당 시간에 대한 제목을 설정 , 초 단위 까지의 시간을 함수로 넘김 </p><p id="08c56dce-4191-4909-b256-46b243e42251" class="">
+</p><p id="498c7e38-db97-406c-b9ee-d1a95b2b468e" class="">매개변수로 제목, 시간을 받아서 배열에 추가한다.</p><pre id="daa7c45e-c16e-441c-88a7-687823efc50c" class="code"><code>let dataTable =[];
+
+function insertTimeData(title, time)
+{
+  if(dataTable.length == 0)
+  {
+    dataTable.push({&quot;number&quot;:1, &quot;title&quot;:title, &quot;time&quot;:time} );
+  }
+  else
+  {
+    dataTable.push({&quot;number&quot;:dataTable[dataTable.length-1].number+1, &quot;title&quot;:title, &quot;time&quot;:time} );
+  }
+
+  rendering();
+}</code></pre><p id="a2a412ff-94be-4c39-bd3f-81fc07befc3a" class="">
+</p><p id="bdd140e3-5373-4c6e-91d9-ea57f306c697" class="">
+</p><p id="91a242c0-3250-4d47-a777-a8d20214d6f3" class="">배열 값을 rendering 해서 동적으로 table 을 생성 </p><pre id="a36c2e24-d1e7-42bd-9a75-6a0dbb6377b0" class="code"><code>function rendering()
+{
+  let table = document.getElementById(&#x27;firstTable&#x27;);
+  let tbody = table.querySelector(&quot;tbody&quot;);
+
+  // datatable 초기화 
+  tbody.innerHTML = &quot;&quot;;
+
+  dataTable.forEach((item)=&gt;{
+
+    let row = document.createElement(&quot;tr&quot;);
+
+    let cel1 = document.createElement(&quot;td&quot;);
+    cel1.textContent = item.number;
+    row.appendChild(cel1);
+
+
+    let cel2 = document.createElement(&quot;td&quot;);
+    cel2.textContent = item.title;
+    row.appendChild(cel2);
+
+
+    let cel3 = document.createElement(&quot;td&quot;);
+    cel3.textContent = item.time;
+    row.appendChild(cel3);
+
+    tbody.appendChild(row);
+
+  })
+}</code></pre><p id="a4cc6bfd-634b-4a04-8fe3-a86d6c126dac" class="">
+</p></li></ol></div></figure><p id="a9bc2380-fe67-40cc-90f1-f942bfeedba7" class="">
+</p></details></li></ul><ul id="d5cc6221-c40b-4746-9ecc-2ef21ebec941" class="toggle"><li><details open=""><summary><em><strong>Version 3 → 2023-05-16</strong></em></summary><hr id="dc493bc1-c26f-4582-97fb-ec1af21c1b22"/><figure id="1863ddeb-d5ea-4018-b0ae-f21df0e9b94e" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2011.png"><img style="width:672px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2011.png"/></a></figure><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="8108b4f2-91ce-4293-a73e-91f88db1b8be"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">오늘 한 거는 <ol type="1" id="564ccc4a-3382-4aad-8a58-a8787a843b31" class="numbered-list" start="1"><li>dataTable 에 동적으로 버튼 추가 </li></ol><ol type="1" id="b0ed4501-00bb-4867-b5ca-1717aa0e3d0a" class="numbered-list" start="2"><li>tfoot 이용 해서 시간 누산해서 나타내기 </li></ol><ol type="1" id="ae249555-e3c1-44dd-9d96-bdc17987b793" class="numbered-list" start="3"><li>Date 객체 이용해서 오늘 날짜 구하기 </li></ol><ol type="1" id="9fb62da2-197b-443f-ac60-46b2b083cc22" class="numbered-list" start="4"><li>그외 css </li></ol><p id="598deeeb-5c30-4484-8c15-6455b62529be" class=""> </p><ul id="ffd03363-5229-4c99-884d-73165a0a7b48" class="toggle"><li><details open=""><summary><em><strong>HTML → stopWatch.html</strong></em></summary><hr id="ee7c5eb1-0d4a-491d-ba2e-eb8d4ef49e81"/><pre id="7c39b345-fefe-4be9-a6e7-04027c31a910" class="code"><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+	&lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;style.css&quot;&gt;
+
+&lt;meta charset=&quot;UTF-8&quot;&gt;
+&lt;title&gt;StopWatch&lt;/title&gt;
+&lt;link href=&quot;https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css&quot; rel=&quot;stylesheet&quot; integrity=&quot;sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN&quot; crossorigin=&quot;anonymous&quot;&gt;
+&lt;script src=&quot;http://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js&quot;&gt;&lt;/script&gt;
+&lt;script type=&quot;text/javascript&quot; src=&quot;stopwatch.js&quot;&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+	&lt;div id=&#x27;box&#x27; class=&quot;box&quot;&gt;
+
+		&lt;div id=&#x27;timerBox&#x27; class=&quot;timerBox&quot;&gt;
+			&lt;p&gt;
+				&lt;span id=&quot;time&quot; class=&quot;time&quot;&gt;00:00:00&lt;/span&gt;&lt;span id=&quot;timeMil&quot; class=&quot;timeMil&quot;&gt;:000&lt;/span&gt;
+			&lt;/p&gt;
+		&lt;/div&gt;
+		
+		&lt;div class=&quot;btnBox&quot;&gt;
+			&lt;i id=&quot;startbtn&quot; onclick=&quot;startBtnOperate()&quot; class=&quot;fa fa-play&quot;  aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+			&lt;i id=&quot;pausebtn&quot; onclick=&quot;pauseBtn()&quot;        class=&quot;fa fa-pause&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+			&lt;i id=&quot;stopbtn&quot;  onclick=&quot;stopBtn()&quot;         class=&quot;fa fa-stop&quot;  aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+		&lt;/div&gt;
+
+		&lt;span id=&quot;todayTime&quot; class=&quot;todayTime&quot; style=&quot;display: none;&quot;&gt; 오늘 시간&lt;/span&gt;
+
+		&lt;div id=&quot;dataTable&quot; class=&quot;styled-table&quot; style=&quot;display: none;&quot;&gt;
+			&lt;table id=&quot;firstTable&quot;&gt;
+				&lt;thead&gt;
+				  &lt;tr&gt;
+					&lt;th&gt;No&lt;/th&gt;
+					&lt;th&gt;Title&lt;/th&gt;
+					&lt;th&gt;Time&lt;/th&gt;
+					&lt;th&gt;Option&lt;/th&gt;
+				  &lt;/tr&gt;
+				&lt;/thead&gt;
+				&lt;tbody&gt;
+	
+				&lt;/tbody&gt;
+				&lt;tfoot class=&quot;tfootBorder&quot;&gt;
+
+				&lt;/tfoot&gt;
+			  &lt;/table&gt;	
+		&lt;/div&gt;
+
+	&lt;/div&gt;
+
+
+		
+	
+&lt;/body&gt;
+&lt;/html&gt;</code></pre><p id="4f9bb5a0-9bee-4e4d-873c-5446302e93dc" class="">
+</p></details></li></ul><ul id="350576a1-8b21-4a44-88b4-781267b174b5" class="toggle"><li><details open=""><summary><em><strong>JavaScript → stopwatch.js</strong></em></summary><hr id="036e5702-e611-4d76-a5c3-96f6feadff64"/><pre id="e34bfdff-d0be-4649-b32f-c5a4dce3b471" class="code"><code>let time = 0;
+var starFlag = true;
+
+let hour  = 0;
+let min   = 0;
+let sec   = 0;
+let mil   = 0;
+let timer;
+let startTime;
+let timerInterval;
+
+
+
+
+
+let dataTable =[];
+
+function insertTimeData(title, time)
+{
+
+  // 오늘 시간 알리기
+  let todayTime = document.getElementById(&#x27;todayTime&#x27;);
+  let dateTime = new Date();
+  todayTime.textContent = dateTime.getFullYear()+&#x27;.&#x27;+(dateTime.getMonth()+1)+&#x27;.&#x27;+dateTime.getDate();
+  todayTime.style.display = &#x27;block&#x27;;
+
+  if(dataTable.length == 0)
+  {
+    dataTable.push({&quot;number&quot;:1, &quot;title&quot;:title, &quot;time&quot;:time} );
+  }
+  else
+  {
+    dataTable.push({&quot;number&quot;:dataTable[dataTable.length-1].number+1, &quot;title&quot;:title, &quot;time&quot;:time} );
+  }
+
+  rendering();
+}
+
+function rendering()
+{
+  let table = document.getElementById(&#x27;firstTable&#x27;);
+  let tbody = table.querySelector(&quot;tbody&quot;);
+  tbody.innerHTML = &quot;&quot;;
+
+
+  /**
+   * @ timeSub
+   * @ Description : 사용한 시간의 총 합을 구하기 위해서 
+   */
+  let hourSub = 0;
+  let minSub  = 0;
+  let secSub  = 0;
+
+  dataTable.forEach((item)=&gt;{
+
+    let row = document.createElement(&quot;tr&quot;);
+
+    let cel1 = document.createElement(&quot;td&quot;);
+    cel1.textContent = item.number;
+    row.appendChild(cel1);
+
+
+    let cel2 = document.createElement(&quot;td&quot;);
+    cel2.textContent = item.title;
+    row.appendChild(cel2);
+
+
+    let cel3 = document.createElement(&quot;td&quot;);
+
+    let tempTime     = item.time;
+    cel3.textContent = tempTime;
+    let token = tempTime.split(&quot;:&quot;);
+    hourSub += parseInt(token[0]);
+    minSub  += parseInt(token[1]);
+    secSub  += parseInt(token[2]);
+
+    
+    row.appendChild(cel3);
+
+    
+    let cel4   = document.createElement(&quot;td&quot;);
+    let button = document.createElement(&quot;button&quot;);
+
+      button.className=&quot;dataTableBtn&quot;;
+      button.textContent = &quot;setting&quot;
+      button.addEventListener(&quot;click&quot;,()=&gt;{ console.log(&#x27;test&#x27;); }); 
+      cel4.appendChild(button); 
+      row.appendChild(cel4)
+
+    tbody.appendChild(row);
+    
+  })
+
+  setTfoot(hourSub,minSub,secSub);
+}
+
+
+function setTfoot(hour,min,sec)
+{ 
+
+  let foot = document.querySelector(&#x27;tfoot&#x27;);
+  foot.innerHTML = &quot;&quot;;
+  let cel1 = document.createElement(&#x27;td&#x27;);
+  let cel2 = document.createElement(&#x27;td&#x27;);
+  let cel3 = document.createElement(&#x27;td&#x27;);
+  let cel4 = document.createElement(&#x27;td&#x27;);
+
+  min  += Math.floor(sec/60);
+  hour += Math.floor(min/60);
+  cel4.className =&quot;totalTime&quot;
+  cel4.textContent = hour+&quot; 시간 &quot;+min%60+&quot; 분 &quot;+sec%60+&quot; 초 &quot;;
+
+  foot.appendChild(cel1);
+  foot.appendChild(cel2);
+  foot.appendChild(cel3);
+  foot.appendChild(cel4);
+
+}
+
+
+
+
+function init(){
+  document.getElementById(&quot;time&quot;).innerHTML = &quot;00:00:00&quot;;
+  document.getElementById(&quot;timeMil&quot;).innerHTML = &quot;:000&quot;;
+  hour  = 0;
+  min   = 0;
+  sec   = 0;
+  mil   = 0;
+}
+
+// parameter : start, pause, stop
+// function  : if a timer start change number color
+async function changeFontColor(command)
+{
+  $(&quot;.fa&quot;).css(&quot;color&quot;,&quot;grey&quot;);
+  document.getElementById(command+&#x27;btn&#x27;).style = &#x27;color: white;&#x27;;
+
+}
+
+
+
+  // document.getElementById(&#x27;startbtn&#x27;).addEventListener(&#x27;click&#x27;,startBtnOperate);
+
+
+  // start btn
+  function startBtnOperate()
+  {
+
+    document.getElementById(&#x27;time&#x27;).style=&#x27;color: white;&#x27;
+    document.getElementById(&#x27;timeMil&#x27;).style=&#x27;color: red;&#x27;
+
+    if(starFlag)
+    {
+      
+
+      changeFontColor(&#x27;start&#x27;);
+        starFlag = false;
+        if(time == 0)
+        {
+          init();
+        }
+        startTime = Date.now() - time;
+        timerInterval = setInterval(updateTimer, 10);
+      
+    }
+  }
+
+
+  function updateTimer() {
+    let currentTime = Date.now();
+    time = currentTime - startTime
+    presentCurrentTime();
+  }
+
+
+
+  // pause btn
+  function pauseBtn()
+    {
+      // when time is not zero -&gt; start button was operated 
+      if(time != 0)
+      {
+        changeFontColor(&#x27;pause&#x27;);
+        clearInterval(timerInterval);
+        starFlag = true;
+    
+      }
+    };
+
+
+
+
+
+
+  // stop btn
+  function stopBtn()
+  {
+    if(time != 0){
+      changeFontColor(&#x27;stop&#x27;).then(()=&gt;{
+        clearInterval(timerInterval);
+        confirm(document.getElementById(&quot;time&quot;).textContent+document.getElementById(&quot;timeMil&quot;).textContent);
+  
+        starFlag = true;
+        time = 0;
+        let title = prompt();
+
+        document.getElementById(&#x27;dataTable&#x27;).style = &#x27;block&#x27;;
+
+        insertTimeData(title,document.getElementById(&quot;time&quot;).textContent);
+        init();
+      })
+    }
+  }
+    
+
+
+  function presentCurrentTime()
+  {
+      if( mil == 1000 ) { mil  = 0; }
+      
+      mil  = time%1000;
+      sec  = Math.floor(time/1000);
+      min  = Math.floor(sec/60);
+      hour = Math.floor(min/60);
+      sec  = sec%60;
+      min  = min%60;
+
+    let th    = hour;
+    let tm    = min;
+    let ts    = sec;
+    let tmil  = mil; 
+    
+    if       (   th  &lt; 10  )  { th   = &quot;0&quot;   + hour;  }
+    if       (   tm  &lt; 10  )  { tm   = &quot;0&quot;   + min;   }
+    if       (   ts  &lt; 10  )  { ts   = &quot;0&quot;   + sec;   }
+    if       (  tmil &lt; 10  )  { tmil = &quot;00&quot;  + mil;   }
+    else { if( tmil  &lt; 100 )  { tmil = &quot;0&quot;   + mil; } }
+
+    document.getElementById(&quot;time&quot;)   .innerHTML    = th + &quot;:&quot; + tm + &quot;:&quot; + ts;
+    document.getElementById(&quot;timeMil&quot;).innerHTML = &quot;:&quot;+tmil;
+  }</code></pre><p id="9bafcf38-d1db-4be9-b317-542cba9f77f0" class="">
+</p></details></li></ul><ul id="796c5ee2-2b20-4ff4-ba99-0ba925177d59" class="toggle"><li><details open=""><summary><em><strong>CSS→ style.css</strong></em></summary><hr id="ecb3aff3-aa20-4295-bf31-6eacb3463f74"/><pre id="bab22e26-4c93-4e7c-93ef-113d0a94fcd9" class="code"><code>*{
+    margin: 0px;
+    padding: 0px;
+    background-color: rgb(148, 80, 224);
+}
+  body{
+    height: 100vh;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+ }
+ .box{
+    background-color: rgb(148, 80, 224);
+    border-radius: 10px;
+    width: 400px;
+    height: 300px;
+}
+.timerBox{
+    width: 400px;
+    justify-content: center;
+    text-align: center;
+}
+.timerBox .time{
+    font-size: 80pt;
+    color: grey;
+    text-align: center;
+    font-family: sans-serif;
+}
+
+.timerBox .timeMil{
+    font-size: 40pt;
+    color: grey;
+    font-family: sans-serif;
+}
+
+.btnBox{
+    margin: 10px auto;
+    text-align: center;
+}
+.btnBox .fa{
+    margin: 0px 5px;
+    font-size: 30pt;
+    color: grey;
+    cursor: pointer;
+}
+
+
+.box .styled-table {
+    padding-top: 1em;
+    display: flex;
+    justify-content: center; /* 수평 가운데 정렬 */
+    align-items: center; /* 수직 가운데 정렬 */
+    width: 100%;
+    font-family: Arial, sans-serif;
+    color: #333;
+  }
+  
+  .box .styled-table thead th {
+    border-radius: 5px;
+    background-color: #c24bc2; 
+    text-align: center;
+    color: white;
+    padding: 10px;
+  }
+
+
+  .box .styled-table thead th:hover {
+    background-color: #e72a53; 
+  }
+  
+
+  
+  .box .styled-table tbody td {
+    border-style: 1px solid rgb(148, 80, 224);
+    padding: 10px;
+    color: white;
+  }
+  
+  .box .styled-table tbody tr:nth-child(even) {
+    background-color: #f5f5f5;
+  }
+  
+  .box .styled-table tbody tr:hover {
+    background-color: yellow;
+  }
+
+
+  .box .styled-table tfoot td {
+    border-style: 1px solid rgb(148, 80, 224);
+    padding: 10px;
+    color: white;
+  }
+  
+  .box .styled-table tfoot tr:nth-child(even) {
+    background-color: #f5f5f5;
+  }
+  
+  .box .styled-table tfoot tr:hover {
+    background-color: yellow;
+  }
+
+
+  .tfootBorder{
+    border-style: solid none none none;
+    border-color: azure;
+  }
+
+  .dataTableBtn{
+    color: white;
+    background-color: #c24bc2;
+    width: 60px;
+    height: 28px;
+    margin: auto;
+    border-radius: 10px;
+    border: none;
+    box-shadow: 4px 6px   rgba(53, 47, 47, 0.199);
+    text-align: center;
+    align-items: center;
+    display: flex;
+    justify-content: center;
+  }
+
+  .dataTableBtn:hover{
+    color: black;
+    background-color: gray;
+    box-shadow: 0px 0px   rgba(243, 241, 241, 0.3);
+  }
+
+  .totalTime
+  {
+    font-size: 5px;
+  }
+
+  .todayTime{
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    align-items: center;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    font-size: 20px;
+    color: white;
+  }</code></pre></details></li></ul><p id="6b9b5e17-294f-4eec-943e-6e03b451ab4f" class="">
+</p><p id="7f73ae10-7dde-4bf8-bd9f-6382101e3c59" class="">
+</p><ul id="4f80e82e-3af7-4a00-afcc-868cde6aeab3" class="toggle"><li><details open=""><summary>Question : Table Footer , Border                                                                      → 2023-05-16</summary><hr id="681ae7b7-8c93-42b9-b95a-3db31572662d"/><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="399e2a53-c213-4b85-b01c-8c1ce06a5227"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">Table Footer , Border<p id="85d99485-7469-47b5-880f-4c229c22cfb9" class="">⇒ DataTable 형태를 다루면서 tfoot 이 있는지 처음 알았다. </p><p id="9e76454a-f45b-4748-94eb-419e87c8e895" class="">발견한 계기는 DataTable 형태를 구하려다 보면 결과만 나타내는 칸이 있는데 그 칸이 필요했다. </p><p id="a9b34480-de24-4cfd-8d75-770cac352e8e" class="">그래서 찾아본 결과 tfoot 엘리먼트가 존재했다.</p><figure id="bd06e0fa-599b-4db5-8227-2ccb5d106731" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%202.png"><img style="width:480px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%202.png"/></a></figure><figure id="ac8c27d9-4055-4a7d-bef0-1a8e27683bcf"><a href="https://m31phy.tistory.com/65" class="bookmark source"><div class="bookmark-info"><div class="bookmark-text"><div class="bookmark-title">[HTML/CSS] 테이블 만들기</div><div class="bookmark-description">개인적으로 HTML에서 테이블을 어떻게 만드는지를 정리한 글입니다. (Revised: 2020/10/01). 참고한 레퍼런스들은 아래에 있습니다. 1. 테이블의 요소 HTML에서 테이블을 만들기 위해서 필요한 요소들은 다음과 같다; , , , , , , , 1) HTML에서 기본적인 테이블을 만드는 순서 ■ 태그를 이용하여 만들 테이블을 정의 ■ 태그를 사용하여 테이블에서 사용할 행들을 선언 ■ 태그 내부에 태그를 사용하여 나타낼 테이터/셀 칸들을 정의 &gt; 2) 요약 ■ : 작성할 테이블을 정의 ■ : 작성할 테이블의 행을 정의 (table row) ■ : 작성할 테이블의 열의 제목을 정의 (table headline) ■ : 작성할 테이블 내의 데이터가 들어갈 셀을 정의 (table data) ■ //..</div></div><div class="bookmark-href"><img src="https://t1.daumcdn.net/tistory_admin/favicon/tistory_favicon_32x32.ico" class="icon bookmark-icon"/>https://m31phy.tistory.com/65</div></div><img src="https://img1.daumcdn.net/thumb/R800x0/?scode=mtistory2&amp;fname=https%3A%2F%2Ft1.daumcdn.net%2Ftistory_admin%2Fstatic%2Fimages%2FopenGraph%2Fopengraph.png" class="bookmark-image"/></a></figure><p id="c0a5d7e8-6418-44d0-b661-8cd7e126bcb3" class="">
+</p><p id="4a336612-b927-4339-a855-49449c4e06d5" class="">
+</p><pre id="d19804ee-a7c5-4048-bfc9-30b8f532b8ed" class="code"><code>&lt;div id=&quot;dataTable&quot; class=&quot;styled-table&quot; style=&quot;display: none;&quot;&gt;
+			&lt;table id=&quot;firstTable&quot;&gt;
+				&lt;thead&gt;
+				  &lt;tr&gt;
+					&lt;th&gt;No&lt;/th&gt;
+					&lt;th&gt;Title&lt;/th&gt;
+					&lt;th&gt;Time&lt;/th&gt;
+					&lt;th&gt;Option&lt;/th&gt;
+				  &lt;/tr&gt;
+				&lt;/thead&gt;
+				&lt;tbody&gt;
+	
+				&lt;/tbody&gt;
+				&lt;tfoot class=&quot;tfootBorder&quot;&gt;
+					&lt;th&gt;&lt;/th&gt;
+					&lt;th&gt;&lt;/th&gt;
+					&lt;th&gt;&lt;/th&gt;
+					&lt;th&gt;총 : 12시간&lt;/th&gt;
+				&lt;/tfoot&gt;
+			  &lt;/table&gt;</code></pre><p id="2f3c55a4-01bb-4eaa-92dd-ee10255b9d32" class="">
+</p><p id="3aaaf227-8627-42b5-8b65-ddea2bd4f9d8" class="">
+</p><p id="9d3e4f84-e6a1-40a0-b5c8-1c6aa2f2b899" class="">⇒ 해당 경계선을 설정하기 위해서 border 를 사용해봤다</p><p id="5cb46ee3-86ba-4dbf-ad1a-9819a5b956cc" class="">해당 관련된 참조는 다음과 같다.</p><p id="252db7d4-25ea-4d82-9e3b-a7aab8c1c0a7" class=""><a href="http://jun.hansung.ac.kr/CWP/css/CSS%20Border.html">http://jun.hansung.ac.kr/CWP/css/CSS Border.html</a></p><p id="cd6492a9-395e-4a92-8334-16203adb62fb" class="">
+</p></div></figure><p id="a84ca8d6-5fef-445f-ba82-434b71584d16" class="">
+</p><hr id="aa1174a2-e199-456e-b839-7ac035b5965c"/><p id="4e170fcd-4f79-409c-af2e-d155469d8ff5" class="">
+</p></details></li></ul><ul id="62050dea-4e1b-4df6-9ffd-64c0e5371678" class="toggle"><li><details open=""><summary>Question : Data Table 에 동적으로 Button 만들기                                         → 2023-05-16</summary><hr id="215434db-68d4-4353-bc9c-234bd0cc147d"/><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="4dccd1d1-5d17-4ed2-b391-7e40c094864b"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%"><em><strong>Data Table 에 동적으로 Button 만들기              </strong></em><pre id="e0b3435b-2ad4-4c37-bfab-4c1f8b2cd124" class="code"><code>    let cel4   = document.createElement(&quot;td&quot;);
+    let button = document.createElement(&quot;button&quot;);
+    button.className=&quot;btn&quot;;
+    button.textContent = &quot;delete&quot;
+    button.addEventListener(&quot;click&quot;,()=&gt;{
+      console.log(&#x27;test&#x27;);
+    }) 
+    cel4.appendChild(button); 
+    row.appendChild(cel4)
+
+    tbody.appendChild(row);</code></pre><p id="daedfa46-acef-4de2-b5e1-c842de922e82" class="">⇒ 생각보다 쉽다.</p><p id="cf4628d8-de75-4563-9c16-dccc765f312c" class="">
+</p><ol type="1" id="96cd1735-cddf-4fe1-a65c-d7d99b3220ef" class="numbered-list" start="1"><li>cel 을 생성 <pre id="4486fd76-de57-4aac-8fc1-3746998d7951" class="code"><code>let cel4   = document.createElement(&quot;td&quot;);</code></pre></li></ol><p id="ad039eb8-cf41-4bc0-9aa1-560c14522ccf" class="">
+</p><ol type="1" id="e77e8d1a-8e99-43c3-bce7-ae55849bd15a" class="numbered-list" start="2"><li>셀에 들어갈 버튼 생성 <pre id="c971e7de-4f6d-40b6-8ecb-53bb63237416" class="code"><code>let button = document.createElement(&quot;button&quot;);</code></pre></li></ol><p id="540eda72-3528-466e-99e8-0de879fde778" class="">
+</p><ol type="1" id="1ed399e5-af4d-4f51-abd7-fb4ef350fa9f" class="numbered-list" start="3"><li>Button 에 대한 정의<pre id="89e4b731-5146-42ef-91ff-9d6fc5d52af3" class="code"><code> button.className=&quot;btn&quot;;
+    button.textContent = &quot;delete&quot;
+    button.addEventListener(&quot;click&quot;,()=&gt;{
+      console.log(&#x27;test&#x27;);
+    }) </code></pre></li></ol><p id="3868cb88-639e-4aaa-a969-47b756efd64e" class="">
+</p><ol type="1" id="7e790b9c-5631-4060-8ef8-fbad5162a5b6" class="numbered-list" start="4"><li>Button 을 Cel 에 넣음 <pre id="7a8f2227-c0f8-4e40-a396-b6289f9a9e19" class="code"><code>cel4.appendChild(button); </code></pre></li></ol><p id="e09a73c4-866f-4682-866f-3214808272e3" class="">
+</p><ol type="1" id="7de941f5-7b57-4711-8cf4-9fe7192b7993" class="numbered-list" start="5"><li>해당 셀을 행에 넣음<pre id="8213e76e-7f60-4a4f-90ad-bf659b9330ef" class="code"><code>row.appendChild(cel4)</code></pre></li></ol></div></figure><p id="03ebafa4-af54-491a-9d9a-b2baddf7bf65" class="">
+</p><p id="3b5adfe8-a33f-4993-a86e-8ed3044b34fa" class="">
+</p><p id="0f50b747-3f2a-4ebe-acb0-c5356cb8b48c" class="">
+</p><p id="52de5d40-465c-4586-95bd-3f8d3c1ab952" class="">
+</p><p id="f88703f8-67cb-483d-bd42-866584dd8418" class="">
+</p><hr id="9bc7324f-e31d-4353-91a4-aec8a6ff2fd1"/><p id="fd982d4f-3e11-4603-b106-e803ad45de9a" class="">
+</p></details></li></ul><ul id="8bae8213-47d9-4951-8ac8-c4235291f436" class="toggle"><li><details open=""><summary>Question : element 내부에 중앙 정렬 및 해당 element 내부 text 중앙 정렬 → 2023-05-16</summary><hr id="26472988-59cc-4761-9fd5-7a13bd2ee70d"/><p id="e5f1dd62-78d0-4af7-9314-46ddb4af57df" class="">
+</p><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="da01f60b-fdaf-4b15-865f-cb9dc28df388"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">—<ol type="1" id="ca65f372-2ad3-4d08-a721-de780cd1d7e6" class="numbered-list" start="1"><li>element 자체 중앙 정렬 <ul id="91471d02-d68d-49e6-8932-3036dc6f63f9" class="toggle"><li><details open=""><summary>before</summary><hr id="4e5dae84-6440-4c1e-900a-442e5160e043"/><figure id="1fc381c5-365a-49d6-80bd-eaa736f03f3b" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%203.png"><img style="width:480px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%203.png"/></a></figure><p id="9abd75dd-c2df-49b6-b46b-4fb2b48f8c10" class="">
+</p></details></li></ul><ul id="67895cab-73ac-4344-afec-133bf3f7dcea" class="toggle"><li><details open=""><summary>after</summary><hr id="898ec3ea-55c6-4648-bb06-a8a6377612ac"/><figure id="953713a1-f2d1-420c-8a88-533da32c7d6f" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%204.png"><img style="width:528px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%204.png"/></a></figure><p id="0d5d3838-126b-44e5-a09f-3a372a067980" class="">추가된 css</p><pre id="f5b67a2f-7852-44e9-a2c9-1f81a998e364" class="code"><code>display: flex;
+justify-content: center;</code></pre><p id="9993eed7-b201-47cc-a866-0b5c90cb9f1c" class="">
+</p><hr id="44e4ce6f-7fbb-446e-bf8e-97b5ca42e4dd"/><p id="58b3dd62-c0e2-4660-a23c-c05f4dbed684" class="">
+</p></details></li></ul></li></ol><p id="149887b4-820b-4db9-a9ae-0182207cc549" class="">
+</p><ol type="1" id="5da5c7ec-2d07-4ee8-a088-bb3868d89c80" class="numbered-list" start="2"><li>해당 element 내부 text 중앙 정렬<ul id="87873a79-2aaf-4b60-82af-a7e74f16a231" class="toggle"><li><details open=""><summary>before. after , code</summary><hr id="89b10a4b-06ac-44a2-b8f2-380d517fefab"/><p id="363ff8d8-a85b-4824-9f46-2e72aa1448c8" class="">before</p><figure id="7e0f4a16-2ad3-4ed0-a573-09791b94ab21" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%204.png"><img style="width:528px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%204.png"/></a></figure><p id="3aecd776-7cdd-4f06-9552-456f8f9ea82f" class="">
+</p><p id="5adf7278-ab57-46ac-b792-e2fa74e1b7c0" class="">after</p><figure id="d116084c-94ba-4c4d-a6aa-e1f59e23ee38" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%205.png"><img style="width:528px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%205.png"/></a></figure><p id="f3496da6-2c82-410a-9fa0-d8510a5d4f72" class="">
+</p><p id="c545e5ff-2bce-499c-9da5-d19c689a2b2f" class="">추가된 code</p><pre id="0b622c2f-b1c8-48b6-bb33-d75700b01f05" class="code"><code>align-items: center;</code></pre><p id="3052e8fb-de32-4398-8cd6-3f87485f93a6" class="">
+</p><p id="cd3dcef1-d585-4fa3-9973-77c8c3da0a95" class="">
+</p><hr id="8468bbfe-735c-43bb-a83d-a46cf748542a"/><p id="cc5c79b3-7a04-475c-ad20-9e4ae92d631f" class="">
+</p></details></li></ul></li></ol><p id="01ea04a6-c697-48a7-b607-bcefde9bde2b" class="">
+</p></div></figure><p id="ddee9194-a112-4fcf-a6da-9b49363165aa" class="">
+</p><p id="e87a6afc-d3cc-44f3-bae9-6b9f98dc623e" class="">
+</p><p id="d18af17f-1b8f-4729-a4f6-e981f6c3090f" class="">
+</p><hr id="f38e599f-573a-45bf-98e4-58b555725328"/><p id="6ae86d0e-a43b-447a-add3-3e8526247d56" class="">
+</p></details></li></ul><ul id="fd9b0049-819a-4a45-9178-b8e00f066a1d" class="toggle"><li><details open=""><summary>Question : JS 에서 split, 현재 시간 구하기                                                     → 2023-05-16</summary><hr id="ec64ce02-76ec-44e8-9f70-fed7b8f22973"/><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="a5594d82-9726-45bc-af10-d67ab88f064d"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">—<ol type="1" id="5d129876-d755-4127-ac62-5bbfa9c3db1e" class="numbered-list" start="1"><li>Js 에서 Split 구현하기 </li></ol><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="47922b3d-58e4-41ab-88be-decf20dfb264"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">00:00:01<p id="f10a667a-995d-4701-8122-60b46b5dac66" class="">⇒ 이렇게 나오는 값을 변경 시,분, 초 로 나눔 </p><pre id="1f712aaf-e0bc-4001-8460-72b2495262af" class="code"><code>let token = tempTime.split(&quot;:&quot;);</code></pre><p id="565262e7-4030-4d25-92e6-2555c9fe455c" class="">→ split 함수를 사용 , java 의 StringTokenizer 객체와 비슷하다 느낌 </p><p id="e39af21d-91e6-42bb-a47f-34cfb222b1d1" class="">
+</p><p id="6c1ed35b-b6e1-4e7b-a67d-9fb304eb76b8" class="">
+</p><pre id="38aa6cf7-7394-450a-9c56-b5334135d3ec" class="code"><code>    let tempTime     = item.time;
+    cel3.textContent = tempTime;
+
+    let token = tempTime.split(&quot;:&quot;);
+    hourSub += parseInt(token[0]);
+    minSub  += parseInt(token[1]);
+    secSub  += parseInt(token[2]);</code></pre><p id="a55f7319-6537-4b0c-a694-ad7cc208d4c5" class="">
+</p></div></figure><p id="5f671f10-9c36-406f-b023-678d70c52c30" class="">
+</p><p id="9007090a-4489-4c75-9cff-a7d917f211cf" class="">
+</p><ol type="1" id="21c2fd45-a59c-4372-a938-cde42616adcf" class="numbered-list" start="2"><li>현재 시간 구하기 <figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="c8ef63f2-e738-47f5-9ee4-e8e1642a27c1"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">2023.05.16 뭐 이렇게 값을 얻고 싶다 <p id="2363f81d-fb86-4714-bb91-8000108db8a3" class="">⇒ javaScript 에 Date 객체를 사용하면 된다. </p><pre id="39fbb757-5a29-4d0d-af54-77eb82cf4472" class="code"><code>let todayTime = document.getElementById(&#x27;todayTime&#x27;);
+  let dateTime = new Date();
+  todayTime.textContent = dateTime.getFullYear()+&#x27;.&#x27;+(dateTime.getMonth()+1)+&#x27;.&#x27;+dateTime.getDate();</code></pre><p id="2c34bd1e-d999-4e3a-9ced-52229a41abcf" class="">
+</p><p id="66ba41a1-8d3d-4cfe-9970-d5a97b9cb5e9" class="">Date 함수의 내부 함수를 사용하면 </p><figure id="4ed6a61a-b05a-4ee2-933c-7a0e49385438" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%206.png"><img style="width:471px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%206.png"/></a></figure><p id="74051661-ba4c-425a-a5f5-d897250671ed" class="">⇒ 다음과 같은 결과를 얻을 수 있다.</p><p id="6db4de1f-f752-4139-a87c-ad508e431463" class="">
+</p><p id="24158700-f72a-42ef-905e-7f5d3fdacb19" class="">
+</p></div></figure></li></ol><p id="a39ac80d-b48d-4bdd-872f-8f3f3888eecf" class="">
+</p></div></figure><p id="cde9634b-a87c-4254-8082-6641e3192a0d" class="">
+</p><p id="96c24a05-13f2-4c5d-be39-4127a418a5cd" class="">
+</p><hr id="05b80daf-e08c-46c8-9d46-50c242c67796"/><p id="9ff43ca8-b017-45b4-9f00-897ad6afbb46" class="">
+</p></details></li></ul><p id="e1126eae-a2f7-48df-aa5e-b174d520da6f" class="">
+</p><p id="de67b9c8-44bc-4bdf-8f43-dc398533c4f7" class="">
+</p><p id="4ce235d3-3bfb-416a-9f1a-065ce5691a78" class="">
+</p></div></figure><p id="903b0075-530b-45b9-b1e3-db2029892cfe" class="">
+</p></details></li></ul><ul id="774e6600-d43d-4ac7-8e2d-5befebdd85ff" class="toggle"><li><details open=""><summary><em><strong>Version 4 → 2023-05-17</strong></em></summary><hr id="fb867aa1-5e39-481e-a4eb-a22e3afacf99"/><figure id="00ce474c-52ff-4396-853e-1aa9d3494db7" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2012.png"><img style="width:1338px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2012.png"/></a></figure><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="70bbefcb-6fae-424a-9917-89fca9d39238"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">오늘 한 거는 <ol type="1" id="f0a76f13-e88b-4e41-8341-66d25b272914" class="numbered-list" start="1"><li>주석 추가  </li></ol><ol type="1" id="95dfd49f-7202-4dbf-bc5c-503eb334e6db" class="numbered-list" start="2"><li>localStorage 를 이용해서 data 저장  </li></ol><ol type="1" id="5e691cf8-5a81-4508-b155-2a5cb01f797b" class="numbered-list" start="3"><li>초기에 실행될 function 정의  </li></ol><ol type="1" id="2364a238-ef32-4b91-9b41-019ef6c53c79" class="numbered-list" start="4"><li>그외 css </li></ol><p id="ae48645b-9e8f-4409-a5eb-61833e0d478a" class=""> </p><ul id="1c724133-d89d-4ecb-853e-0f4f1fa13f28" class="toggle"><li><details open=""><summary><em><strong>HTML → stopWatch.html</strong></em></summary><hr id="ee4dd323-f079-419c-9b66-4a0f8d99dfdc"/><pre id="b41dd8ba-b594-411d-b52b-b5a66fff3bad" class="code"><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+	&lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;style.css&quot;&gt;
+
+&lt;meta charset=&quot;UTF-8&quot;&gt;
+&lt;title&gt;StopWatch&lt;/title&gt;
+&lt;link href=&quot;https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css&quot; rel=&quot;stylesheet&quot; integrity=&quot;sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN&quot; crossorigin=&quot;anonymous&quot;&gt;
+&lt;script src=&quot;http://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js&quot;&gt;&lt;/script&gt;
+&lt;script type=&quot;text/javascript&quot; src=&quot;stopwatch.js&quot;&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+	&lt;div id=&#x27;box&#x27; class=&quot;box&quot;&gt;
+
+		&lt;div id=&#x27;timerBox&#x27; class=&quot;timerBox&quot;&gt;
+			&lt;p&gt;
+				&lt;span id=&quot;time&quot; class=&quot;time&quot;&gt;00:00:00&lt;/span&gt;&lt;span id=&quot;timeMil&quot; class=&quot;timeMil&quot;&gt;:000&lt;/span&gt;
+			&lt;/p&gt;
+		&lt;/div&gt;
+		
+		&lt;div class=&quot;btnBox&quot;&gt;
+			&lt;i id=&quot;startbtn&quot; onclick=&quot;startBtnOperate()&quot; class=&quot;fa fa-play&quot;  aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+			&lt;i id=&quot;pausebtn&quot; onclick=&quot;pauseBtn()&quot;        class=&quot;fa fa-pause&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+			&lt;i id=&quot;stopbtn&quot;  onclick=&quot;stopBtn()&quot;         class=&quot;fa fa-stop&quot;  aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+		&lt;/div&gt;
+
+		&lt;span id=&quot;todayTime&quot; class=&quot;todayTime&quot; style=&quot;display: none;&quot;&gt; 오늘 시간&lt;/span&gt;
+
+		&lt;div id=&quot;dataTable&quot; class=&quot;styled-table&quot; style=&quot;display: none;&quot;&gt;
+			&lt;table id=&quot;firstTable&quot;&gt;
+				&lt;thead&gt;
+				  &lt;tr&gt;
+					&lt;th&gt;No&lt;/th&gt;
+					&lt;th&gt;Title&lt;/th&gt;
+					&lt;th&gt;Time&lt;/th&gt;
+					&lt;th&gt;Option&lt;/th&gt;
+				  &lt;/tr&gt;
+				&lt;/thead&gt;
+				&lt;tbody&gt;
+	
+				&lt;/tbody&gt;
+				&lt;tfoot class=&quot;tfootBorder&quot;&gt;
+
+				&lt;/tfoot&gt;
+			  &lt;/table&gt;	
+		&lt;/div&gt;
+
+
+		&lt;div&gt;
+			&lt;button label=&quot;test&quot; style=&quot;margin: 30px&quot; onclick=&quot;console.log(&#x27;pdf test&#x27;)&quot;&gt;test&lt;/button&gt;
+		&lt;/div&gt;
+
+	&lt;/div&gt;
+
+
+		
+	
+&lt;/body&gt;
+&lt;/html&gt;</code></pre><p id="1a679e24-7fc3-44b3-8d25-d13beaabc712" class="">
+</p></details></li></ul><ul id="96e413a2-7ab5-4189-8c48-f7fe6449bd43" class="toggle"><li><details open=""><summary><em><strong>JavaScript → stopwatch.js</strong></em></summary><hr id="1ffc7210-7e71-48fe-bc77-10058a13639b"/><pre id="15020720-2356-4a36-864f-c9b5ef13fa7d" class="code"><code>let time = 0;
+var starFlag = true;
+
+let hour  = 0;
+let min   = 0;
+let sec   = 0;
+let mil   = 0;
+let timer;
+let startTime;
+let timerInterval;
+
+
+/**
+
+ */
+
+
+
+/**
+ * 
+  @name        : dataTable 
+  @description : 시간 데이터를 넣기 위한 배열  
+ */
+let dataTable = [];
+
+let isArrayExist = false;
+
+
+let isInit = true;
+
+/**
+ * 
+            @init        : 초기화 method  
+            @description : local storage 에서 데이터를 들고오고 그 값을 토대로 rendering   
+ */
+(function() {
+  
+
+  let cacheData = localStorage.getItem(&#x27;data&#x27;);
+
+  if(cacheData == null )
+  {
+    localStorage.setItem(&#x27;data&#x27;, JSON.stringify(dataTable));
+  }
+  else
+  {
+    dataTable = JSON.parse(cacheData);
+    console.log(dataTable);
+  }
+
+})();
+
+window.onload = function() {
+    // 오늘 날짜를 표시할 element 를 변수에 지정 
+    let todayTime = document.getElementById(&#x27;todayTime&#x27;);
+
+    // 오늘 날짜를 yyyy.MM.dd 형태로 만들어 element 에 값을 변경 
+    let dateTime = new Date();
+    todayTime.textContent = dateTime.getFullYear()+&#x27;.&#x27;+(dateTime.getMonth()+1)+&#x27;.&#x27;+dateTime.getDate();
+    todayTime.style.display = &#x27;block&#x27;; // 해당 element 를 보이게 설정 
+
+
+    if(dataTable.length != 0)
+    {
+      document.getElementById(&#x27;dataTable&#x27;).style = &#x27;block&#x27;;
+    }
+
+    console.log(dataTable);
+    console.log(&#x27;before rendering&#x27;);
+    rendering();
+  
+}
+
+/**
+ * 
+            @name        : insertTimeData 
+            @description : 정지 버튼을 누르고 html 에 오늘 날짜와 배열에 방금 생성한 시간데이터를 넣고 
+                          해당 배열을 기반으로 datatable rendering  
+            @parmaeter   : title -&gt; 시간 데이터의 attribute  : 해당 시간에 주된 내용이 무엇을 했는지 저장 
+                          time  -&gt; 시간 데이터
+ */
+function insertTimeData(title, time)
+{
+
+
+
+  // 배열의 크기가 0 =&gt; 오늘 생성된 시간 데이터가 없을 경우 
+  if(dataTable.length == 0)
+  {
+    // index 직접 설정  
+    dataTable.push({&quot;number&quot;:1, &quot;title&quot;:title, &quot;time&quot;:time} );
+  }
+  // 배열의 크기가 1 이상인 경우 -&gt; 시간 데이터가 이미 존재 
+  else
+  {
+    // 이전 record 의 index 를 가져와서 +1 을 추가한 것을 number 로 가진다. 
+    dataTable.push({&quot;number&quot;:dataTable[dataTable.length-1].number+1, &quot;title&quot;:title, &quot;time&quot;:time} );
+  }
+
+  localStorage.setItem(&#x27;data&#x27;, JSON.stringify(dataTable));
+
+  
+  rendering();
+}
+
+
+/**
+  @name        : rendering
+  @description : DataTable 에 tbody 요소를 생성  
+ */
+function rendering()
+{
+  console.log(&#x27;111&#x27;);
+
+  // dataTable element 
+  let table = document.getElementById(&#x27;firstTable&#x27;);
+
+  // tbody element 
+  let tbody = table.querySelector(&quot;tbody&quot;);
+
+  // tbody element 의 이전 값들을 지운다. 
+  tbody.innerHTML = &quot;&quot;;
+
+
+  // 배열안에 든 시간 데이터의 시간 값 
+  let hourSub = 0;
+
+  // 배열안에 든 시간 데이터의 분 값
+  let minSub  = 0;
+
+  // 배열안에 든 시간 데이터의 초 값
+  let secSub  = 0;
+
+
+  // 배열의 반복을 실행 =&gt; 행을 동적으로 생성하기 위해서 
+  dataTable.forEach((item)=&gt;{
+
+    // 새로운 행을 생성 
+    let row = document.createElement(&quot;tr&quot;);
+
+    // 해당 행에 추가할 첫번째 열 데이터 생성 
+    let cel1 = document.createElement(&quot;td&quot;);
+
+    // 첫째 열에는 record 의 인덱스가 들어감 
+    cel1.textContent = item.number;
+
+    // 행에 해당 열을 추가 
+    row.appendChild(cel1);
+
+
+    // 두번째 행에는 레코드의 제목이 들어감
+    let cel2 = document.createElement(&quot;td&quot;);
+    cel2.textContent = item.title;
+    row.appendChild(cel2);
+
+
+    // 세번째 행에는 레코드의 시간 데이터가 들어감 
+    let cel3 = document.createElement(&quot;td&quot;);
+    let tempTime     = item.time;
+    cel3.textContent = tempTime;
+
+    // split function 으로 값을 나눈 다음, 정수로 변환
+    let token = tempTime.split(&quot;:&quot;);
+    hourSub += parseInt(token[0]);
+    minSub  += parseInt(token[1]);
+    secSub  += parseInt(token[2]);
+    row.appendChild(cel3);
+
+    // 네번째 행에는 함수를 가진 button 이 들어감 -&gt; button 동적 생성 
+    let cel4   = document.createElement(&quot;td&quot;);
+
+    // button element 도 따로 생성 
+    let button = document.createElement(&quot;button&quot;);
+
+      // 생성된 button 의 attribute 설정 
+      button.className=&quot;dataTableBtn&quot;;
+      button.textContent = &quot;setting&quot;
+      button.addEventListener(&quot;click&quot;,()=&gt;{ console.log(&#x27;test&#x27;); }); 
+      cel4.appendChild(button); 
+      row.appendChild(cel4)
+
+    tbody.appendChild(row);
+    
+  })
+
+  console.log(&#x27;render&#x27;);
+
+  // data table tfoot 설정 
+  setTfoot(hourSub,minSub,secSub);
+}
+
+
+function setTfoot(hour,min,sec)
+{ 
+
+  let foot = document.querySelector(&#x27;tfoot&#x27;);
+  foot.innerHTML = &quot;&quot;;
+
+  let cel1 = document.createElement(&#x27;td&#x27;);
+  let cel2 = document.createElement(&#x27;td&#x27;);
+  let cel3 = document.createElement(&#x27;td&#x27;);
+
+  // 시간의 총 합을 구하려고 한다. 
+  let cel4 = document.createElement(&#x27;td&#x27;);
+  min  += Math.floor(sec/60);
+  hour += Math.floor(min/60);
+  cel4.className =&quot;totalTime&quot;
+  cel4.textContent = hour+&quot; 시간 &quot;+min%60+&quot; 분 &quot;+sec%60+&quot; 초 &quot;;
+
+  foot.appendChild(cel1);
+  foot.appendChild(cel2);
+  foot.appendChild(cel3);
+  foot.appendChild(cel4);
+
+
+  console.log()
+
+}
+
+
+
+
+function init(){
+  document.getElementById(&quot;time&quot;).innerHTML = &quot;00:00:00&quot;;
+  document.getElementById(&quot;timeMil&quot;).innerHTML = &quot;:000&quot;;
+  hour  = 0;
+  min   = 0;
+  sec   = 0;
+  mil   = 0;
+}
+
+// parameter : start, pause, stop
+// function  : if a timer start change number color
+async function changeFontColor(command)
+{
+  $(&quot;.fa&quot;).css(&quot;color&quot;,&quot;grey&quot;);
+  document.getElementById(command+&#x27;btn&#x27;).style = &#x27;color: white;&#x27;;
+}
+
+
+  // start btn
+  function startBtnOperate()
+  {
+
+    document.getElementById(&#x27;time&#x27;).style=&#x27;color: white;&#x27;
+    document.getElementById(&#x27;timeMil&#x27;).style=&#x27;color: red;&#x27;
+
+    if(starFlag)
+    {
+      
+      changeFontColor(&#x27;start&#x27;);
+        starFlag = false;
+        if(time == 0)
+        {
+          init();
+        }
+        startTime = Date.now() - time;
+        timerInterval = setInterval(updateTimer, 10);
+      
+    }
+  }
+
+
+  function updateTimer() {
+    let currentTime = Date.now();
+    time = currentTime - startTime
+    presentCurrentTime();
+  }
+
+
+
+  // pause btn
+  function pauseBtn()
+    {
+      // when time is not zero -&gt; start button was operated 
+      if(time != 0)
+      {
+        changeFontColor(&#x27;pause&#x27;);
+        clearInterval(timerInterval);
+        starFlag = true;
+    
+      }
+    };
+
+
+
+
+
+
+  // stop btn
+  function stopBtn()
+  {
+    if(time != 0){
+      changeFontColor(&#x27;stop&#x27;).then(()=&gt;{
+        clearInterval(timerInterval);
+        confirm(document.getElementById(&quot;time&quot;).textContent+document.getElementById(&quot;timeMil&quot;).textContent);
+  
+        starFlag  = true;
+        time      = 0;
+        let title = prompt();
+
+        document.getElementById(&#x27;dataTable&#x27;).style = &#x27;block&#x27;;
+
+
+
+
+        insertTimeData(title,document.getElementById(&quot;time&quot;).textContent);
+        init();
+      })
+    }
+  }
+    
+
+
+  function presentCurrentTime()
+  {
+      if( mil == 1000 ) { mil  = 0; }
+      
+      mil  = time%1000;
+      sec  = Math.floor(time/1000);
+      min  = Math.floor(sec/60);
+      hour = Math.floor(min/60);
+      sec  = sec%60;
+      min  = min%60;
+
+    let th    = hour;
+    let tm    = min;
+    let ts    = sec;
+    let tmil  = mil; 
+    
+    if       (   th  &lt; 10  )  { th   = &quot;0&quot;   + hour;  }
+    if       (   tm  &lt; 10  )  { tm   = &quot;0&quot;   + min;   }
+    if       (   ts  &lt; 10  )  { ts   = &quot;0&quot;   + sec;   }
+    if       (  tmil &lt; 10  )  { tmil = &quot;00&quot;  + mil;   }
+    else { if( tmil  &lt; 100 )  { tmil = &quot;0&quot;   + mil; } }
+
+    document.getElementById(&quot;time&quot;)   .innerHTML    = th + &quot;:&quot; + tm + &quot;:&quot; + ts;
+    document.getElementById(&quot;timeMil&quot;).innerHTML = &quot;:&quot;+tmil;
+  }</code></pre><p id="52b5c536-06c0-4d8a-89ba-f350bc4f1b39" class="">
+</p></details></li></ul><ul id="9159b498-83f3-478b-9f17-0ae19750380c" class="toggle"><li><details open=""><summary><em><strong>CSS→ style.css</strong></em></summary><hr id="2636cf9e-6bae-4081-a4a7-a83c3a5951da"/><pre id="c9ed3c07-fad4-4db3-be88-3bf544ad42dd" class="code"><code>*{
+    margin: 0px;
+    padding: 0px;
+    background-color: rgb(148, 80, 224);
+}
+  body{
+    height: 100vh;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+ }
+ .box{
+    background-color: rgb(148, 80, 224);
+    border-radius: 10px;
+    width: 400px;
+    height: 300px;
+}
+.timerBox{
+    width: 400px;
+    justify-content: center;
+    text-align: center;
+}
+.timerBox .time{
+    font-size: 80pt;
+    color: grey;
+    text-align: center;
+    font-family: sans-serif;
+}
+
+.timerBox .timeMil{
+    font-size: 40pt;
+    color: grey;
+    font-family: sans-serif;
+}
+
+.btnBox{
+    margin: 10px auto;
+    text-align: center;
+}
+.btnBox .fa{
+    margin: 0px 5px;
+    font-size: 30pt;
+    color: grey;
+    cursor: pointer;
+}
+
+
+.box .styled-table {
+    padding-top: 1em;
+    display: flex;
+    justify-content: center; /* 수평 가운데 정렬 */
+    align-items: center; /* 수직 가운데 정렬 */
+    width: 100%;
+    font-family: Arial, sans-serif;
+    color: #333;
+  }
+  
+  .box .styled-table thead th {
+    border-radius: 5px;
+    background-color: #c24bc2; 
+    text-align: center;
+    color: white;
+    padding: 10px;
+  }
+
+
+  .box .styled-table thead th:hover {
+    background-color: #e72a53; 
+  }
+  
+
+  
+  .box .styled-table tbody td {
+    border-style: 1px solid rgb(148, 80, 224);
+    padding: 10px;
+    color: white;
+  }
+  
+  .box .styled-table tbody tr:nth-child(even) {
+    background-color: #f5f5f5;
+  }
+  
+  .box .styled-table tbody tr:hover {
+    background-color: yellow;
+  }
+
+
+  .box .styled-table tfoot td {
+    border-style: 1px solid rgb(148, 80, 224);
+    padding: 10px;
+    color: white;
+  }
+  
+  .box .styled-table tfoot tr:nth-child(even) {
+    background-color: #f5f5f5;
+  }
+  
+  .box .styled-table tfoot tr:hover {
+    background-color: yellow;
+  }
+
+
+  .tfootBorder{
+    border-style: solid none none none;
+    border-color: azure;
+  }
+
+  .dataTableBtn{
+    color: white;
+    background-color: #c24bc2;
+    width: 60px;
+    height: 28px;
+    margin: auto;
+    border-radius: 10px;
+    border: none;
+    box-shadow: 4px 6px   rgba(53, 47, 47, 0.199);
+    text-align: center;
+    align-items: center;
+    display: flex;
+    justify-content: center;
+  }
+
+
+
+  .dataTableBtn:hover{
+    color: black;
+    background-color: gray;
+    box-shadow: 0px 0px   rgba(243, 241, 241, 0.3);
+  }
+
+  .totalTime
+  {
+    font-size: 5px;
+  }
+
+  .todayTime{
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    align-items: center;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    font-size: 20px;
+    color: white;
+  }</code></pre></details></li></ul><p id="17133f8d-d7df-4393-9f09-ae49a163da21" class="">
+</p><p id="9ae1011f-055a-42ad-9963-953b6a881004" class="">
+</p><p id="78d5a793-6e2a-4053-9635-ef84b1c55734" class="">
+</p><p id="c85228f5-1e61-4322-bf8d-a2e54b4da313" class="">
+</p></div></figure><p id="bcaf0e30-af1c-45b9-b067-5f31e34eb522" class="">
+</p></details></li></ul><ul id="68f426f8-23c8-4b5e-b857-1680d14c9e4c" class="toggle"><li><details open=""><summary><em><strong>Version 5 → 2023-05-22</strong></em></summary><hr id="36c5c755-39e2-4327-ac5f-fe5c0c804727"/><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="97992e57-cc10-4871-82d9-527af318646a"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">오늘 한 거는 <p id="9082e503-591a-4c62-b1c2-7f3c9c92ae74" class=""><div class="indented"><ul id="8b32b742-567a-4f6f-b6be-d6325a37e7c5" class="to-do-list"><li><div class="checkbox checkbox-on"></div> <span class="to-do-children-checked">Modal 만들기 </span><div class="indented"><figure id="8db63ba3-6602-498f-a060-cd1e028d35da" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2013.png"><img style="width:576px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2013.png"/></a></figure></div></li></ul><ul id="e86e666e-7ef7-43a5-a311-a919fe98ae49" class="to-do-list"><li><div class="checkbox checkbox-on"></div> <span class="to-do-children-checked">현재 setting button 누르면 해ㅍ당 행 삭제하는 기능 구현 </span><div class="indented"></div></li></ul><ul id="7eab963a-d7fc-4c13-b6b0-b0b17688baa3" class="to-do-list"><li><div class="checkbox checkbox-on"></div> <span class="to-do-children-checked">End  Time 추가 </span><div class="indented"></div></li></ul><ul id="25bd949c-f255-452c-aac8-330b7fb80d5d" class="to-do-list"><li><div class="checkbox checkbox-on"></div> <span class="to-do-children-checked">Start Time 추가</span><div class="indented"><figure id="0028e5bc-cb62-4255-b334-e30cafde2846" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2014.png"><img style="width:576px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2014.png"/></a></figure></div></li></ul></div></p><p id="dfcb30ee-d481-4ad8-8166-d8f90ceb0171" class="">
+</p><p id="ac8ae880-509c-4821-9b2c-b44f7fdc3800" class=""> </p><ul id="a9d329f7-fb02-4904-8dd5-be7fc9885261" class="toggle"><li><details open=""><summary><em><strong>HTML → stopWatch.html</strong></em></summary><hr id="95705261-ec40-4c33-8fc8-429e6577fddb"/><pre id="3377aa4b-1f13-463a-945b-e16afe581c52" class="code"><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+	&lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;style.css&quot;&gt;
+
+&lt;meta charset=&quot;UTF-8&quot;&gt;
+&lt;title&gt;StopWatch&lt;/title&gt;
+&lt;link href=&quot;https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css&quot; rel=&quot;stylesheet&quot; integrity=&quot;sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN&quot; crossorigin=&quot;anonymous&quot;&gt;
+&lt;script src=&quot;http://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js&quot;&gt;&lt;/script&gt;
+&lt;script type=&quot;text/javascript&quot; src=&quot;stopwatch.js&quot;&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+	&lt;div id=&#x27;box&#x27; class=&quot;box&quot;&gt;
+
+		&lt;div id=&#x27;timerBox&#x27; class=&quot;timerBox&quot;&gt;
+			&lt;p&gt;
+				&lt;span id=&quot;time&quot; class=&quot;time&quot;&gt;00:00:00&lt;/span&gt;&lt;span id=&quot;timeMil&quot; class=&quot;timeMil&quot;&gt;:000&lt;/span&gt;
+			&lt;/p&gt;
+		&lt;/div&gt;
+		
+		&lt;div class=&quot;btnBox&quot;&gt;
+			&lt;i id=&quot;startbtn&quot; onclick=&quot;startBtnOperate()&quot; class=&quot;fa fa-play&quot;  aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+			&lt;i id=&quot;pausebtn&quot; onclick=&quot;pauseBtn()&quot;        class=&quot;fa fa-pause&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+			&lt;i id=&quot;stopbtn&quot;  onclick=&quot;stopBtn()&quot;         class=&quot;fa fa-stop&quot;  aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+		&lt;/div&gt;
+
+		&lt;span id=&quot;todayTime&quot; class=&quot;todayTime&quot; style=&quot;display: none;&quot;&gt; 오늘 시간&lt;/span&gt;
+
+		&lt;div id=&quot;dataTable&quot; class=&quot;styled-table&quot; style=&quot;display: none;&quot;&gt;
+			&lt;table id=&quot;firstTable&quot;&gt;
+				&lt;thead&gt;
+				  &lt;tr&gt;
+					&lt;th&gt;No&lt;/th&gt;
+					&lt;th&gt;Title&lt;/th&gt;
+					&lt;th&gt;Time&lt;/th&gt;
+					&lt;th&gt;Start Time&lt;/th&gt;
+					&lt;th&gt;End Time&lt;/th&gt;
+					&lt;th&gt;Option&lt;/th&gt;
+				  &lt;/tr&gt;
+				&lt;/thead&gt;
+				&lt;tbody&gt;
+	
+				&lt;/tbody&gt;
+				&lt;tfoot class=&quot;tfootBorder&quot;&gt;
+
+				&lt;/tfoot&gt;
+			  &lt;/table&gt;	
+		&lt;/div&gt;
+
+
+
+	&lt;/div&gt;
+
+	
+
+	&lt;div id=&quot;myModal&quot; class=&quot;modal&quot;&gt;
+	&lt;div class=&quot;modal-content&quot;&gt;
+		&lt;span class=&quot;close&quot; onclick=&quot;closeModal()&quot;&gt;&amp;times;&lt;/span&gt;
+		&lt;h2&gt;RECORD TITLE&lt;/h2&gt;
+		&lt;input type=&quot;text&quot; id=&quot;settingRecordTitle&quot; placeholder=&quot;please insert a record title!&quot;&gt;
+		&lt;button label=&quot;modalSubmit&quot; onclick=&quot;settingTitleModal()&quot;&gt; submit &lt;/button&gt;
+	&lt;/div&gt;
+	&lt;/div&gt;
+
+
+
+
+
+		
+	
+&lt;/body&gt;
+&lt;/html&gt;</code></pre><p id="8b452af9-79b3-45c4-9f04-8ff6b48e5f7d" class="">
+</p></details></li></ul><ul id="3fc4b88f-550d-454a-ac10-386b06e89aa3" class="toggle"><li><details open=""><summary><em><strong>JavaScript → stopwatch.js</strong></em></summary><hr id="6a529a96-9e6d-4887-bc0a-7d153e9f8a3e"/><pre id="030ca0ad-a059-4bb8-9b6d-f6ef06efe380" class="code"><code>let time = 0;
+var starFlag = true;
+
+let hour  = 0;
+let min   = 0;
+let sec   = 0;
+let mil   = 0;
+let timer;
+let startTime;
+let timerInterval;
+
+
+let today;
+let initTime;
+
+
+let isFirstTime = true;
+
+/**
+
+ */
+
+
+
+/**
+ * 
+  @name        : dataTable 
+  @description : 시간 데이터를 넣기 위한 배열  
+ */
+let dataTable = [];
+
+let isArrayExist = false;
+
+
+let isInit = true;
+
+/**
+ * 
+            @init        : 초기화 method  
+            @description : local storage 에서 데이터를 들고오고 그 값을 토대로 rendering   
+ */
+(function() {
+  
+
+  let cacheData = localStorage.getItem(&#x27;data&#x27;);
+
+  if(cacheData == null )
+  {
+    localStorage.setItem(&#x27;data&#x27;, JSON.stringify(dataTable));
+  }
+  else
+  {
+    dataTable = JSON.parse(cacheData);
+    console.log(dataTable);
+  }
+
+})();
+
+window.onload = function() {
+    // 오늘 날짜를 표시할 element 를 변수에 지정 
+    let todayTime = document.getElementById(&#x27;todayTime&#x27;);
+
+    // 오늘 날짜를 yyyy.MM.dd 형태로 만들어 element 에 값을 변경 
+    dateInstance = new Date();
+
+    today = dateInstance.getFullYear()+&#x27;.&#x27;+(dateInstance.getMonth()+1)+&#x27;.&#x27;+dateInstance.getDate();
+    todayTime.textContent = today; 
+    todayTime.style.display = &#x27;block&#x27;; // 해당 element 를 보이게 설정 
+
+
+    if(dataTable.length != 0)
+    {
+      document.getElementById(&#x27;dataTable&#x27;).style = &#x27;block&#x27;;
+    }
+
+    console.log(dataTable);
+    console.log(&#x27;before rendering&#x27;);
+    rendering();
+  
+}
+
+/**
+ * 
+            @name        : insertTimeData 
+            @description : 정지 버튼을 누르고 html 에 오늘 날짜와 배열에 방금 생성한 시간데이터를 넣고 
+                          해당 배열을 기반으로 datatable rendering  
+            @parmaeter   : title -&gt; 시간 데이터의 attribute  : 해당 시간에 주된 내용이 무엇을 했는지 저장 
+                          time  -&gt; 시간 데이터
+ */
+function insertTimeData(title, time, endTime)
+{
+
+
+  let numberValue;
+
+  // 배열의 크기가 0 =&gt; 오늘 생성된 시간 데이터가 없을 경우 
+  if(dataTable.length == 0)
+  {
+    // index 직접 설정
+    numberValue = 1;  
+  }
+  // 배열의 크기가 1 이상인 경우 -&gt; 시간 데이터가 이미 존재 
+  else
+  {
+    // 이전 record 의 index 를 가져와서 +1 을 추가한 것을 number 로 가진다.
+    
+    numberValue = dataTable[dataTable.length-1].number+1
+    
+  }
+
+  dataTable.push({&quot;number&quot;: numberValue, &quot;title&quot;:title, &quot;time&quot;:time, &quot;startTime&quot;: initTime,&quot;endTime&quot;:endTime} );
+  localStorage.setItem(&#x27;data&#x27;, JSON.stringify(dataTable));
+
+  
+  rendering();
+}
+
+
+/**
+  @name        : rendering
+  @description : DataTable 에 tbody 요소를 생성  
+ */
+function rendering()
+{
+
+  // dataTable element 
+  let table = document.getElementById(&#x27;firstTable&#x27;);
+
+  // tbody element 
+  let tbody = table.querySelector(&quot;tbody&quot;);
+
+  // tbody element 의 이전 값들을 지운다. 
+  tbody.innerHTML = &quot;&quot;;
+
+
+  // 배열안에 든 시간 데이터의 시간 값 
+  let hourSub = 0;
+
+  // 배열안에 든 시간 데이터의 분 값
+  let minSub  = 0;
+
+  // 배열안에 든 시간 데이터의 초 값
+  let secSub  = 0;
+
+
+  let index = 0 ;
+
+  // 배열의 반복을 실행 =&gt; 행을 동적으로 생성하기 위해서 
+  dataTable.forEach((item)=&gt;{
+
+    // 새로운 행을 생성 
+    let row = document.createElement(&quot;tr&quot;);
+
+    // 해당 행에 추가할 첫번째 열 데이터 생성 
+    let cel1 = document.createElement(&quot;td&quot;);
+
+    // 첫째 열에는 record 의 인덱스가 들어감 
+    cel1.textContent = index+1;
+
+    index++;
+
+    // 행에 해당 열을 추가 
+    row.appendChild(cel1);
+
+
+    // 두번째 행에는 레코드의 제목이 들어감
+    let cel2 = document.createElement(&quot;td&quot;);
+    cel2.textContent = item.title;
+    row.appendChild(cel2);
+
+
+    // 세번째 행에는 레코드의 시간 데이터가 들어감 
+    let cel3 = document.createElement(&quot;td&quot;);
+    let tempTime     = item.time;
+    cel3.textContent = tempTime;
+
+    // split function 으로 값을 나눈 다음, 정수로 변환
+    let token = tempTime.split(&quot;:&quot;);
+    hourSub += parseInt(token[0]);
+    minSub  += parseInt(token[1]);
+    secSub  += parseInt(token[2]);
+    row.appendChild(cel3);
+
+
+    let cel4 = document.createElement(&quot;td&quot;);
+    cel4.textContent = item.startTime;
+    row.appendChild(cel4);
+
+    
+    let cel5 = document.createElement(&quot;td&quot;);
+    cel5.textContent = item.endTime;
+    row.appendChild(cel5);
+
+
+
+    let cel6   = document.createElement(&quot;td&quot;);
+    let button = document.createElement(&quot;button&quot;);
+
+      // 생성된 button 의 attribute 설정 
+      button.className=&quot;dataTableBtn&quot;;
+      button.textContent = &quot;setting&quot;
+      button.addEventListener(&quot;click&quot;,()=&gt;{ eliminate(cel1.textContent); }); 
+      cel6.appendChild(button); 
+      row.appendChild(cel6)
+
+    tbody.appendChild(row);
+    
+  })
+
+  console.log(&#x27;render&#x27;);
+
+  // data table tfoot 설정 
+  setTfoot(hourSub,minSub,secSub);
+}
+
+
+function setTfoot(hour,min,sec)
+{ 
+
+  let foot = document.querySelector(&#x27;tfoot&#x27;);
+  foot.innerHTML = &quot;&quot;;
+
+  let cel1 = document.createElement(&#x27;td&#x27;);
+  let cel2 = document.createElement(&#x27;td&#x27;);
+  let cel3 = document.createElement(&#x27;td&#x27;);
+  let cel4 = document.createElement(&#x27;td&#x27;);
+  let cel5 = document.createElement(&#x27;td&#x27;);
+  // 시간의 총 합을 구하려고 한다. 
+  let cel6 = document.createElement(&#x27;td&#x27;);
+  min  += Math.floor(sec/60);
+  hour += Math.floor(min/60);
+  cel6.className =&quot;totalTime&quot;
+  cel6.textContent = hour+&quot; 시간 &quot;+min%60+&quot; 분 &quot;+sec%60+&quot; 초 &quot;;
+
+  foot.appendChild(cel1);
+  foot.appendChild(cel2);
+  foot.appendChild(cel3);
+  foot.appendChild(cel4);
+  foot.appendChild(cel5);
+  foot.appendChild(cel6);
+
+
+  console.log()
+
+}
+
+
+
+
+function init(){
+  document.getElementById(&quot;time&quot;).innerHTML = &quot;00:00:00&quot;;
+  document.getElementById(&quot;timeMil&quot;).innerHTML = &quot;:000&quot;;
+  hour  = 0;
+  min   = 0;
+  sec   = 0;
+  mil   = 0;
+}
+
+// parameter : start, pause, stop
+// function  : if a timer start change number color
+async function changeFontColor(command)
+{
+  $(&quot;.fa&quot;).css(&quot;color&quot;,&quot;grey&quot;);
+  document.getElementById(command+&#x27;btn&#x27;).style = &#x27;color: white;&#x27;;
+}
+
+
+  // start btn
+  function startBtnOperate()
+  {
+    if(isFirstTime)
+    {
+      let tempNow = new Date()
+      initTime = addZero(tempNow.getHours())+&quot;:&quot;+addZero(tempNow.getMinutes())+&quot;:&quot;+addZero(tempNow.getSeconds());
+      isFirstTime = false;
+    }
+    
+    document.getElementById(&#x27;time&#x27;).style=&#x27;color: white;&#x27;
+    document.getElementById(&#x27;timeMil&#x27;).style=&#x27;color: red;&#x27;
+
+    if(starFlag)
+    {
+      
+      changeFontColor(&#x27;start&#x27;);
+        starFlag = false;
+        if(time == 0)
+        {
+          init();
+        }
+        startTime = Date.now() - time;
+        timerInterval = setInterval(updateTimer, 10);
+      
+    }
+  }
+
+
+  function updateTimer() {
+    let currentTime = Date.now();
+    time = currentTime - startTime
+    presentCurrentTime();
+  }
+
+
+
+  // pause btn
+  function pauseBtn()
+    {
+      // when time is not zero -&gt; start button was operated 
+      if(time != 0)
+      {
+        changeFontColor(&#x27;pause&#x27;);
+        clearInterval(timerInterval);
+        starFlag = true;
+    
+      }
+    };
+
+
+
+
+
+
+  // stop btn
+  function stopBtn()
+  {
+    if(time != 0){
+      changeFontColor(&#x27;stop&#x27;).then(()=&gt;{
+        clearInterval(timerInterval);
+
+        let tempTime = new Date();
+        endTime =  addZero(tempTime.getHours())+&quot;:&quot;+addZero(tempTime.getMinutes())+&quot;:&quot;+addZero(tempTime.getSeconds());
+        isFirstTime = true;
+  
+        starFlag  = true;
+        time      = 0;
+
+        openModal();
+
+      })
+    }
+  }
+    
+
+
+  function presentCurrentTime()
+  {
+      if( mil == 1000 ) { mil  = 0; }
+      
+      mil  = time%1000;
+      sec  = Math.floor(time/1000);
+      min  = Math.floor(sec/60);
+      hour = Math.floor(min/60);
+      sec  = sec%60;
+      min  = min%60;
+
+    let th    = hour;
+    let tm    = min;
+    let ts    = sec;
+    let tmil  = mil; 
+    
+    if       (   th  &lt; 10  )  { th   = &quot;0&quot;   + hour;  }
+    if       (   tm  &lt; 10  )  { tm   = &quot;0&quot;   + min;   }
+    if       (   ts  &lt; 10  )  { ts   = &quot;0&quot;   + sec;   }
+    if       (  tmil &lt; 10  )  { tmil = &quot;00&quot;  + mil;   }
+    else { if( tmil  &lt; 100 )  { tmil = &quot;0&quot;   + mil; } }
+
+    document.getElementById(&quot;time&quot;)   .innerHTML    = th + &quot;:&quot; + tm + &quot;:&quot; + ts;
+    document.getElementById(&quot;timeMil&quot;).innerHTML = &quot;:&quot;+tmil;
+  }
+
+
+  function addZero(digit)
+  {
+    if(digit&lt;10) return &quot;0&quot;+digit;
+                 return digit
+  }
+
+
+  function eliminate(number)
+  {
+      console.log(number);
+      dataTable.splice(number-1,1);
+      localStorage.setItem(&#x27;data&#x27;, JSON.stringify(dataTable));
+      rendering();
+  }
+
+
+
+  let title;
+  let endTime;
+
+  // MODAL
+  // 모달 열기 버튼 요소 선택
+
+
+async function openModal()
+{
+  console.log(&#x27;modal Open Test&#x27;);
+  document.getElementById(&quot;myModal&quot;).style.display = &#x27;block&#x27;;
+}
+
+
+function closeModal()
+{
+  createRecord(&#x27;default&#x27;);
+  document.getElementById(&#x27;settingRecordTitle&#x27;).value = &#x27;&#x27;;
+  document.getElementById(&#x27;dataTable&#x27;).style = &#x27;block&#x27;;
+}
+
+function settingTitleModal()
+{
+     createRecord(document.getElementById(&#x27;settingRecordTitle&#x27;).value);
+     document.getElementById(&#x27;settingRecordTitle&#x27;).value = &#x27;&#x27;;
+     document.getElementById(&#x27;dataTable&#x27;).style = &#x27;block&#x27;;
+}
+
+function createRecord(title)
+{
+  insertTimeData(title,document.getElementById(&quot;time&quot;).textContent,endTime);
+  init();
+  document.getElementById(&quot;myModal&quot;).style.display = &quot;none&quot;;
+}</code></pre><p id="883ad5df-a961-485b-aa12-50d855e27f6b" class="">
+</p></details></li></ul><ul id="c2241593-5c10-4784-9878-760641af90bb" class="toggle"><li><details open=""><summary><em><strong>CSS→ style.css</strong></em></summary><hr id="fd6bfef7-57b4-4947-b636-f49f9b218438"/><pre id="9397a7f1-5d4b-4e33-9177-9b6660ef60e7" class="code"><code>*{
+    margin: 0px;
+    padding: 0px;
+    background-color: rgb(148, 80, 224);
+}
+  body{
+    height: 100vh;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+ }
+ .box{
+    background-color: rgb(148, 80, 224);
+    border-radius: 10px;
+    width: 1000px;
+    height: 300px;
+}
+.timerBox{
+    width: 400px;
+    margin-left: 300px;
+    justify-content: center;
+    text-align: center;
+}
+.timerBox .time{
+    font-size: 80pt;
+    color: grey;
+    text-align: center;
+    font-family: sans-serif;
+}
+
+.timerBox .timeMil{
+    font-size: 40pt;
+    color: grey;
+    font-family: sans-serif;
+}
+
+.btnBox{
+    margin: 10px auto;
+    text-align: center;
+}
+.btnBox .fa{
+    margin: 0px 5px;
+    font-size: 30pt;
+    color: grey;
+    cursor: pointer;
+}
+
+
+.box .styled-table {
+    padding-top: 1em;
+    display: flex;
+    justify-content: center; /* 수평 가운데 정렬 */
+    align-items: center; /* 수직 가운데 정렬 */
+    width: 100%;
+    font-family: Arial, sans-serif;
+    color: #333;
+  }
+  
+  .box .styled-table thead th {
+    border-radius: 5px;
+    background-color: #c24bc2; 
+    text-align: center;
+    color: white;
+    padding: 10px;
+  }
+
+
+  .box .styled-table thead th:hover {
+    background-color: #e72a53; 
+  }
+  
+
+  
+  .box .styled-table tbody td {
+    border-style: 1px solid rgb(148, 80, 224);
+    padding: 10px;
+    color: white;
+  }
+  
+  .box .styled-table tbody tr:nth-child(even) {
+    background-color: #f5f5f5;
+  }
+  
+  .box .styled-table tbody tr:hover {
+    background-color: yellow;
+  }
+
+
+  .box .styled-table tfoot td {
+    border-style: 1px solid rgb(148, 80, 224);
+    padding: 10px;
+    color: white;
+  }
+  
+  .box .styled-table tfoot tr:nth-child(even) {
+    background-color: #f5f5f5;
+  }
+  
+  .box .styled-table tfoot tr:hover {
+    background-color: yellow;
+  }
+
+
+  .tfootBorder{
+    border-style: solid none none none;
+    border-color: azure;
+  }
+
+  .dataTableBtn{
+    color: white;
+    background-color: #c24bc2;
+    width: 60px;
+    height: 28px;
+    margin: auto;
+    border-radius: 10px;
+    border: none;
+    box-shadow: 4px 6px   rgba(53, 47, 47, 0.199);
+    text-align: center;
+    align-items: center;
+    display: flex;
+    justify-content: center;
+  }
+
+
+
+  .dataTableBtn:hover{
+    color: black;
+    background-color: gray;
+    box-shadow: 0px 0px   rgba(243, 241, 241, 0.3);
+  }
+
+  .totalTime
+  {
+    font-size: 5px;
+  }
+
+  .todayTime{
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    align-items: center;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    font-size: 20px;
+    color: white;
+  }
+
+
+
+
+  /* MODAL */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+    justify-content: center; /* 수평 가운데 정렬 */
+    align-items: center; /* 수직 가운데 정렬 */
+  }
+  .modal h2{
+    text-align: center;
+    background-color: white;
+    padding-bottom: 50px;;
+  }
+
+  .modal button{
+    margin-top: 3%;
+    width: 100%;
+    height: 15%;
+    border-radius: 5px;
+    border-width: 3px;
+    font-size: large;
+  }
+
+  .modal button:hover{
+    color: purple;
+    background-color: white;
+  }
+
+  .modal input{
+    width: 100%;
+    height: 10%;
+    color: purple;
+    font-style: bold;
+    font-weight: 100;
+    background-color: white;
+    text-align: center;
+    padding: auto;
+    border-radius: 5px;
+    border-width: 3px;
+  }
+  
+  .modal-content {
+    justify-content: center; /* 수평 가운데 정렬 */
+    align-items: center; /* 수직 가운데 정렬 */
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 1000%;
+    height: 40%;
+    max-width: 500px; /* 모달의 최대 너비 설정 */
+    background-color: white;
+  }
+  
+  .close {
+    background-color: white;
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+  }
+  
+  .close:hover,
+
+  .close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+  }</code></pre></details></li></ul><p id="d54d71b2-1e02-4ce4-90a1-33de69812ab4" class="">
+</p><p id="4733d09f-b298-4edb-9fef-2ddc72d0f044" class="">
+</p><p id="96039ade-e9b3-4a38-bdc2-8fb1823b420c" class="">
+</p><p id="ed2e3cc1-0fae-4ed5-95bf-f494991c1b15" class="">
+</p></div></figure><p id="28a09add-9832-41e0-b554-a8c73fa5666f" class="">
+</p></details></li></ul><ul id="f119ce0b-f409-492b-bc31-775367fa94a3" class="toggle"><li><details open=""><summary><em><strong>Version 6 → 2023-05-24</strong></em></summary><hr id="88447631-3af2-4592-ae56-7f061c75d78a"/><figure id="83cfc951-c897-4de5-b116-1bf8ee142f38" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2015.png"><img style="width:624px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2015.png"/></a></figure><p id="e4cf9ea3-a082-4b91-aee4-78da9eac233a" class="">
+</p><figure id="4442cd60-78d2-42d1-ab5c-87d3759b2cb9" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2016.png"><img style="width:624px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2016.png"/></a></figure><p id="0927aa42-5d7a-478e-afb9-c25e8ef0204d" class="">
+</p><figure id="64260742-7367-4af6-9ea5-a41934a7a302" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2017.png"><img style="width:624px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2017.png"/></a></figure><p id="01f6287e-4e6b-4e93-bbc1-0954e2c80c8a" class="">
+</p><p id="e715b214-c9f8-4bf5-9502-83a77b1cd334" class="">
+</p><ul id="7216ccc2-094e-4e3a-ad41-7ac50ad1f89a" class="toggle"><li><details open=""><summary><em><strong>HTML</strong></em></summary><hr id="0f94c2d8-b3bf-4a42-8e8b-84e4f7469c5e"/><pre id="b57cd9cf-239a-4d64-9c02-cbbd9e389b84" class="code"><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+	&lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;style.css&quot;&gt;
+
+&lt;meta charset=&quot;UTF-8&quot;&gt;
+&lt;title&gt;StopWatch&lt;/title&gt;
+&lt;link href=&quot;https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css&quot; rel=&quot;stylesheet&quot; integrity=&quot;sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN&quot; crossorigin=&quot;anonymous&quot;&gt;
+&lt;script src=&quot;http://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js&quot;&gt;&lt;/script&gt;
+
+&lt;/head&gt;
+&lt;body&gt;
+	&lt;div id=&#x27;box&#x27; class=&quot;box&quot;&gt;
+
+		&lt;div id=&#x27;timerBox&#x27; class=&quot;timerBox&quot;&gt;
+			&lt;p&gt;
+				&lt;span id=&quot;time&quot; class=&quot;time&quot;&gt;00:00:00&lt;/span&gt;&lt;span id=&quot;timeMil&quot; class=&quot;timeMil&quot;&gt;:000&lt;/span&gt;
+			&lt;/p&gt;
+		&lt;/div&gt;
+		
+		&lt;div class=&quot;btnBox&quot;&gt;
+			&lt;i id=&quot;startbtn&quot; onclick=&quot;startBtnOperate()&quot; class=&quot;fa fa-play&quot;  aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+			&lt;i id=&quot;pausebtn&quot; onclick=&quot;pauseBtn()&quot;        class=&quot;fa fa-pause&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+			&lt;i id=&quot;stopbtn&quot;  onclick=&quot;stopBtn()&quot;         class=&quot;fa fa-stop&quot;  aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+		&lt;/div&gt;
+
+
+
+
+		&lt;div class=&quot;arrowInterface&quot;&gt;
+
+			&lt;div class=&quot;divBeforeArrow&quot;&gt;&lt;/div&gt;
+
+			&lt;div class=&quot;horizontalContainer&quot;&gt;
+			  &lt;span id=&quot;beforeArrow&quot; class=&quot;arrow1&quot; value=&quot;left&quot; &gt; &lt;/span&gt;
+			  &lt;span id=&quot;todayTime&quot; class=&quot;todayTime&quot; style=&quot;display: none;&quot;&gt;오늘 시간&lt;/span&gt;
+			  &lt;span id=&quot;afterArrow&quot; class=&quot;arrow2&quot; value=&quot;right&quot; &gt; &lt;/span&gt;
+			&lt;/div&gt;
+
+			&lt;div class=&quot;divAfterArrow&quot;&gt;&lt;/div&gt;
+		  &lt;/div&gt;
+
+
+
+		&lt;div id=&quot;dataTable&quot; class=&quot;styled-table&quot; style=&quot;display: none;&quot;&gt;
+			&lt;table id=&quot;firstTable&quot;&gt;
+				&lt;thead&gt;
+				  &lt;tr&gt;
+					&lt;th&gt;No&lt;/th&gt;
+					&lt;th&gt;Title&lt;/th&gt;
+					&lt;th&gt;Time&lt;/th&gt;
+					&lt;th&gt;Start Time&lt;/th&gt;
+					&lt;th&gt;End Time&lt;/th&gt;
+					&lt;th&gt;Option&lt;/th&gt;
+				  &lt;/tr&gt;
+				&lt;/thead&gt;
+				&lt;tbody&gt;
+	
+				&lt;/tbody&gt;
+				&lt;tfoot class=&quot;tfootBorder&quot;&gt;
+
+				&lt;/tfoot&gt;
+			  &lt;/table&gt;	
+		&lt;/div&gt;
+
+
+
+	&lt;/div&gt;
+
+	
+
+	&lt;div id=&quot;myModal&quot; class=&quot;modal&quot;&gt;
+	&lt;div class=&quot;modal-content&quot;&gt;
+		&lt;span class=&quot;close&quot; onclick=&quot;closeModal()&quot;&gt;&amp;times;&lt;/span&gt;
+		&lt;h2&gt;RECORD TITLE&lt;/h2&gt;
+		&lt;input type=&quot;text&quot; id=&quot;settingRecordTitle&quot; placeholder=&quot;please insert a record title!&quot;&gt;
+		&lt;button label=&quot;modalSubmit&quot; onclick=&quot;settingTitleModal()&quot;&gt; submit &lt;/button&gt;
+	&lt;/div&gt;
+	&lt;/div&gt;
+
+
+
+
+
+		
+	&lt;script type=&quot;text/javascript&quot; src=&quot;stopwatch.js&quot;&gt;&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre><p id="2f516154-8b89-46fe-b9db-64567b97a41e" class="">
+</p><hr id="79aed4a3-0e30-43a0-bf99-abd6749797b6"/><p id="01fcdb46-122b-4e8a-b248-99be6ee658b2" class="">
+</p></details></li></ul><ul id="7bc89fd8-d2f5-4c23-b271-839e24ac8419" class="toggle"><li><details open=""><summary><em><strong>CSS</strong></em></summary><hr id="3f40fb39-fb2a-4039-a7a5-6893b2306af6"/><pre id="4db557b5-2843-430a-82d5-8f1019f9fb06" class="code"><code>*{
+    margin: 0px;
+    padding: 0px;
+    background-color: rgb(148, 80, 224);
+}
+  body{
+    height: 100vh;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+ }
+ .box{
+    background-color: rgb(148, 80, 224);
+    border-radius: 10px;
+    width: 1000px;
+    height: 300px;
+}
+.timerBox{
+    width: 400px;
+    margin-left: 300px;
+    justify-content: center;
+    text-align: center;
+}
+.timerBox .time{
+    font-size: 80pt;
+    color: grey;
+    text-align: center;
+    font-family: sans-serif;
+}
+
+.timerBox .timeMil{
+    font-size: 40pt;
+    color: grey;
+    font-family: sans-serif;
+}
+
+.btnBox{
+    margin: 10px auto;
+    text-align: center;
+}
+.btnBox .fa{
+    margin: 0px 5px;
+    font-size: 30pt;
+    color: grey;
+    cursor: pointer;
+}
+
+
+.box .styled-table {
+    padding-top: 1em;
+    display: flex;
+    justify-content: center; /* 수평 가운데 정렬 */
+    align-items: center; /* 수직 가운데 정렬 */
+    width: 100%;
+    font-family: Arial, sans-serif;
+    color: #333;
+  }
+  
+  .box .styled-table thead th {
+    border-radius: 5px;
+    background-color: #c24bc2; 
+    text-align: center;
+    color: white;
+    padding: 10px;
+  }
+
+
+  .box .styled-table thead th:hover {
+    background-color: #e72a53; 
+  }
+  
+
+  
+  .box .styled-table tbody td {
+    border-style: 1px solid rgb(148, 80, 224);
+    padding: 10px;
+    color: white;
+  }
+  
+  .box .styled-table tbody tr:nth-child(even) {
+    background-color: #f5f5f5;
+  }
+  
+  .box .styled-table tbody tr:hover {
+    background-color: yellow;
+  }
+
+
+  .box .styled-table tfoot td {
+    border-style: 1px solid rgb(148, 80, 224);
+    padding: 10px;
+    color: white;
+  }
+  
+  .box .styled-table tfoot tr:nth-child(even) {
+    background-color: #f5f5f5;
+  }
+  
+  .box .styled-table tfoot tr:hover {
+    background-color: yellow;
+  }
+
+
+  .tfootBorder{
+    border-style: solid none none none;
+    border-color: azure;
+  }
+
+  .dataTableBtn{
+    color: white;
+    background-color: #c24bc2;
+    width: 60px;
+    height: 28px;
+    margin: auto;
+    border-radius: 10px;
+    border: none;
+    box-shadow: 4px 6px   rgba(53, 47, 47, 0.199);
+    text-align: center;
+    align-items: center;
+    display: flex;
+    justify-content: center;
+  }
+
+
+
+  .dataTableBtn:hover{
+    color: black;
+    background-color: gray;
+    box-shadow: 0px 0px   rgba(243, 241, 241, 0.3);
+  }
+
+  .totalTime
+  {
+    font-size: 5px;
+  }
+
+  .todayTime{
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    align-items: center;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    font-size: 20px;
+    color: white;
+  }
+
+
+
+
+  /* MODAL */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+    justify-content: center; /* 수평 가운데 정렬 */
+    align-items: center; /* 수직 가운데 정렬 */
+  }
+  .modal h2{
+    text-align: center;
+    background-color: white;
+    padding-bottom: 50px;;
+  }
+
+  .modal button{
+    margin-top: 3%;
+    width: 100%;
+    height: 15%;
+    border-radius: 5px;
+    border-width: 3px;
+    font-size: large;
+  }
+
+  .modal button:hover{
+    color: purple;
+    background-color: white;
+  }
+
+  .modal input{
+    width: 100%;
+    height: 10%;
+    color: purple;
+    font-style: bold;
+    font-weight: 100;
+    background-color: white;
+    text-align: center;
+    padding: auto;
+    border-radius: 5px;
+    border-width: 3px;
+  }
+  
+  .modal-content {
+    justify-content: center; /* 수평 가운데 정렬 */
+    align-items: center; /* 수직 가운데 정렬 */
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 1000%;
+    height: 40%;
+    max-width: 500px; /* 모달의 최대 너비 설정 */
+    background-color: white;
+  }
+  
+  .close {
+    background-color: white;
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+  }
+  
+  .close:hover,
+
+  .close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  
+
+
+
+ .arrowInterface {
+  padding: 5px;
+  display: flex;
+  align-items: center;
+}
+
+.divBeforeArrow,
+.divAfterArrow {
+  flex: 1;
+}
+
+.horizontalContainer {
+  display: flex;
+  align-items: center;
+}
+
+.todayTime {
+  margin: 0 10px; /* 원하는 간격으로 조정 */
+}
+
+.arrow1
+{
+
+  width: 0px;
+  height: 0px;
+  border-left:   15px solid transparent;
+  border-right:  15px solid transparent;
+  border-bottom: 30px solid gainsboro;
+  transform: rotate( -90deg );
+
+}
+
+.arrow2
+{
+  width: 0px;
+  height: 0px;
+  border-left:   15px solid transparent;
+  border-right:  15px solid transparent;
+  border-bottom: 30px solid gainsboro;
+  transform: rotate( 90deg );
+  
+}
+
+.arrow1:hover,
+.arrow2:hover
+{
+  border-bottom: 30px solid red;
+}</code></pre><hr id="f395aa04-aea5-4dd2-be89-be7ae52fb5b5"/><p id="00428e7f-91fc-4833-b8db-c2e26e3c250d" class="">
+</p></details></li></ul><ul id="99ec0dad-7126-431e-bdff-fd10f4952598" class="toggle"><li><details open=""><summary><em><strong>JS</strong></em></summary><hr id="48dc3209-577e-46d2-a0f2-02d8c0a9d084"/><pre id="ced5d1b1-3f10-4e65-a55a-91b5ae50e36f" class="code"><code>let time = 0;
+var starFlag = true;
+
+let hour  = 0;
+let min   = 0;
+let sec   = 0;
+let mil   = 0;
+let timer;
+let startTime;
+let timerInterval;
+todayTime
+
+let today;
+let initTime;
+
+
+let isFirstTime = true;
+
+/**
+
+ */
+
+
+
+/**
+ * 
+  @name        : dataTable 
+  @description : 시간 데이터를 넣기 위한 배열  
+ */
+let dataTable = [];
+
+let isArrayExist = false;
+
+
+let isInit = true;
+
+/**
+ * 
+            @init        : 초기화 method  
+            @description : local storage 에서 데이터를 들고오고 그 값을 토대로 rendering   
+ */
+(function() {
+  
+
+  let cacheData = localStorage.getItem(&#x27;data&#x27;);
+
+  if(cacheData == null )
+  {
+    localStorage.setItem(&#x27;data&#x27;, JSON.stringify(dataTable));
+  }
+  else
+  {
+    dataTable = JSON.parse(cacheData);
+    console.log(dataTable);
+  }
+
+})();
+
+window.onload = function() {
+    // 오늘 날짜를 표시할 element 를 변수에 지정 
+    let todayTime = document.getElementById(&#x27;todayTime&#x27;);
+
+    // 오늘 날짜를 yyyy.MM.dd 형태로 만들어 element 에 값을 변경 
+    dateInstance = new Date();
+
+    today = dateInstance.getFullYear()+&#x27;.&#x27;+(dateInstance.getMonth()+1)+&#x27;.&#x27;+dateInstance.getDate();
+    todayTime.textContent = today; 
+    todayTime.style.display = &#x27;block&#x27;; // 해당 element 를 보이게 설정 
+
+
+    if(dataTable.length != 0)
+    {
+      document.getElementById(&#x27;dataTable&#x27;).style = &#x27;block&#x27;;
+    }
+
+    console.log(dataTable);
+    console.log(&#x27;before rendering&#x27;);
+    rendering();
+  
+}
+
+/**
+ * 
+            @name        : insertTimeData 
+            @description : 정지 버튼을 누르고 html 에 오늘 날짜와 배열에 방금 생성한 시간데이터를 넣고 
+                          해당 배열을 기반으로 datatable rendering  
+            @parmaeter   : title -&gt; 시간 데이터의 attribute  : 해당 시간에 주된 내용이 무엇을 했는지 저장 
+                          time  -&gt; 시간 데이터
+ */
+function insertTimeData(title, time, endTime)
+{
+
+
+  let numberValue;
+
+  // 배열의 크기가 0 =&gt; 오늘 생성된 시간 데이터가 없을 경우 
+  if(dataTable.length == 0)
+  {
+    // index 직접 설정
+    numberValue = 1;  
+  }
+  // 배열의 크기가 1 이상인 경우 -&gt; 시간 데이터가 이미 존재 
+  else
+  {
+    // 이전 record 의 index 를 가져와서 +1 을 추가한 것을 number 로 가진다.
+    
+    numberValue = dataTable[dataTable.length-1].number+1
+    
+  }
+
+  dataTable.push({&quot;number&quot;: numberValue, &quot;title&quot;:title, &quot;time&quot;:time, &quot;startTime&quot;: initTime,&quot;endTime&quot;:endTime} );
+  localStorage.setItem(&#x27;data&#x27;, JSON.stringify(dataTable));
+
+  
+  rendering();
+}
+
+
+/**
+  @name        : rendering
+  @description : DataTable 에 tbody 요소를 생성  
+ */
+function rendering()
+{
+
+  // dataTable element 
+  let table = document.getElementById(&#x27;firstTable&#x27;);
+
+  // tbody element 
+  let tbody = table.querySelector(&quot;tbody&quot;);
+
+  // tbody element 의 이전 값들을 지운다. 
+  tbody.innerHTML = &quot;&quot;;
+
+
+  // 배열안에 든 시간 데이터의 시간 값 
+  let hourSub = 0;
+
+  // 배열안에 든 시간 데이터의 분 값
+  let minSub  = 0;
+
+  // 배열안에 든 시간 데이터의 초 값
+  let secSub  = 0;
+
+
+  let index = 0 ;
+
+  // 배열의 반복을 실행 =&gt; 행을 동적으로 생성하기 위해서 
+  dataTable.forEach((item)=&gt;{
+
+    // 새로운 행을 생성 
+    let row = document.createElement(&quot;tr&quot;);
+
+    // 해당 행에 추가할 첫번째 열 데이터 생성 
+    let cel1 = document.createElement(&quot;td&quot;);
+
+    // 첫째 열에는 record 의 인덱스가 들어감 
+    cel1.textContent = index+1;
+
+    index++;
+
+    // 행에 해당 열을 추가 
+    row.appendChild(cel1);
+
+
+    // 두번째 행에는 레코드의 제목이 들어감
+    let cel2 = document.createElement(&quot;td&quot;);
+    cel2.textContent = item.title;
+    row.appendChild(cel2);
+
+
+    // 세번째 행에는 레코드의 시간 데이터가 들어감 
+    let cel3 = document.createElement(&quot;td&quot;);
+    let tempTime     = item.time;
+    cel3.textContent = tempTime;
+
+    // split function 으로 값을 나눈 다음, 정수로 변환
+    let token = tempTime.split(&quot;:&quot;);
+    hourSub += parseInt(token[0]);
+    minSub  += parseInt(token[1]);
+    secSub  += parseInt(token[2]);
+    row.appendChild(cel3);
+
+
+    let cel4 = document.createElement(&quot;td&quot;);
+    cel4.textContent = item.startTime;
+    row.appendChild(cel4);
+
+    
+    let cel5 = document.createElement(&quot;td&quot;);
+    cel5.textContent = item.endTime;
+    row.appendChild(cel5);
+
+
+
+    let cel6   = document.createElement(&quot;td&quot;);
+    let button = document.createElement(&quot;button&quot;);
+
+      // 생성된 button 의 attribute 설정 
+      button.className=&quot;dataTableBtn&quot;;
+      button.textContent = &quot;setting&quot;
+      button.addEventListener(&quot;click&quot;,()=&gt;{ eliminate(cel1.textContent); }); 
+      cel6.appendChild(button); 
+      row.appendChild(cel6)
+
+    tbody.appendChild(row);
+    
+  })
+
+  console.log(&#x27;render&#x27;);
+
+  // data table tfoot 설정 
+  setTfoot(hourSub,minSub,secSub);
+}
+
+
+function setTfoot(hour,min,sec)
+{ 
+
+  let foot = document.querySelector(&#x27;tfoot&#x27;);
+  foot.innerHTML = &quot;&quot;;
+
+  let cel1 = document.createElement(&#x27;td&#x27;);
+  let cel2 = document.createElement(&#x27;td&#x27;);
+  let cel3 = document.createElement(&#x27;td&#x27;);
+  let cel4 = document.createElement(&#x27;td&#x27;);
+  let cel5 = document.createElement(&#x27;td&#x27;);
+  // 시간의 총 합을 구하려고 한다. 
+  let cel6 = document.createElement(&#x27;td&#x27;);
+  min  += Math.floor(sec/60);
+  hour += Math.floor(min/60);
+  cel6.className =&quot;totalTime&quot;
+  cel6.textContent = hour+&quot; 시간 &quot;+min%60+&quot; 분 &quot;+sec%60+&quot; 초 &quot;;
+
+  foot.appendChild(cel1);
+  foot.appendChild(cel2);
+  foot.appendChild(cel3);
+  foot.appendChild(cel4);
+  foot.appendChild(cel5);
+  foot.appendChild(cel6);
+
+
+  console.log()
+
+}
+
+
+
+
+function init(){
+  document.getElementById(&quot;time&quot;).innerHTML = &quot;00:00:00&quot;;
+  document.getElementById(&quot;timeMil&quot;).innerHTML = &quot;:000&quot;;
+  hour  = 0;
+  min   = 0;
+  sec   = 0;
+  mil   = 0;
+}
+
+// parameter : start, pause, stop
+// function  : if a timer start change number color
+async function changeFontColor(command)
+{
+  $(&quot;.fa&quot;).css(&quot;color&quot;,&quot;grey&quot;);
+  document.getElementById(command+&#x27;btn&#x27;).style = &#x27;color: white;&#x27;;
+}
+
+
+  // start btn
+  function startBtnOperate()
+  {
+    if(isFirstTime)
+    {
+      let tempNow = new Date()
+      initTime = addZero(tempNow.getHours())+&quot;:&quot;+addZero(tempNow.getMinutes())+&quot;:&quot;+addZero(tempNow.getSeconds());
+      isFirstTime = false;
+    }
+    
+    document.getElementById(&#x27;time&#x27;).style=&#x27;color: white;&#x27;
+    document.getElementById(&#x27;timeMil&#x27;).style=&#x27;color: red;&#x27;
+
+    if(starFlag)
+    {
+      
+      changeFontColor(&#x27;start&#x27;);
+        starFlag = false;
+        if(time == 0)
+        {
+          init();
+        }
+        startTime = Date.now() - time;
+        timerInterval = setInterval(updateTimer, 10);
+      
+    }
+  }
+
+
+  function updateTimer() {
+    let currentTime = Date.now();
+    time = currentTime - startTime
+    presentCurrentTime();
+  }
+
+
+
+  // pause btn
+  function pauseBtn()
+    {
+      // when time is not zero -&gt; start button was operated 
+      if(time != 0)
+      {
+        changeFontColor(&#x27;pause&#x27;);
+        clearInterval(timerInterval);
+        starFlag = true;
+    
+      }
+    };
+
+
+
+
+
+
+  // stop btn
+  function stopBtn()
+  {
+    if(time != 0){
+      changeFontColor(&#x27;stop&#x27;).then(()=&gt;{
+        clearInterval(timerInterval);
+
+        let tempTime = new Date();
+        endTime =  addZero(tempTime.getHours())+&quot;:&quot;+addZero(tempTime.getMinutes())+&quot;:&quot;+addZero(tempTime.getSeconds());
+        isFirstTime = true;
+  
+        starFlag  = true;
+        time      = 0;
+
+        openModal();
+
+      })
+    }
+  }
+    
+
+
+  function presentCurrentTime()
+  {
+      if( mil == 1000 ) { mil  = 0; }
+      
+      mil  = time%1000;
+      sec  = Math.floor(time/1000);
+      min  = Math.floor(sec/60);
+      hour = Math.floor(min/60);
+      sec  = sec%60;
+      min  = min%60;
+
+    let th    = hour;
+    let tm    = min;
+    let ts    = sec;
+    let tmil  = mil; 
+    
+    if       (   th  &lt; 10  )  { th   = &quot;0&quot;   + hour;  }
+    if       (   tm  &lt; 10  )  { tm   = &quot;0&quot;   + min;   }
+    if       (   ts  &lt; 10  )  { ts   = &quot;0&quot;   + sec;   }
+    if       (  tmil &lt; 10  )  { tmil = &quot;00&quot;  + mil;   }
+    else { if( tmil  &lt; 100 )  { tmil = &quot;0&quot;   + mil; } }
+
+    document.getElementById(&quot;time&quot;)   .innerHTML    = th + &quot;:&quot; + tm + &quot;:&quot; + ts;
+    document.getElementById(&quot;timeMil&quot;).innerHTML = &quot;:&quot;+tmil;
+  }
+
+
+  function addZero(digit)
+  {
+    if(digit&lt;10) return &quot;0&quot;+digit;
+                 return digit
+  }
+
+
+  function eliminate(number)
+  {
+      console.log(number);
+      dataTable.splice(number-1,1);
+      localStorage.setItem(&#x27;data&#x27;, JSON.stringify(dataTable));
+      rendering();
+  }
+
+
+
+  let title;
+  let endTime;
+
+  // MODAL
+  // 모달 열기 버튼 요소 선택
+
+
+async function openModal()
+{
+  console.log(&#x27;modal Open Test&#x27;);
+  document.getElementById(&quot;myModal&quot;).style.display = &#x27;block&#x27;;
+}
+
+
+function closeModal()
+{
+  createRecord(&#x27;default&#x27;);
+  document.getElementById(&#x27;settingRecordTitle&#x27;).value = &#x27;&#x27;;
+  document.getElementById(&#x27;dataTable&#x27;).style = &#x27;block&#x27;;
+}
+
+function settingTitleModal()
+{
+     createRecord(document.getElementById(&#x27;settingRecordTitle&#x27;).value);
+     document.getElementById(&#x27;settingRecordTitle&#x27;).value = &#x27;&#x27;;
+     document.getElementById(&#x27;dataTable&#x27;).style = &#x27;block&#x27;;
+}
+
+function createRecord(title)
+{
+  insertTimeData(title,document.getElementById(&quot;time&quot;).textContent,endTime);
+  init();
+  document.getElementById(&quot;myModal&quot;).style.display = &quot;none&quot;;
+}
+
+
+// arrow click -&gt; Date Change 
+
+let dateUpDown     = 0 ;
+let beforeArrowBtn = document.getElementById(&#x27;beforeArrow&#x27;);
+let afterArrowBtn  = document.getElementById(&#x27;afterArrow&#x27;);
+
+beforeArrowBtn.addEventListener(&#x27;click&#x27;,()=&gt;{ 
+     treatDate(dateUpDown--);
+})
+
+afterArrowBtn.addEventListener(&#x27;click&#x27;,()=&gt;{
+      treatDate(dateUpDown++);
+})
+
+function treatDate(upOrDown)
+{
+  dateInstance = new Date();
+  dateInstance.setDate(dateInstance.getDate() + upOrDown);
+  today = dateInstance.getFullYear()+&#x27;.&#x27;+(dateInstance.getMonth()+1)+&#x27;.&#x27;+dateInstance.getDate();
+  todayTime.textContent = today; 
+  todayTime.style.display = &#x27;block&#x27;; // 해당 element 를 보이게 설정 
+}</code></pre><hr id="5cf186c5-9ed3-4614-baea-7094128b3b23"/><p id="ac95f0eb-f9bf-4a9b-a2db-91abc3523be3" class="">
+</p></details></li></ul><p id="3bd0a740-909e-4f76-8957-4c701f220514" class="">
+</p><h2 id="67f4d4fa-e001-4dc1-b527-fc7f663de8e0" class=""><em><strong>KeyPotint</strong></em></h2><hr id="51259b50-ca0b-4c25-b7cd-d8e893c5c5fb"/><p id="a3287185-b2ee-46a9-b49f-9a36b95f1632" class="">
+</p><p id="5309f653-0b45-48b9-8643-e2daacd4479a" class="">
+</p><p id="45880eaf-9e6a-4661-8559-7fd62c160a8a" class="">
+</p><p id="c5042234-8d72-40ad-b6dd-4c33472b4fca" class="">
+</p><hr id="626c027f-e69e-4fe3-913b-7841facdd52c"/><p id="5c03bead-150c-4e20-a620-306ea8880cc3" class="">
+</p></details></li></ul><p id="89b5c115-5fac-4868-bcbb-05417013f7a9" class="">
+</p><hr id="079fc9fe-80a3-496f-9409-826a20d14fd5"/><p id="b60f2196-3935-44fc-8493-e29223f75e3e" class="">
+</p></details></li></ul><ul id="e923e8d6-7144-45c3-a6fc-fbf57d504ed2" class="toggle"><li><details open=""><summary><em><strong>EnterPress Counter </strong></em></summary><hr id="39e72819-e0b1-4ec2-9c88-ceedf675abea"/><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="e4f8c4a7-3c40-4ae1-99d5-4909989431d9"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">배운 것 <p id="89696773-3bcb-486b-a418-ffe92c384e8c" class="">→ 이번 이것을 만들어 본 덕분에 여러가지 addEventListener 에 대해서 알 수 있었다.</p><p id="74b371d0-061f-47de-9f61-a50df4e7bbe8" class="">특히 mouseover, mouseout 에 대해서 알 수 있었다. </p><p id="d625c637-db60-4a42-99b8-dcd44eb9b37d" class="">LWC 를 한 덕분에 js 에 많이 익숙해졌다.</p><p id="1cacf819-40f5-4660-a90c-415717443ad1" class="">
+</p></div></figure><p id="39dfe7cb-e471-47a3-ae2f-6298296887f2" class="">
+</p><ul id="96d6aa1c-f6c3-4001-acc9-4b7cc5cdf72b" class="toggle"><li><details open=""><summary><em><strong>HTML        → basic.html</strong></em></summary><hr id="63cf251c-dcde-4658-9ee1-16ef288f2770"/><pre id="a1d6a483-5bbc-4181-87f5-e9b52ce3b2af" class="code"><code>&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;meta http-equiv=&quot;X-UA-Compatible&quot; content=&quot;IE=edge&quot;&gt;
+    &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;&gt;
+    &lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;style.css&quot;&gt;
+    
+    &lt;title&gt;Enter Counter&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;div class=&quot;wall&quot;&gt;
+        &lt;div class=&quot;box&quot; id=&quot;enterBox&quot; &gt;Zero&lt;/div&gt;    
+    &lt;/div&gt;
+    
+
+    &lt;script type=&quot;text/javascript&quot; src=&quot;basic.js&quot;&gt;&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre><p id="2bff15b6-4594-4499-92dc-fb3f640c243d" class="">
+</p></details></li></ul><ul id="3146a946-b30d-48db-a779-f0b3b6bc9b5d" class="toggle"><li><details open=""><summary><em><strong>JavaScript → basic.js</strong></em></summary><hr id="6239fee2-d63d-4122-807d-cf03b34c4762"/><pre id="31a71cff-76b9-4009-b66a-0353d32eb4b7" class="code"><code>let myDiv = document.getElementById(&quot;enterBox&quot;);
+  let count = 0;
+  let isFocused = false;
+
+  myDiv.addEventListener(&quot;mouseover&quot;, function() {
+    isFocused = true;
+  });
+
+  myDiv.addEventListener(&quot;mouseout&quot;, function() {
+    isFocused = false;
+  });
+
+  document.addEventListener(&quot;keydown&quot;, function(event) {
+    if (isFocused &amp;&amp; event.key === &quot;Enter&quot;) {
+      count++;
+      myDiv.textContent = count;
+    }
+  });</code></pre><p id="e64f543a-7974-4f2f-adf7-6ed25cb67c9f" class="">
+</p></details></li></ul><ul id="f9450315-16be-40fc-a070-dbf54e5d5a0f" class="toggle"><li><details open=""><summary><em><strong>CSS→ style.css</strong></em></summary><pre id="9e6ee37c-9698-462b-9aae-af987d70410f" class="code"><code>*{
+    margin: 0px;
+    padding: 0px;
+    background-color: rgb(148, 80, 224);
+}
+body{
+    height: 100vh;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    
+    
+ }
+
+ .wall{
+    display: table-cell;
+    flex-direction: column;
+ }
+ .box{
+    width: 200px;
+    height: 200px;
+    text-align: center;
+    font-size: 40px;
+    font-family: sans-serif;
+    border: 1px solid rgb(202, 188, 188);
+    margin: 30px;
+    background-color: rgb(202, 188, 188);
+    border-radius: 5px;
+    padding: 30px;
+    box-shadow: 4px 6px   rgba(53, 47, 47, 0.199);
+    display:table-cell;
+    vertical-align:middle;
+
+}
+
+.box:hover
+{
+    border: 1px solid rgb(73, 65, 65);
+    background-color:  rgb(73, 65, 65);
+    box-shadow: 0px 0px   rgba(243, 241, 241, 0.3);
+}ㅊ</code></pre></details></li></ul><p id="6d4f38fc-e98a-4d63-a4b7-e70cd5bd0df6" class="">
+</p><p id="bfee9a7c-8c47-4567-9365-fed5e04a066b" class="">
+</p><p id="b5ef962b-7552-4e95-9746-abcd34312db2" class="">
+</p><hr id="6349058a-5839-4d66-b2c2-c33e298cfac8"/><p id="e48e6521-d43b-4eae-8e98-8ee736a3e318" class="">
+</p></details></li></ul><ul id="674d56b5-33b7-4965-bed3-28bae5ef8e9d" class="toggle"><li><details open=""><summary><em><strong>버튼 Key Down</strong></em></summary><hr id="44e8308b-880f-4755-a229-56bafe7f12b3"/><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="64a5e54c-2464-46eb-8f91-ad83595253fa"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%"><strong>2023-05-24 0150 ⇒ 심심해서 집에서 만들어 봤다. KeyDown 기능 연습도 해보고</strong><hr id="622d5847-2ed0-4a87-8c28-650196dbbd3f"/><p id="6d275041-ac3f-4b68-b077-0023c0d2743c" class="">
+</p><figure id="080b558d-9ad9-4530-bf3b-b5a581f4bf89" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2018.png"><img style="width:432px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2018.png"/></a></figure><p id="f79677fc-67d3-4b24-9e2d-6bff4243010a" class="">
+</p><figure id="305b545a-3bc2-4ed2-a83a-72eb6e43f1b6" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2019.png"><img style="width:432px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2019.png"/></a></figure><p id="b236fadb-5d7d-49fa-9c70-c13bcbe489ec" class="">
+</p><figure id="59cbc3e6-32fa-4a89-b69b-668d7dfc5db5" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2020.png"><img style="width:432px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2020.png"/></a></figure><p id="a3dfe83f-4be2-4e4b-8786-271b61ce988c" class="">
+</p><figure id="b137c44a-752b-479b-87b3-990670ff04cf" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2021.png"><img style="width:432px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2021.png"/></a></figure><p id="c497e354-7baa-40c8-8dc1-9383d4f9e50d" class="">
+</p><ul id="e0fca07b-03ae-4a65-a395-53b431fe170a" class="toggle"><li><details open=""><summary><em><strong>HTML</strong></em></summary><hr id="5a582f8e-a7a2-4d97-ac73-67568f55e64f"/><pre id="c4aadf2b-7110-4a30-96c9-2f274d261318" class="code"><code>&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;style.css&quot;&gt;
+    &lt;meta http-equiv=&quot;X-UA-Compatible&quot; content=&quot;IE=edge&quot;&gt;
+    &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;&gt;
+    &lt;title&gt;버튼 key down&lt;/title&gt;
+
+    &lt;div class=&quot;middle&quot;&gt;
+        &lt;button label=&quot;keyDown&quot; id=&quot;dwnBtn&quot; class=&quot;dwnBtn&quot; &gt;down&lt;/button&gt;
+    &lt;/div&gt;
+    
+
+    &lt;div class=&quot;middle&quot;&gt;
+        &lt;button label=&quot;reset&quot; id=&quot;reset&quot; class=&quot;reset&quot; &gt;reset&lt;/button&gt;
+    &lt;/div&gt;
+    
+    
+    &lt;script type=&quot;text/javascript&quot; src=&quot;index.js&quot;&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    
+&lt;/body&gt;
+&lt;/html&gt;</code></pre><p id="ee303ad3-821f-483d-88cd-28162fc9f260" class="">
+</p><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="5abe340c-cafb-4f34-baf9-ae9444d2e754"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%"><em><strong>Key Point</strong></em><hr id="103a2591-8bc1-4b0f-874b-313d9f76689f"/><p id="b0c6a927-96ae-45dd-b042-90699310b801" class="">
+</p><p id="5f9b397a-f75b-4d5d-979c-802b5ab56cff" class=""><em><strong>css 불러오기 기억하기</strong></em></p><pre id="91ece0b0-d872-4b03-b3d8-aba861335e7e" class="code"><code>&lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;style.css&quot;&gt;</code></pre><p id="6645cb3b-e1b7-4c26-a701-7cbbfd767d7b" class="">
+</p><p id="d5f272c4-5018-459f-a6ae-b26c5f0e7887" class=""><em><strong>JS 불러오기 기억하기 </strong></em></p><pre id="2c1b9e16-801b-4994-8dc7-422e79297c77" class="code"><code> &lt;script type=&quot;text/javascript&quot; src=&quot;index.js&quot;&gt;&lt;/script&gt;</code></pre><p id="79755b61-e6a4-4e3f-b309-59286b47c8b3" class="">
+</p><p id="097db139-160c-442e-a37a-c6a1770c201b" class=""><em><strong>div 로 css 적용 시키는 범위 설정 </strong></em></p><pre id="3e5e9b5f-d71b-4813-b48e-0f1312b9d7d9" class="code"><code>
+    &lt;div class=&quot;middle&quot;&gt;
+        &lt;button label=&quot;keyDown&quot; id=&quot;dwnBtn&quot; class=&quot;dwnBtn&quot; &gt;down&lt;/button&gt;
+    &lt;/div&gt;
+    
+
+    &lt;div class=&quot;middle&quot;&gt;
+        &lt;button label=&quot;reset&quot; id=&quot;reset&quot; class=&quot;reset&quot; &gt;reset&lt;/button&gt;
+    &lt;/div&gt;
+    </code></pre><p id="13f096d0-d748-4a18-98dc-2ac0c7b4816b" class="">
+</p></div></figure><p id="0b2704a4-583f-4ea0-8eb9-617d835477c1" class="">
+</p><p id="59a9ed98-2433-4352-bb7d-325933ec9a36" class="">
+</p><hr id="6c3fe85d-b3a5-4372-9ca3-59d4da8377f9"/><p id="0f6c53c9-09bc-432e-aefa-d40e576b4976" class="">
+</p></details></li></ul><ul id="2b714383-6563-4b23-9146-534e3e08e55a" class="toggle"><li><details open=""><summary><em><strong>CSS</strong></em></summary><hr id="113d6782-0aa6-408f-b8a9-9396df4a44c8"/><pre id="b24eb3ab-55a2-4995-b4dc-01b83ac4e2a2" class="code"><code>body{
+    padding-top: 1em;
+    align-items: center; /* 수직 가운데 정렬 */
+    background-color: rgb(112, 231, 199);
+}
+
+.middle{
+    display: flex;
+    justify-content: center; /* 수평 가운데 정렬 */
+    padding: 2%;
+}
+
+.dwnBtn{
+    margin-top: 20%;
+    width: 400px;
+    height: 300px;
+    background-color: rgb(130, 188, 129);
+    font-size: 30px;
+    font-style: oblique;
+    border-radius: 20px;
+    box-shadow: 4px 6px   rgba(53, 47, 47, 0.199);
+
+}
+
+.dwnBtn:hover{
+    background-color: rgb(185, 112, 112);
+    box-shadow: 0px 0px   rgba(243, 241, 241, 0.207);
+}
+
+.reset{
+    width: 160px;
+    height: 120px;
+    background-color: rgb(129, 182, 188);
+    font-size: 30px;
+    font-style: oblique;
+    border-radius: 20px;
+    box-shadow: 4px 6px   rgba(53, 47, 47, 0.199);
+}
+
+.reset:hover{
+    background-color: rgb(185, 180, 112);
+    box-shadow: 0px 0px   rgba(243, 241, 241, 0.3);
+}</code></pre><p id="0ce9f34f-c662-4881-b946-8b254837eca8" class="">
+</p><p id="209c00c1-208e-4c6c-a9bc-3c09f8d3c9ba" class="">
+</p><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="29ad6f17-377d-454b-9a5a-6a5b48374037"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">HTML Tag 에 바로 적용<hr id="62770b22-ff7f-42f8-aceb-d29ead908431"/><pre id="0fbe027b-5bd4-4db6-943b-689bb32766ef" class="code"><code>body{
+    padding-top: 1em;
+    align-items: center; /* 수직 가운데 정렬 */
+    background-color: rgb(112, 231, 199);
+}</code></pre><p id="3c249666-3b3f-4aa5-902d-8c0c379d4985" class="">
+</p></div></figure><p id="6936fedc-1a92-4a81-8a17-8ffb80b7d502" class="">
+</p><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="09a30c9d-1b4e-4fb6-8b0b-476c802cbefb"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">div 를 이용한 css 적용<hr id="96dfcc0c-2a6b-46d6-a970-4ff4d18959de"/><pre id="e5f748be-09c6-43d8-97e6-3ad9f0db7818" class="code"><code>.middle{
+    display: flex;
+    justify-content: center; /* 수평 가운데 정렬 */
+    padding: 2%;
+}</code></pre><p id="b77ff12c-d5bc-48cb-ac31-155e9bd19574" class="">
+</p></div></figure><p id="6cf7a1ae-9ed9-4c24-b82c-19d937da3a64" class="">
+</p><p id="64348646-b897-4e42-ba69-76ed8e8b3ace" class="">
+</p><hr id="67a6a74b-3a10-4cc0-b1d3-c2a4e428e868"/><p id="3cd6c1b7-a34a-47ea-8710-1e4b5a4c1371" class="">
+</p></details></li></ul><ul id="b1708707-ad66-4eba-9f96-b2037aa7f86f" class="toggle"><li><details open=""><summary><em><strong>JS</strong></em></summary><hr id="d75757bd-16fd-4072-8c73-60d61bc3da12"/><pre id="735f6f10-40ef-45f8-9286-cb94a1a4a26f" class="code"><code>// count up btn
+const btn = document.getElementById(&#x27;dwnBtn&#x27;);
+
+let present = btn.textContent;
+let cnt = 0;
+
+btn.addEventListener(&#x27;keydown&#x27;,(event)=&gt;{
+
+    if(event.key == &#x27;Enter&#x27;)
+    {
+        cnt++;
+        btn.textContent = cnt;
+    }
+})
+
+// reset btn
+const resetBtn = document.getElementById(&#x27;reset&#x27;);
+
+resetBtn.addEventListener(&#x27;click&#x27;,()=&gt;{
+
+    alert(&#x27;reset complete&#x27;);
+    cnt = 0;
+    btn.textContent = &#x27;down&#x27;;
+})</code></pre><p id="85b2cce4-0946-41dc-8598-967a0a5252a1" class="">
+</p><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="0b955473-4663-45b7-8add-68bbb0edb5ba"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">Btn Key Down 이벤트<hr id="3b575561-50e4-4a6e-9996-c58e0afac0a4"/><pre id="fbd995da-2281-4bd1-9fc0-1a550b73aca4" class="code"><code>btn.addEventListener(&#x27;keydown&#x27;,(event)=&gt;{
+
+    if(event.key == &#x27;Enter&#x27;)
+    {
+        cnt++;
+        btn.textContent = cnt;
+    }
+})</code></pre><p id="ac24f954-d3b3-443a-9676-bb8a085310ed" class="">→ 특히 요즘에는 event.key === ‘Enter’ 이렇게 많이 쓴다더라<div class="indented"><p id="c2db6338-99cc-402a-8900-0eac2f26ac36" class="">솔직히 요즘인지는 잘 .. ㅎㅎ </p></div></p></div></figure><p id="f31ef895-7e3c-4e98-be24-db6ca73fd251" class="">
+</p><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="cfa4cff7-67f8-4774-8f26-af88ee5ac712"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">Btn 의 글자에 대해서<hr id="e49b63a2-9b34-4273-a9bb-f01453ca461c"/><pre id="0704c558-cf85-4f8b-85a3-827b6dd292df" class="code"><code>--- html
+
+&lt;button label=&quot;keyDown&quot; id=&quot;dwnBtn&quot; class=&quot;dwnBtn&quot; &gt;down&lt;/button&gt;
+
+--- js
+let present = btn.textContent;</code></pre><p id="59516935-ac9e-477b-a87c-2a46a830f067" class="">→ textContent 를 사용하면 해당 값을 알 수 있다.</p></div></figure><p id="2133dfe4-567b-4195-af5d-af0612ef87c5" class="">
+</p><p id="8f531666-9bcb-4012-80fe-2c5165ea3a1a" class="">
+</p><hr id="ba4e8e27-4cfb-4362-a27f-358281965724"/><p id="ffb2ce7b-62cd-4280-8bba-570d6f55eaf2" class="">
+</p></details></li></ul><p id="136b49b4-d336-4a3a-8313-a4013ede5516" class="">
+</p><p id="91e747e7-98a3-4ad4-ae4c-5b30cdc10eef" class="">
+</p></div></figure><p id="931d8121-5b30-40f2-8e9a-6c65c12ad92d" class="">
+</p><p id="f958a382-85b7-480a-a184-fb32c9c36d7b" class="">
+</p><p id="3e92be4a-1c63-4468-9de4-9f289f58ec77" class="">
+</p><hr id="68a4fe9f-24d6-4050-b2d7-d7f350c2bf97"/><p id="4c11d76e-05e0-4377-8f31-07c62efe0cd4" class="">
+</p></details></li></ul><ul id="f3b35ac3-d8da-4970-990c-f851aa1817a8" class="toggle"><li><details open=""><summary><em><strong>그림판</strong></em></summary><hr id="d3451366-7a23-4054-9f14-f5ea8793e6d5"/><p id="91eabd31-821e-4e2c-8bea-3be5a90de572" class="">
+</p><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="e3f50de5-b0e2-435f-aacd-c7a481d5b236"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">뭐하지 하다가 그냥 그림판 하나 만들고 싶어서 만들었다. → 모두 사인 <hr id="b1d0e6b9-dda6-4176-bd7f-bdaee3e10cd2"/><figure id="60d1ca73-111b-4674-b615-cafc5dd10e1f" class="image"><a href="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2022.png"><img style="width:1008px" src="Vanilla%20JS%2007d1e81367e648e382320b8ee5fd6e9c/Untitled%2022.png"/></a></figure><p id="5bf29164-f15a-4f94-9ddf-babfe18c87e1" class="">
+</p><ul id="b10b4aa5-bb47-4cf0-9c1a-eb8b3bd723e2" class="toggle"><li><details open=""><summary><em><strong>HTML</strong></em></summary><hr id="b3962939-fbfd-4865-9714-eec4c07e0332"/><pre id="c737861a-61c8-4f6d-b4ea-6c43765179c4" class="code"><code>&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;meta http-equiv=&quot;X-UA-Compatible&quot; content=&quot;IE=edge&quot;&gt;
+    &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;&gt;
+    &lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;canvas.css&quot;&gt;
+    &lt;title&gt; Create Checkbox dynamically &lt;/title&gt;
+
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;canvas id=&quot;draw&quot; class=&quot;draw&quot; width=&quot;500&quot; height=&quot;500&quot;&gt;&lt;/canvas&gt;
+
+    &lt;div class=&quot;control&quot;&gt;
+        &lt;div class=&quot;control_colors&quot; id=&quot;colors&quot;&gt;
+            &lt;div class=&quot;control_colors&quot; style=&quot;background-color: black;&quot;&gt;&lt;/div&gt;
+            &lt;div class=&quot;control_colors&quot; style=&quot;background-color: red;&quot;&gt;&lt;/div&gt;
+            &lt;div class=&quot;control_colors&quot; style=&quot;background-color: blue;&quot;&gt;&lt;/div&gt;
+            &lt;div class=&quot;control_colors&quot; style=&quot;background-color: green;&quot;&gt;&lt;/div&gt;
+            &lt;div class=&quot;control_colors&quot; style=&quot;background-color: yellow;&quot;&gt;&lt;/div&gt;
+            &lt;div class=&quot;control_colors&quot; style=&quot;background-color: orange;&quot;&gt;&lt;/div&gt;
+        &lt;/div&gt;
+&lt;/div&gt;
+
+
+    &lt;button style=&quot;width: 50px; height: 20px&quot; id=&quot;erase&quot;&gt;
+        erase
+    &lt;/button&gt;
+
+    &lt;button style=&quot;width: 50px; height: 20px&quot; id=&quot;save&quot;&gt;
+        save
+    &lt;/button&gt;
+
+
+
+
+    &lt;script src=&quot;./canvas.js&quot;&gt;&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre></details></li></ul><ul id="276e488c-e9c9-4840-a2e7-519d9967a36c" class="toggle"><li><details open=""><summary><em><strong>CSS</strong></em></summary><hr id="60a6eafa-4258-411d-9d83-3f78bf5584da"/><pre id="21ecb1bf-350e-40be-8882-db4da8da7571" class="code"><code>body{
+    background-color: rgba(121, 28, 28, 0.753);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: auto;
+}
+
+
+
+.draw{
+    margin-top: 5%;
+    background-color: white;
+    height: 500px;
+    width: 500px;
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0,0,0,0.068);
+}
+
+.control{
+    align-items: center;
+}
+
+.control .control_colors{
+    display: flex;
+    border-radius: 25px;
+    margin: 5px;
+
+}
+
+.control_colors .control_colors{
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+
+}</code></pre></details></li></ul><ul id="18e66804-1551-4031-9f2f-278bd75329ca" class="toggle"><li><details open=""><summary><em><strong>JAVASCRIPT</strong></em></summary><hr id="d0df7353-20cd-467e-844f-b4397d77ba5b"/><pre id="5509f2ce-d723-45a1-b4c3-46f6866096a8" class="code"><code>const canvas =  document.getElementById(&#x27;draw&#x27;);
+const ctx = canvas.getContext(&#x27;2d&#x27;);
+
+let painting = false;
+
+ctx.lineWidth = 1;
+
+
+function stopPainting()
+{
+    painting = false;
+    console.log(&#x27;Painting ? &#x27;, painting);
+}
+
+function startPainting()
+{
+    painting = true;
+    console.log(&#x27;Painting ? &#x27;, painting);
+}
+
+
+if(canvas)
+{
+    canvas.addEventListener(&#x27;mousemove&#x27;,onMouseMove);
+    canvas.addEventListener(&#x27;mousedown&#x27;,startPainting);
+    canvas.addEventListener(&#x27;mouseup&#x27;,stopPainting);
+    canvas.addEventListener(&#x27;mouseleave&#x27;,stopPainting);
+}
+
+
+
+function onMouseMove(evt)
+{
+    
+    console.log(&#x27;Painting ? &#x27;, painting);
+    const x = evt.offsetX;
+    const y = evt.offsetY;
+
+
+    if(!painting)
+    {
+        ctx.beginPath();
+        ctx.moveTo(x,y);
+    }
+    else
+    {
+        ctx.lineTo(x,y);
+        ctx.stroke();
+    }
+}
+
+
+document.getElementById(&#x27;erase&#x27;).addEventListener(&#x27;click&#x27;,()=&gt;{
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+})
+
+
+
+// Save Btn 
+const saveImage = document.getElementById(&#x27;save&#x27;);
+
+
+function saveImageStart()
+{
+    const imageUrl = canvas.toDataURL();
+    const a        = document.createElement(&#x27;a&#x27;);
+    a.href = imageUrl;
+    a.download = &#x27;testOper.png&#x27;
+    a.click();
+}
+
+
+saveImage.addEventListener(&#x27;click&#x27;,saveImageStart);
+
+
+
+// JavaScript 코드
+window.addEventListener(&#x27;DOMContentLoaded&#x27;, (event) =&gt; {
+    // 컨트롤 색상 버튼 요소들을 가져옵니다.
+    const colorButtons = document.querySelectorAll(&#x27;.control_colors&#x27;);
+  
+    // 각 버튼을 클릭했을 때의 동작을 정의합니다.
+    colorButtons.forEach((button) =&gt; {
+      button.addEventListener(&#x27;click&#x27;, (event) =&gt; {
+        // 클릭한 버튼의 배경색을 가져옵니다.
+        const color = button.style.backgroundColor;
+        
+        // 펜의 색을 선택한 색으로 변경합니다.
+        setPenColor(color);
+      });
+    });
+  
+    // 펜의 색을 변경하는 함수
+    function setPenColor(color) {
+      // Canvas 요소를 가져옵니다.
+      const canvas = document.getElementById(&#x27;draw&#x27;);
+      const context = canvas.getContext(&#x27;2d&#x27;);
+      
+      // 펜의 색을 선택한 색으로 설정합니다.
+      context.strokeStyle = color;
+    }
+  });</code></pre></details></li></ul><p id="c6d0779b-a8e4-4bc8-a64d-c3b299a2cfde" class="">
+</p><p id="e78131ef-49a2-4b79-a5c7-38a03bd0f098" class="">⇒ 이미지 저장도 된다.</p></div></figure></details></li></ul><ul id="b902a98e-7a56-4cee-adfe-d1bcf0022ed1" class="toggle"><li><details open=""><summary><strong>Select Tag 안에 option 의 수 세기</strong></summary><hr id="8b0b629d-e77d-4156-b8c7-c100d11e0d37"/><p id="f8efc4ba-f77d-45b2-b81c-2cad3e69d217" class="">
+</p><pre id="f4106007-1448-48a8-9e3e-f50a48b9d92f" class="code"><code>function getFieldButtonComponentClick() 
+    {
+        // select tag 가 generate 되어 있지 않다면 실행 = &gt; 즉 select tag 가 생성되어 있지 않을 때만 실행  
+        if( document.getElementById(&#x27;select-container&#x27;).querySelectorAll(&#x27;option&#x27;).length == 0 )
+        {
+            let tableName = getFieldButtonComponent.value;
+            console.log(tableName);
+    
+            fetch(&#x27;/getField&#x27;, 
+                                {
+                                    method      :   &quot;POST&quot;,
+                                    headers     :   { &#x27;Content-Type&#x27;:&#x27;application/json&#x27;, },
+                                    body        :   JSON.stringify( {&quot;tableName&quot;:tableName} ),
+                                }
+                )
+            .then ( Response =&gt; Response.json()                  )
+            .then ( data     =&gt; getFieldMainLogic(data)          )
+            .catch( error    =&gt; console.log(&quot;ERROR : &quot;,error)    );
+        }
+    }</code></pre><p id="7e29e42c-4d1a-4931-9b89-0123b2d633c9" class="">
+</p><p id="8b704686-34d1-4dd9-82b5-31b1cd07bc37" class="">
+</p><figure class="block-color-gray callout" style="white-space:pre-wrap;display:flex" id="448c9c96-4d3f-45fd-a688-5338f1302030"><div style="font-size:1.5em"><img class="icon" src="https://raw.githubusercontent.com/eirikmadland/notion-icons/master/v5/icon3/mi-cloud.svg"/></div><div style="width:100%">CODE<p id="707bbd0f-fdae-42f0-9846-a95cc1ba889d" class="">document.<strong>getElementById(&#x27;select-container&#x27;)</strong>.<strong>querySelectorAll(&#x27;option&#x27;).length</strong></p><p id="a41e0383-510c-4f2b-b050-3db2f677857f" class="">⇒ getElementById(&#x27;select-container&#x27;) <strong>: </strong>select tag 를 지정</p><p id="81380c8c-e93c-44bc-8e32-04c77034f281" class="">⇒ querySelectorAll(&#x27;option&#x27;)         : 해당 select tag 안에 option 이 몇 개 설정 되어 있는지 확인   </p></div></figure><p id="9c829216-314f-4ef5-9b74-83ddcc3062b4" class="">
+</p><p id="7a543351-6719-451f-94c2-8ea7434d265b" class="">
+</p><p id="3fdf39a1-c0ad-4fac-92c1-8e391ce061c9" class="">
+</p><hr id="735ce633-aa69-4298-9f1c-a94395814d1e"/><p id="af50316f-9f2f-4279-af58-842e422a138f" class="">
+</p></details></li></ul></div></article></body></html>
