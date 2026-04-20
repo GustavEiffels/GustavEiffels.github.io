@@ -1,0 +1,16 @@
+﻿[
+    {
+        "id":  "middle_east_crisis_2026",
+        "title":  "[2026-04-20] 중동 에너지 위기: 호르무즈 해협과 주식 시장",
+        "date":  "2026-04-20",
+        "category":  "stocks",
+        "path":  "content/middle_east_crisis_2026.html"
+    },
+    {
+        "date":  "2026-04-20",
+        "title":  "[2026-04-20] 호르무즈 해협 위기 정밀 분석 (Data-Driven)",
+        "category":  "stocks",
+        "path":  "content/hormuz_deep_dive_2026.html",
+        "id":  "hormuz_deep_dive_2026"
+    }
+]

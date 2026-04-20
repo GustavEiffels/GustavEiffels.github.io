@@ -1,95 +1,72 @@
-<!doctype html>
+﻿<!DOCTYPE html>
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Singsiuk Lab</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="assets/css/style.css" />
-  </head>
-  <body>
-    <!-- Common Sidebar -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gustav Lab</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
     <aside class="sidebar">
-      <h2>📊 Singsiuk LAB</h2>
-      <nav>
-        <ul>
-          <li>
-            <a onclick="loadContent('home')" data-page="home" class="active"
-              >🏠 Home / Introduction</a
-            >
-          </li>
-          <li>
-            <a onclick="loadContent('stocks')" data-page="stocks"
-              >📈 Overseas Stocks</a
-            >
-          </li>
-          <li>
-            <a onclick="loadContent('dev')" data-page="dev"
-              >💻 Development Log</a
-            >
-          </li>
-        </ul>
-      </nav>
+        <h2>📊 GUSTAV LAB</h2>
+        <nav>
+            <ul>
+                <li><a onclick="location.reload()" style="cursor:pointer;">🏠 홈 / 소개</a></li>
+                <li><a onclick="loadCategory(''stocks'')" style="cursor:pointer;">📈 해외 주식</a></li>
+                <li><a onclick="loadCategory(''dev'')" style="cursor:pointer;">💻 개발 일지</a></li>
+            </ul>
+        </nav>
     </aside>
 
-    <!-- Main Content Area -->
     <main id="content-target" class="main-content">
-      <!-- 초기 콘텐츠 로드 -->
-      <h1>Welcome to My Lab</h1>
-      <div class="card">
-        <h2>Hello, I'm Singsiuk.</h2>
-        <p>
-          This is my personal laboratory for recording investment analysis and
-          technical research.
-        </p>
-      </div>
+        <h1>Welcome to My Lab</h1>
+        <div class="card">
+            <h2>안녕하세요, Gustav입니다.</h2>
+            <p>이곳은 저의 투자 분석과 기술적 연구를 기록하는 개인 실험실입니다.</p>
+        </div>
     </main>
 
     <script>
-      async function loadContent(page) {
-        const target = document.getElementById("content-target");
-        target.style.opacity = 0;
+        async function loadCategory(category) {
+            const target = document.getElementById(''content-target'');
+            target.style.opacity = 0;
+            
+            try {
+                const response = await fetch(''assets/data/reports.json'');
+                const reports = await response.json();
+                const filtered = reports.filter(r => r.category === category);
+                
+                let html = `<h1>${category.toUpperCase()}</h1>`;
+                filtered.forEach(r => {
+                    html += `
+                        <div class="card" onclick="loadReport(''${r.path}'')" style="cursor:pointer;">
+                            <h3>${r.title}</h3>
+                            <p style="font-size:0.85rem; color:var(--text-muted);">${r.date}</p>
+                        </div>
+                    `;
+                });
+                
+                setTimeout(() => {
+                    target.innerHTML = html || "<h1>Coming Soon</h1><p>콘텐츠를 준비 중입니다.</p>";
+                    target.style.opacity = 1;
+                }, 300);
+            } catch (err) {
+                console.error(err);
+            }
+        }
 
-        try {
-          const path = `content/${page}.html`;
-          const response = await fetch(path);
-
-          if (response.ok) {
+        async function loadReport(path) {
+            const target = document.getElementById(''content-target'');
+            target.style.opacity = 0;
+            const response = await fetch(path);
             const html = await response.text();
             setTimeout(() => {
-              target.innerHTML = html;
-              target.style.opacity = 1;
-              updateActiveLink(page);
-            }, 200);
-          } else {
-            throw new Error("Page not found");
-          }
-        } catch (err) {
-          target.innerHTML =
-            "<h1>Error</h1><div class='card'><p>콘텐츠를 불러오는 중 오류가 발생했습니다.</p></div>";
-          target.style.opacity = 1;
+                target.innerHTML = html;
+                target.style.opacity = 1;
+                window.scrollTo(0,0);
+            }, 300);
         }
-      }
-
-      function updateActiveLink(page) {
-        document.querySelectorAll(".sidebar a").forEach((a) => {
-          if (a.getAttribute("data-page") === page) {
-            a.classList.add("active");
-          } else {
-            a.classList.remove("active");
-          }
-        });
-      }
-
-      // 브라우저 뒤로가기 대응을 위한 간단한 처리 (선택 사항)
-      window.onpopstate = function (event) {
-        if (event.state && event.state.page) {
-          loadContent(event.state.page);
-        }
-      };
     </script>
-  </body>
+</body>
 </html>
