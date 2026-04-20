@@ -1,80 +1,68 @@
-﻿<!doctype html>
+﻿<!DOCTYPE html>
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gustav Eiffel's Lab</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="assets/css/style.css" />
-    <!-- [GA4] 추후 여기에 Google Analytics 코드를 삽입하세요 -->
-  </head>
-  <body>
-    <!-- Sidebar Index -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gustav Lab</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+    <!-- Common Sidebar (Module) -->
     <aside class="sidebar">
-      <h2>📊 GUSTAV LAB</h2>
-      <nav>
-        <ul>
-          <li><a href="index.html" class="active">🏠 홈 / 소개</a></li>
-          <li><a href="overseas-stocks/index.html">📈 해외 주식 리포트</a></li>
-          <li><a href="development/index.html">💻 개발 일지</a></li>
-          <li><a href="private/index.html">🔒 비공개 문서</a></li>
-        </ul>
-      </nav>
-      <div
-        style="
-          position: absolute;
-          bottom: 30px;
-          left: 20px;
-          font-size: 0.8rem;
-          color: var(--text-muted);
-        "
-      >
-        <!-- [방문자 수 표시] 추후 여기에 Busuanzi 코드를 삽입하세요 -->
-        <span>Today: 12 | Total: 456</span>
-      </div>
+        <h2>📊 GUSTAV LAB</h2>
+        <nav>
+            <ul>
+                <li><a onclick="loadContent('home')">🏠 홈 / 소개</a></li>
+                <li><a onclick="loadContent('stocks')">📈 해외 주식</a></li>
+                <li><a onclick="loadContent('dev')">💻 개발 일지</a></li>
+            </ul>
+        </nav>
     </aside>
 
-    <!-- Main Content Area -->
-    <main class="main-content">
-      <h1>Test</h1>
-
-      <div class="card">
-        <div class="profile-img">👨‍💻</div>
-        <h2>Greeting</h2>
-        <p>Testing</p>
-      </div>
-
-      <div class="card">
-        <h2>Recent Activities</h2>
-        <p>- <strong>2026-04-20:</strong> TEST <br /></p>
-      </div>
-
-      <div class="card" style="border-left: 5px solid var(--accent)">
-        <h2>Contact & Links</h2>
-        <p>
-          - 📧 Email: sibuk9315@gmail.com <br />
-          - 🐙 GitHub:
-          <a
-            href="https://github.com/GustavEiffels"
-            style="color: var(--accent)"
-            >github.com/GustavEiffels</a
-          >
-        </p>
-      </div>
-
-      <footer
-        style="
-          margin-top: 60px;
-          text-align: center;
-          font-size: 0.8rem;
-          color: var(--text-muted);
-        "
-      >
-        © 2026 Gustav Eiffel. All rights reserved.
-      </footer>
+    <!-- Main Content Area (Partial Rendering Target) -->
+    <main id="content-target" class="main-content">
+        <!-- 초기 홈 화면 콘텐츠 -->
+        <h1>Welcome to My Lab</h1>
+        <div class="card">
+            <h2>안녕하세요, Gustav입니다.</h2>
+            <p>이곳은 저의 투자 분석과 기술적 연구를 기록하는 개인 실험실입니다.</p>
+        </div>
     </main>
-  </body>
+
+    <script>
+        // 부분 렌더링 엔진 (Fragment Loader)
+        async function loadContent(page) {
+            const target = document.getElementById('content-target');
+            target.style.opacity = 0; // 페이드 아웃 효과
+            
+            try {
+                // 페이지별 HTML 조각 파일 경로 설정
+                const path = `content/${page}.html`;
+                const response = await fetch(path);
+                
+                if (response.ok) {
+                    const html = await response.text();
+                    setTimeout(() => {
+                        target.innerHTML = html;
+                        target.style.opacity = 1;
+                        // 활성화 탭 표시 업데이트
+                        updateActiveLink(page);
+                    }, 300);
+                } else {
+                    throw new Error('Page not found');
+                }
+            } catch (err) {
+                target.innerHTML = "<h1>Error</h1><div class='card'><p>콘텐츠를 불러오는 중 오류가 발생했습니다.</p></div>";
+                target.style.opacity = 1;
+            }
+        }
+
+        function updateActiveLink(page) {
+            document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+            // 단순 구현을 위해 인덱스 등으로 매칭 (실제로는 data-page 속성 추천)
+        }
+    </script>
+</body>
 </html>
