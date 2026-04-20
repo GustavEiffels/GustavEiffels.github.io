@@ -1,0 +1,246 @@
+<!-- [2026-04-21] DB Connection 학습 정리 (My Summary) -->
+<h1>DB Connection Pool 학습 정리 (나만의 언어로)</h1>
+
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+        <span class="badge badge-date">2026.04.21</span>
+        <span class="badge badge-tag">My Study Log</span>
+    </div>
+    <h2>0. 학습 동기</h2>
+    <p>
+        DB를 사용하는 서비스에서 Connection을 <strong>매번 새로 만들지 않고 Pool로 관리하는 이유</strong>, 그리고
+        <code>socketTimeout</code>과 <strong>Connection Leak</strong>이 <strong>완전히 다른 문제</strong>라는 점을
+        내 언어로 다시 정리한다.
+    </p>
+</div>
+
+<div class="card">
+    <h2>1. 왜 DB Connection은 "비싼가"?</h2>
+    <p>Connection을 매번 생성하는 것은 세 가지 계층에서 비용을 발생시킨다.</p>
+    <ol>
+        <li>
+            <span class="point">네트워크 계층 (TCP/TLS):</span>
+            DB 서버와 Application 서버가 다른 머신에 있다면 매번 TCP 3-Way Handshake가 필요하다.
+            TLS까지 적용되면 지연이 더 커진다.
+        </li>
+        <li>
+            <span class="point">인증/인가 계층:</span>
+            DB 엔진 레벨에서 ID/PW 검증, 권한(ACL) 조회, 세션 초기화(Charset, Timezone, 트랜잭션 격리 수준 등)가
+            매번 반복된다.
+        </li>
+        <li>
+            <span class="point">자원 점유 계층:</span>
+            연결 하나당 DB 서버는 <strong>독립적인 메모리(스택, 정렬/조인 버퍼)</strong>와 스레드/프로세스를 할당한다.
+            요청마다 할당/회수하면 비용이 누적된다.
+        </li>
+    </ol>
+    <blockquote>
+        "비용은 단순히 '느림'이 아니라, <strong>네트워크 + 인증 + 서버 자원</strong>의 복합 비용이다."
+    </blockquote>
+</div>
+
+<div class="card">
+    <h2>2. 그래서 등장한 것: Connection Pool</h2>
+    <p>
+        Connection 객체를 <strong>미리 여러 개 만들어 두고 빌려 쓰고 반납</strong>하는 방식.
+        애플리케이션은 0.1ms 미만으로 DB 접근 권한을 획득할 수 있다.
+    </p>
+    <ul>
+        <li><span class="point">Pool:</span> 미리 만들어 둔 Connection들의 집합.</li>
+        <li><span class="point">Borrow:</span> 요청이 오면 Pool에서 하나 꺼내 사용.</li>
+        <li><span class="point">Return:</span> 사용이 끝나면 <code>close()</code>로 Pool에 반납.</li>
+    </ul>
+    <p style="font-size:0.9rem; color:var(--text-muted); margin-top:10px;">
+        ※ 여기서 <code>close()</code>는 "물리 연결 종료"가 아니라 "Pool에 반납"을 의미한다. 실수하기 쉬운 포인트.
+    </p>
+</div>
+
+<div class="card">
+    <h2>3. Connection의 상태값 (교정된 정리)</h2>
+    <p>Pool이 관리하는 Connection은 다음 상태로 전이한다.</p>
+    <ul>
+        <li><span class="point">Idle:</span> 만들어져 있지만 아무도 쓰지 않는 <strong>대기 상태</strong>. (= 사용 가능)</li>
+        <li><span class="point">Active:</span> 애플리케이션이 <strong>현재 점유하여 쿼리를 수행 중</strong>인 상태.</li>
+        <li><span class="point">Evicted:</span> 수명이 다하거나 손상되어 <strong>폐기된 상태</strong>.</li>
+    </ul>
+    <div style="background:var(--surface2); padding:12px; border-radius:10px; margin-top:10px; font-size:0.9rem;">
+        📌 <strong>자기 교정:</strong> 처음엔 "Idle → Ready → Active"로 이해했지만,
+        <code>Ready</code>는 표준 상태 용어가 아니다. 일반적인 Pool(HikariCP 등)은 <code>Idle / Active / Evicted</code>의 3상태로 관리한다.
+    </div>
+</div>
+
+<div class="card">
+    <h2>4. Pool이 만능인가? — 아니다</h2>
+    <p>Pool도 trade-off가 있다.</p>
+    <ul>
+        <li>
+            <strong>동시 요청 폭증 시:</strong>
+            여러 애플리케이션 서버가 각자 Pool을 최대치로 열면
+            DB 서버의 전체 Connection 수가 급증해 <strong>DB 자체가 과부하</strong>될 수 있다.
+        </li>
+        <li>
+            <strong>Idle 연결 유지 비용:</strong>
+            쓰지 않아도 DB 서버의 메모리는 계속 점유된다.
+        </li>
+        <li>
+            <strong>오염된 Connection:</strong>
+            네트워크 단절, DB 재시작 등으로 살아있는 것처럼 보이지만 죽은 연결이 Pool에 남을 수 있다.
+            → <code>max-lifetime</code>, <code>keepalive-time</code>으로 주기적 교체 필요.
+        </li>
+    </ul>
+</div>
+
+<div class="card">
+    <h2>5. socketTimeout: 네트워크 응답 대기 상한선</h2>
+    <p>
+        네트워크 장애나 DB 지연으로 Connection이 <strong>응답을 무한정 기다리는 것</strong>을 막는 설정.
+        즉, "쿼리를 날린 뒤 응답이 올 때까지 기다리는 최대 시간"이다.
+    </p>
+    <blockquote>
+        socketTimeout은 <strong>네트워크 스트림(송수신)의 지연</strong>을 감시한다.
+    </blockquote>
+</div>
+
+<div class="card">
+    <h2>6. 핵심 구분: socketTimeout ≠ Leak 방어</h2>
+    <p>이 둘을 혼동하면 안 된다. 감시 대상이 완전히 다르다.</p>
+    <div style="background:var(--surface2); padding:15px; border-radius:10px; margin-top:10px;">
+        <ul style="margin-bottom:0;">
+            <li>
+                <span style="color:var(--yellow)">socketTimeout:</span>
+                네트워크 송수신 지연을 감시. <strong>쿼리 응답이 오지 않을 때</strong> 트리거.
+            </li>
+            <li>
+                <span style="color:var(--yellow)">Leak Detection:</span>
+                Connection의 <strong>소유 시간(ownership duration)</strong>을 감시.
+                <code>close()</code> 호출이 누락되어 Active 상태로 고착된 경우를 잡아낸다.
+            </li>
+        </ul>
+    </div>
+    <p style="margin-top:10px;">
+        예를 들어 쿼리는 끝났지만 코드가 외부 API를 기다리거나 루프를 돌고 있다면
+        <strong>소켓은 조용하다</strong>. 이때 socketTimeout은 트리거되지 않고,
+        Connection은 Active로 고착되어 자원이 누수된다.
+    </p>
+    <blockquote>
+        "쿼리 응답이 안 오는 문제"와 "반납을 안 하는 문제"는 <strong>서로 다른 층위의 문제</strong>다.
+    </blockquote>
+</div>
+
+<div class="card">
+    <h2>7. socketTimeout이 발동하면 Connection은 어떻게 되나?</h2>
+    <ol>
+        <li><span class="point">Step 1:</span> <code>SocketTimeoutException</code> 발생 및 전파.</li>
+        <li><span class="point">Step 2:</span> Pool은 해당 Connection을 신뢰할 수 없다고 판단 → <strong>물리 소켓 강제 폐기(Physical Close)</strong>.</li>
+        <li><span class="point">Step 3:</span> Pool에서 Evicted 처리, 빈자리 제거.</li>
+        <li><span class="point">Step 4:</span> 백그라운드 스레드가 <code>minimum-idle</code> 유지를 위해 새 Connection을 생성 시도 → Pool 보충.</li>
+    </ol>
+    <div style="background:var(--surface2); padding:12px; border-radius:10px; margin-top:10px; font-size:0.9rem;">
+        📌 <strong>자기 교정:</strong> 처음엔 "최소 수만큼 다시 만든다"라고 이해했는데,
+        더 정확히는 <strong>손상된 1개를 폐기하고 minimum-idle을 유지하도록 보충</strong>하는 것이다.
+        전체 Pool을 다시 만드는 것이 아니다.
+    </div>
+</div>
+
+<div class="card" style="border-left: 5px solid var(--accent);">
+    <h2>8. 실무 방어 전략 요약</h2>
+    <ul>
+        <li><strong>leak-detection-threshold (2000~5000ms):</strong> 임계 시간 초과 시 스택트레이스로 누수 지점 검거.</li>
+        <li><strong>max-lifetime (약 30분):</strong> 잠재적으로 오염된 Connection을 주기적으로 강제 교체.</li>
+        <li><strong>socketTimeout:</strong> 네트워크 무한 대기 방지.</li>
+        <li><strong>try-with-resources:</strong> 수동 <code>close()</code> 실수 제거. 가장 기본적이면서도 강력한 방어.</li>
+    </ul>
+    <blockquote>
+        단일 설정이 아니라 <strong>다층 방어(Defense in Depth)</strong>로 접근해야 한다.
+    </blockquote>
+</div>
+
+<!-- ========= 스스로 점검하는 문제 ========= -->
+<div class="card" style="border-left: 5px solid var(--yellow);">
+    <h2>9. 내 기억을 위한 복습 문제 (Self-Quiz)</h2>
+    <p style="font-size:0.9rem; color:var(--text-muted);">풀어보고 아래 해설과 대조해보자.</p>
+
+    <h3>Q1. (개념)</h3>
+    <p>DB Connection을 매번 새로 만드는 것이 "비싸다"고 표현하는 3가지 층위의 비용은 무엇인가?</p>
+
+    <h3>Q2. (용어)</h3>
+    <p>Connection Pool이 관리하는 Connection의 3가지 표준 상태를 쓰고, 각각 한 줄로 설명하라.</p>
+
+    <h3>Q3. (핵심 구분)</h3>
+    <p>
+        다음 시나리오에서 <code>socketTimeout</code>이 트리거될까, 안 될까? 이유는?<br>
+        <em>→ 쿼리 응답은 이미 받았고, 애플리케이션 코드가 외부 결제 API 응답을 10분째 기다리는 중.
+        그 사이 이 Connection은 <code>close()</code>되지 않았다.</em>
+    </p>
+
+    <h3>Q4. (원인/처방)</h3>
+    <p>
+        운영 중 "모든 신규 요청이 타임아웃으로 실패"하는 장애가 발생했다.
+        DB 서버 자체는 정상이고 네트워크도 정상이다. 가장 먼저 의심해야 할 것과, 이를 잡기 위한 설정값은?
+    </p>
+
+    <h3>Q5. (동작 원리)</h3>
+    <p>
+        <code>socketTimeout</code>이 발동했을 때 Pool이 하는 동작을 4단계로 설명하라.
+    </p>
+
+    <h3>Q6. (Trade-off)</h3>
+    <p>
+        Connection Pool이 항상 좋은가? 오히려 <strong>DB 서버에 해가 될 수 있는 시나리오</strong>를 하나 설명하라.
+    </p>
+</div>
+
+<div class="card">
+    <h2>10. 해설</h2>
+
+    <p><strong>A1.</strong> ① 네트워크(TCP/TLS 핸드셰이크), ② 인증/인가 및 세션 초기화, ③ DB 서버의 메모리·스레드 할당.</p>
+
+    <p><strong>A2.</strong>
+        <code>Idle</code>(대기 중, 사용 가능) /
+        <code>Active</code>(점유되어 쿼리 수행 중) /
+        <code>Evicted</code>(손상·만료로 폐기됨).
+    </p>
+
+    <p><strong>A3.</strong>
+        <strong>트리거되지 않는다.</strong>
+        socketTimeout은 네트워크 송수신 지연만 감시한다.
+        쿼리 응답은 이미 받았으므로 소켓은 조용하다.
+        이 경우는 <strong>Connection Leak</strong> 문제이며, <code>leak-detection-threshold</code> 또는
+        <code>try-with-resources</code>로 방어해야 한다.
+    </p>
+
+    <p><strong>A4.</strong>
+        <strong>Connection Leak</strong>을 가장 먼저 의심.
+        <code>close()</code> 누락으로 Active 고착된 Connection이 쌓여 Pool이 고갈된 것.
+        <code>leak-detection-threshold</code>를 2000~5000ms로 설정하면 스택트레이스로 누수 지점을 찾아낼 수 있다.
+    </p>
+
+    <p><strong>A5.</strong>
+        ① <code>SocketTimeoutException</code> 발생·전파 →
+        ② 해당 물리 소켓 강제 폐기 →
+        ③ Pool에서 Evicted 처리 및 빈자리 제거 →
+        ④ 백그라운드 스레드가 <code>minimum-idle</code> 유지를 위해 신규 Connection 생성.
+    </p>
+
+    <p><strong>A6.</strong>
+        여러 애플리케이션 서버가 각자 Pool을 최대치(maximum-pool-size)까지 열면
+        <strong>DB 서버 전체 Connection 수가 한계를 넘어 DB가 과부하</strong>된다.
+        Pool은 "앱 ↔ DB" 관점에선 효율적이지만, "전체 DB 서버" 관점에선 <strong>총량 관리</strong>가 필요하다.
+    </p>
+</div>
+
+<div class="card">
+    <h2>11. 출처 (References)</h2>
+    <ul>
+        <li>Gustav Lab 기술 정리 — <em>DB Connection이 "비싼(Expensive)" 이유: 기술적 메커니즘 분석</em> (2026-04-20)</li>
+        <li>Gustav Lab 기술 정리 — <em>[Deep Dive] DB 커넥션 누수와 타임아웃의 기술적 상관관계</em> (2026-04-20)</li>
+        <li>HikariCP 공식 문서 — <a href="https://github.com/brettwooldridge/HikariCP" target="_blank">github.com/brettwooldridge/HikariCP</a> (leak-detection-threshold, max-lifetime, minimum-idle 설정 참고)</li>
+        <li>PostgreSQL 공식 문서 — Connection / Authentication / Session 초기화 비용</li>
+        <li>MySQL 공식 문서 — <code>net_read_timeout</code>, <code>net_write_timeout</code> 및 연결당 메모리 할당 설명</li>
+        <li>TCP/IP Illustrated, Vol. 1 (W. Richard Stevens) — 3-Way Handshake 및 TLS 핸드셰이크 비용</li>
+    </ul>
+</div>
+
+<p style="text-align:right; font-size:0.8rem; color:var(--text-muted); margin-top:30px;">
+    © 2026 Gustav — Personal Study Summary (2026-04-21)
+</p>
