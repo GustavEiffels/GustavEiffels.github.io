@@ -84,6 +84,23 @@ h1 { font-size: 2rem; color: #fff; margin-bottom: 30px; border-bottom: 2px solid
 
 .card h2 { color: var(--accent); margin-bottom: 15px; }
 
+/* List Styles in Main Content */
+.main-content ul {
+  list-style-position: inside;
+  padding-left: 15px;
+}
+
+.main-content li {
+  margin-bottom: 12px;
+  line-height: 1.6;
+  padding-left: 10px; /* 불렛 포인트와 텍스트 사이 간격 */
+}
+
+.main-content li::marker {
+  color: var(--accent);
+  font-size: 1.1rem;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   body { flex-direction: column; }
