@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
@@ -9,21 +9,21 @@
 </head>
 <body>
 
-    <!-- Common Sidebar (Module) -->
+    <!-- Common Sidebar -->
     <aside class="sidebar">
         <h2>📊 GUSTAV LAB</h2>
         <nav>
             <ul>
-                <li><a onclick="loadContent('home')">🏠 홈 / 소개</a></li>
-                <li><a onclick="loadContent('stocks')">📈 해외 주식</a></li>
-                <li><a onclick="loadContent('dev')">💻 개발 일지</a></li>
+                <li><a onclick="loadContent('home')" data-page="home" class="active">🏠 홈 / 소개</a></li>
+                <li><a onclick="loadContent('stocks')" data-page="stocks">📈 해외 주식</a></li>
+                <li><a onclick="loadContent('dev')" data-page="dev">💻 개발 일지</a></li>
             </ul>
         </nav>
     </aside>
 
-    <!-- Main Content Area (Partial Rendering Target) -->
+    <!-- Main Content Area -->
     <main id="content-target" class="main-content">
-        <!-- 초기 홈 화면 콘텐츠 -->
+        <!-- 초기 콘텐츠 로드 -->
         <h1>Welcome to My Lab</h1>
         <div class="card">
             <h2>안녕하세요, Gustav입니다.</h2>
@@ -32,13 +32,11 @@
     </main>
 
     <script>
-        // 부분 렌더링 엔진 (Fragment Loader)
         async function loadContent(page) {
             const target = document.getElementById('content-target');
-            target.style.opacity = 0; // 페이드 아웃 효과
+            target.style.opacity = 0;
             
             try {
-                // 페이지별 HTML 조각 파일 경로 설정
                 const path = `content/${page}.html`;
                 const response = await fetch(path);
                 
@@ -47,9 +45,8 @@
                     setTimeout(() => {
                         target.innerHTML = html;
                         target.style.opacity = 1;
-                        // 활성화 탭 표시 업데이트
                         updateActiveLink(page);
-                    }, 300);
+                    }, 200);
                 } else {
                     throw new Error('Page not found');
                 }
@@ -60,9 +57,21 @@
         }
 
         function updateActiveLink(page) {
-            document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
-            // 단순 구현을 위해 인덱스 등으로 매칭 (실제로는 data-page 속성 추천)
+            document.querySelectorAll('.sidebar a').forEach(a => {
+                if (a.getAttribute('data-page') === page) {
+                    a.classList.add('active');
+                } else {
+                    a.classList.remove('active');
+                }
+            });
         }
+
+        // 브라우저 뒤로가기 대응을 위한 간단한 처리 (선택 사항)
+        window.onpopstate = function(event) {
+            if (event.state && event.state.page) {
+                loadContent(event.state.page);
+            }
+        };
     </script>
 </body>
 </html>
