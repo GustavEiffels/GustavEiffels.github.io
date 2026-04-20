@@ -1,0 +1,70 @@
+﻿<h1>[Deep Dive] DB 커넥션 누수와 타임아웃의 기술적 상관관계</h1>
+
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+        <span class="badge badge-date">2026.04.20</span>
+        <span class="badge badge-tag">Back-end Mastery</span>
+    </div>
+    <h2>1. 커넥션의 생명주기 (Lifecycle States)</h2>
+    <p>커넥션 풀이 관리하는 객체들의 상태를 이해하는 것은 성능 튜닝의 시작입니다.</p>
+    <ul>
+        <li><span class="point">Active:</span> 애플리케이션이 점유하여 사용 중인 상태.</li>
+        <li><span class="point">Idle:</span> 사용 가능한 물리 연결이 풀에서 대기 중인 상태.</li>
+        <li><span class="point">Evicted:</span> 손상되거나 수명이 다해 폐기된 상태.</li>
+    </ul>
+    <p style="font-size:0.9rem; color:var(--text-muted); margin-top:10px;">
+        ※ 엔지니어 코멘트: 풀의 효율은 Active 시간을 최소화하고 Idle 자원을 안정적으로 확보하는 데 달려 있습니다.
+    </p>
+</div>
+
+<div class="card">
+    <h2>2. 커넥션 누수(Leak): 보이지 않는 병목</h2>
+    <p><code>close()</code> 호출 누락은 단순한 실수가 아닌 시스템 붕괴의 서막입니다.</p>
+    <blockquote>
+        "풀 관리자는 비즈니스 로직이 끝났음을 알 방법이 없습니다. <code>close()</code>가 호출되지 않는 한, 해당 자원은 영원히 점유된 것으로 간주됩니다."
+    </blockquote>
+    <ul>
+        <li><strong>현상:</strong> 커넥션이 <code>Active</code> 상태로 고착되어 <code>Idle</code>로 돌아오지 않음.</li>
+        <li><strong>결과:</strong> 전체 커넥션이 고갈(Exhaustion)되어 모든 신규 요청이 타임아웃으로 실패함.</li>
+    </ul>
+</div>
+
+<div class="card">
+    <h2>3. socketTimeout의 작동 범위와 한계</h2>
+    <p>타임아웃 설정이 누수의 해결책이 될 수 없는 이유를 명확히 구분해야 합니다.</p>
+    <div style="background:var(--surface2); padding:15px; border-radius:10px; margin-top:10px;">
+        <p style="font-size:0.9rem; margin-bottom:5px;"><strong>감시 대상의 차이:</strong></p>
+        <ul style="font-size:0.85rem; margin-bottom:0;">
+            <li><span style="color:var(--yellow)">socketTimeout:</span> 네트워크 스트림(송수신) 지연을 감시.</li>
+            <li><span style="color:var(--yellow)">Leak Detection:</span> 객체의 소유 시간(Ownership duration)을 감시.</li>
+        </ul>
+    </div>
+    <p style="margin-top:10px;">
+        쿼리 통신이 끝난 후 코드가 루프를 돌거나 외부 API를 기다리고 있다면 소켓은 조용합니다. 이때는 <code>socketTimeout</code>이 트리거되지 않아 자원 누수를 막을 수 없습니다.
+    </p>
+</div>
+
+<div class="card">
+    <h2>4. 장애 발생 시의 상태 전이 메커니즘</h2>
+    <p>네트워크 장애로 타임아웃이 발생했을 때, 커넥션 풀은 <strong>"신뢰할 수 없는 자원"</strong>을 과감히 포기합니다.</p>
+    <ol>
+        <li><span class="point">Step 1:</span> <code>SocketTimeoutException</code> 발생 및 전파.</li>
+        <li><span class="point">Step 2:</span> 해당 물리 소켓의 강제 폐기(Physical Close).</li>
+        <li><span class="point">Step 3:</span> 풀에서 <code>Evicted</code> 처리 후 즉시 빈자리 제거.</li>
+        <li><span class="point">Step 4:</span> 백그라운드 스레드가 새로운 소켓 연결을 시도하여 풀을 보충.</li>
+    </ol>
+</div>
+
+<div class="card" style="border-left: 5px solid var(--accent);">
+    <h2>5. 실무 방어 전략 (Defense in Depth)</h2>
+    <p>단일 설정이 아닌 다중 방어막을 구축해야 합니다.</p>
+    <ul>
+        <li><strong>leak-detection-threshold:</strong> (추천: 2000~5000ms) 설정 시간 초과 시 스택트레이스를 남겨 누수 지점을 검거.</li>
+        <li><strong>max-lifetime:</strong> (추천: 30분) 잠재적 오염 커넥션을 주기적으로 강제 교체.</li>
+        <li><strong>Try-with-resources:</strong> 수동 close의 위험성을 제거하는 현대적 코딩 표준 준수.</li>
+    </ul>
+</div>
+
+<p style="text-align:right; font-size:0.8rem; color:var(--text-muted); margin-top:30px;">
+    © 2026 Gustav Lab Financial Intelligence Research Team
+</p>

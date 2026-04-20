@@ -12,5 +12,19 @@
         "category":  "stocks",
         "path":  "content/hormuz_deep_dive_2026.html",
         "id":  "hormuz_deep_dive_2026"
+    },
+    {
+        "date":  "2026-04-20",
+        "title":  "[2026-04-20] DB 커넥션이 비싼 이유: 기술적 분석",
+        "category":  "dev",
+        "path":  "content/db_connection_cost.html",
+        "id":  "db_connection_cost"
+    },
+    {
+        "date":  "2026-04-20",
+        "title":  "[Deep Dive] DB 커넥션 누수와 타임아웃: 생명주기 및 장애 전이",
+        "category":  "dev",
+        "path":  "content/db_leak_timeout_deepdive.html",
+        "id":  "db_leak_timeout_deepdive"
     }
 ]
