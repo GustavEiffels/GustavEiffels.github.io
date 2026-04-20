@@ -1,0 +1,389 @@
+<!-- [2026-04-21] OS & Java Concurrency Engineering 학습 정리 -->
+<h1>OS 프로세스 제어와 동시성</h1>
+
+<div class="card">
+  <div
+    style="
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    "
+  >
+    <span class="badge badge-date">기준 시점: 2026.04.21</span>
+    <span
+      class="badge badge-tag"
+      style="background: rgba(94, 129, 244, 0.1); color: var(--accent)"
+      >OS Engineering · Concurrency</span
+    >
+  </div>
+  <h2>1. 개요: 시스템 엔지니어링의 정수</h2>
+  <p>
+    프로세스 제어부터 동시성 해결까지, 현대 소프트웨어의 근간이 되는 OS의
+    메커니즘을 이해한다. 단순히 코드를 짜는 것을 넘어
+    <strong>"격리 속의 질서 있는 소통"</strong>이라는 시스템의 본질을 내 언어로
+    다시 정리한다.
+  </p>
+</div>
+
+<div class="card">
+  <h2>2. OS Core: 프로세스, 스레드, 그리고 IPC</h2>
+  <p>시스템을 구성하는 세 가지 핵심 실행 단위와 소통 방식이다.</p>
+  <div
+    style="
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-top: 15px;
+    "
+  >
+    <div
+      style="
+        background: var(--surface2);
+        padding: 15px;
+        border-radius: 10px;
+        border-top: 3px solid var(--accent);
+      "
+    >
+      <h3 style="margin-top: 0; font-size: 1.1rem">🏰 프로세스</h3>
+      <p style="font-size: 0.8rem; color: var(--text-muted)">독립된 인스턴스</p>
+      <ul style="font-size: 0.8rem; padding-left: 15px; margin: 0">
+        <li>메모리 격리 (Heap/Stack)</li>
+        <li>PCB 관리</li>
+        <li>중량급 컨텍스트 스위칭</li>
+      </ul>
+    </div>
+    <div
+      style="
+        background: var(--surface2);
+        padding: 15px;
+        border-radius: 10px;
+        border-top: 3px solid var(--green);
+      "
+    >
+      <h3 style="margin-top: 0; font-size: 1.1rem">👷 스레드</h3>
+      <p style="font-size: 0.8rem; color: var(--text-muted)">최소 실행 흐름</p>
+      <ul style="font-size: 0.8rem; padding-left: 15px; margin: 0">
+        <li>Heap/Data 공유</li>
+        <li>독립적 Stack/Register</li>
+        <li>경량급 실행 전환</li>
+      </ul>
+    </div>
+    <div
+      style="
+        background: var(--surface2);
+        padding: 15px;
+        border-radius: 10px;
+        border-top: 3px solid var(--yellow);
+      "
+    >
+      <h3 style="margin-top: 0; font-size: 1.1rem">⚓ IPC</h3>
+      <p style="font-size: 0.8rem; color: var(--text-muted)">
+        프로세스 간 소통
+      </p>
+      <ul style="font-size: 0.8rem; padding-left: 15px; margin: 0">
+        <li>커널 중계 시스템</li>
+        <li>FD 상속 기반 통로</li>
+        <li>동기화/Blocking 내장</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>3. 프로세스 관계와 소통의 본질</h2>
+  <p>
+    부모와 자식 프로세스는 단순한 위계 관계를 넘어 자원 관리의 책임을 공유한다.
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>개념</th>
+        <th>메커니즘</th>
+        <th>핵심 역할</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>부모-자식</strong></td>
+        <td>Fork() & Wait()</td>
+        <td>부모는 자식의 리소스(PCB 등) 수거 책임</td>
+      </tr>
+      <tr>
+        <td><strong>FD 상속</strong></td>
+        <td>소유권 이전</td>
+        <td>격리된 환경에서도 스트림 통로 공유 가능</td>
+      </tr>
+      <tr>
+        <td><strong>표준 스트림</strong></td>
+        <td>0(STDIN), 1(STDOUT), 2(STDERR)</td>
+        <td>OS가 부여한 기본 3대 통로</td>
+      </tr>
+    </tbody>
+  </table>
+  <div
+    style="
+      background: rgba(214, 57, 57, 0.1);
+      padding: 12px;
+      border-radius: 10px;
+      margin-top: 10px;
+      font-size: 0.9rem;
+    "
+  >
+    📌 <strong>경고:</strong> 부모가 <code>wait()</code>를 통해 종료 신호를
+    수거하지 않으면 자식은 <strong>좀비(Zombie)</strong> 프로세스가 되어
+    리소스를 좀먹는다.
+  </div>
+</div>
+
+<div class="card">
+  <h2>4. 블로킹(Blocking)과 교착 상태(Hang)</h2>
+  <p>OS 커널 버퍼(약 64KB)의 한계로 인해 발생하는 병목 현상을 시각화한다.</p>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px">
+    <div
+      style="
+        background: rgba(214, 57, 57, 0.1);
+        padding: 15px;
+        border-radius: 10px;
+      "
+    >
+      <h3 style="color: var(--red); margin-top: 0">🛑 Write Blocking</h3>
+      <p style="font-size: 0.85rem"><strong>현상:</strong> 커널 버퍼 FULL</p>
+      <p style="font-size: 0.85rem">
+        <strong>원인:</strong> 자식은 계속 쓰는데 부모가 읽지 않을 때
+      </p>
+      <p style="font-size: 0.85rem">
+        <strong>결과:</strong> 자식 프로세스 무한 대기
+      </p>
+    </div>
+    <div
+      style="
+        background: rgba(241, 180, 76, 0.1);
+        padding: 15px;
+        border-radius: 10px;
+      "
+    >
+      <h3 style="color: var(--yellow); margin-top: 0">⏳ Read Blocking</h3>
+      <p style="font-size: 0.85rem"><strong>현상:</strong> 커널 버퍼 EMPTY</p>
+      <p style="font-size: 0.85rem">
+        <strong>원인:</strong> 부모가 읽으려는데 데이터가 없을 때
+      </p>
+      <p style="font-size: 0.85rem">
+        <strong>결과:</strong> 부모 스레드 중단(Wait)
+      </p>
+    </div>
+  </div>
+  <blockquote style="margin-top: 15px">
+    "부모가 <code>waitFor()</code>로 자식을 기다리면서 동시에 스트림을 읽지
+    않으면, 64KB 버퍼가 차는 순간 시스템은 영원히 멈춘다."
+  </blockquote>
+</div>
+
+<div class="card">
+  <h2>5. Java Race Condition: 동시성의 덫</h2>
+  <p>여러 스레드가 공유 자원에 동시 접근할 때 발생하는 데이터 오염 현상이다.</p>
+  <div
+    style="
+      background: var(--surface2);
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+    "
+  >
+    <code style="color: var(--accent)">count++;</code>
+    <span style="color: var(--text-muted); font-size: 0.85rem"
+      >// Read-Modify-Write의 비원자적 특성</span
+    >
+  </div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px">
+    <div
+      style="
+        background: rgba(47, 179, 68, 0.1);
+        padding: 15px;
+        border-radius: 10px;
+      "
+    >
+      <h3 style="color: var(--green); margin-top: 0">✅ 해결 A: Lock</h3>
+      <p style="font-size: 0.85rem">
+        <code>synchronized</code>나 <code>ReentrantLock</code>으로 상호
+        배제(Mutex) 보장.
+      </p>
+    </div>
+    <div
+      style="
+        background: rgba(94, 129, 244, 0.1);
+        padding: 15px;
+        border-radius: 10px;
+      "
+    >
+      <h3 style="color: var(--accent); margin-top: 0">✅ 해결 B: Atomic</h3>
+      <p style="font-size: 0.85rem">
+        <code>AtomicInteger</code> 등 CAS(Compare-And-Swap) 연산 활용.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="border-left: 5px solid var(--accent)">
+  <h2>6. 실무 전략: Stream Gobbler</h2>
+  <p>자바에서 외부 프로세스를 안전하게 제어하기 위한 표준 전략이다.</p>
+  <div
+    style="
+      background: var(--surface2);
+      padding: 18px;
+      border-radius: 10px;
+      font-family: &quot;JetBrains Mono&quot;, monospace;
+      font-size: 0.85rem;
+    "
+  >
+    <p style="margin: 0; color: var(--text-muted)">
+      // 별도 스레드에서 실시간 스트림 드레인(Drain)
+    </p>
+    <p style="margin: 5px 0">new Thread(() -> {</p>
+    <p style="margin: 5px 0; padding-left: 20px">
+      process.getInputStream().transferTo(System.out);
+    </p>
+    <p style="margin: 5px 0">}).start();</p>
+    <p style="margin: 5px 0">
+      int exitCode = process.waitFor();
+      <span style="color: var(--green)">// ✅ 안전하게 종료 대기</span>
+    </p>
+  </div>
+</div>
+
+<!-- ========= Self Quiz ========= -->
+<div class="card" style="border-left: 5px solid var(--yellow)">
+  <h2>7. 핵심 마스터 퀴즈 (Self Quiz)</h2>
+
+  <!-- Q1 -->
+  <div
+    style="
+      background: var(--surface2);
+      padding: 18px;
+      border-radius: 12px;
+      margin-bottom: 18px;
+      border-left: 3px solid var(--accent);
+    "
+  >
+    <h3 style="margin-top: 0; margin-bottom: 10px">
+      Q1. 커널 스트림 버퍼의 임계치와 초과 시 현상은?
+    </h3>
+    <p style="margin-bottom: 15px">
+      OS가 관리하는 버퍼의 일반적인 크기와, 이 한계에 도달했을 때 자식
+      프로세스에 일어나는 일은?
+    </p>
+    <div
+      style="
+        background: rgba(241, 180, 76, 0.1);
+        padding: 12px 15px;
+        border-radius: 8px;
+        border-left: 3px solid var(--yellow);
+      "
+    >
+      <p style="margin: 0; font-size: 0.9rem">
+        <strong style="color: var(--yellow)">💡 해설:</strong>
+        <strong>약 64KB</strong>. 버퍼가 꽉 차면 자식 프로세스는
+        <strong>Write Blocking</strong> 상태가 되어 더 이상 실행되지 못하고
+        멈춘다.
+      </p>
+    </div>
+  </div>
+
+  <!-- Q2 -->
+  <div
+    style="
+      background: var(--surface2);
+      padding: 18px;
+      border-radius: 12px;
+      margin-bottom: 18px;
+      border-left: 3px solid var(--accent);
+    "
+  >
+    <h3 style="margin-top: 0; margin-bottom: 10px">
+      Q2. FD 상속의 보안적 의미는?
+    </h3>
+    <p style="margin-bottom: 15px">
+      왜 부모-자식 관계가 아닌 제3의 프로세스는 자식의 STDOUT을 읽을 수 없는가?
+    </p>
+    <div
+      style="
+        background: rgba(241, 180, 76, 0.1);
+        padding: 12px 15px;
+        border-radius: 8px;
+        border-left: 3px solid var(--yellow);
+      "
+    >
+      <p style="margin: 0; font-size: 0.9rem">
+        <strong style="color: var(--yellow)">💡 해설:</strong> OS는
+        <strong>FD(File Descriptor) 테이블 소유권</strong>을 철저히 격리한다.
+        상속을 통해 통로를 공유받지 않은 프로세스는 물리적으로 해당 버퍼에
+        접근할 수 없다.
+      </p>
+    </div>
+  </div>
+
+  <!-- Q3 -->
+  <div
+    style="
+      background: var(--surface2);
+      padding: 18px;
+      border-radius: 12px;
+      margin-bottom: 0;
+      border-left: 3px solid var(--accent);
+    "
+  >
+    <h3 style="margin-top: 0; margin-bottom: 10px">
+      Q3. 좀비 vs 고아 프로세스
+    </h3>
+    <p style="margin-bottom: 15px">
+      자식이 종료되었으나 부모가 <code>wait()</code>를 호출하지 않아 PCB가 남은
+      상태는 무엇인가?
+    </p>
+    <div
+      style="
+        background: rgba(241, 180, 76, 0.1);
+        padding: 12px 15px;
+        border-radius: 8px;
+        border-left: 3px solid var(--yellow);
+      "
+    >
+      <p style="margin: 0; font-size: 0.9rem">
+        <strong style="color: var(--yellow)">💡 해설:</strong>
+        <strong>좀비(Zombie) 프로세스</strong>. (참고: 부모가 먼저 죽어 자식만
+        남은 경우는 <strong>고아(Orphan) 프로세스</strong>라고 하며, 보통
+        <code>init</code> 프로세스가 수거한다.)
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>8. 최종 정리 (Final Summary)</h2>
+  <div
+    style="
+      background: rgba(47, 179, 68, 0.05);
+      padding: 20px;
+      border-radius: 10px;
+      border-left: 5px solid var(--green);
+    "
+  >
+    <p style="margin: 0">
+      시스템 프로그래밍의 핵심은
+      <strong>"격리 속의 질서 있는 소통"</strong>이다. 64KB 버퍼의 물리적 한계를
+      인지하고 비동기 소비 전략(Stream Gobbler)을 수립하는 것, 그리고 공유 자원
+      접근 시 원자성을 보장하는 것이 견고한 시스템을 만드는 엔지니어의 핵심
+      덕목이다.
+    </p>
+  </div>
+</div>
+
+<p
+  style="
+    text-align: right;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 30px;
+  "
+>
+  © 2026 Gustav — Personal Study Summary (2026-04-21)
+</p>
