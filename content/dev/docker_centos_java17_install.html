@@ -1,0 +1,80 @@
+﻿<h1>[Docker] CentOS 7 Java 17 수동 설치 가이드</h1>
+
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+        <span class="badge badge-date">2026.04.21</span>
+        <span class="badge badge-tag">Technical Guide</span>
+    </div>
+    <h2>1. Docker Compose 구성</h2>
+    <p>로컬 JDK 파일을 공유하기 위한 볼륨 마운트가 포함된 전체 설정입니다.</p>
+    <div class="terminal-window">
+        <div class="terminal-header">
+            <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            <span class="terminal-title">docker-compose.yml</span>
+        </div>
+        <pre><code>version: "3.8"
+
+services:
+  centos-test:
+    image: centos:7
+    container_name: centos-test-server
+    tty: true
+    stdin_open: true
+    volumes:
+      - .:/test_dir
+    working_dir: /test_dir
+    restart: always</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>2. 압축 해제 및 경로 지정</h2>
+    <p>표준 JVM 디렉토리에 JDK 바이너리를 배치합니다.</p>
+    <div class="terminal-window">
+        <div class="terminal-header">
+            <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            <span class="terminal-title">Terminal</span>
+        </div>
+        <pre><code><span class="comment"># 1. JVM 디렉토리 생성</span>
+<span class="cmd-prompt">></span> mkdir -p /usr/lib/jvm
+
+<span class="comment"># 2. 지정 경로에 압축 해제</span>
+<span class="cmd-prompt">></span> tar -xvf jdk-17.0.12_linux-x64_bin.tar.gz -C /usr/lib/jvm/</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>3. 환경 변수 자동화 설정</h2>
+    <p><code>echo</code> 명령어를 활용해 재부팅 후에도 유지되는 환경 변수를 등록합니다.</p>
+    <div class="terminal-window">
+        <div class="terminal-header">
+            <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            <span class="terminal-title">Bash Shell</span>
+        </div>
+        <pre><code><span class="comment"># JAVA_HOME 등록</span>
+<span class="cmd-prompt">></span> echo "export JAVA_HOME=/usr/lib/jvm/jdk-17.0.12" > /etc/profile.d/java.sh
+
+<span class="comment"># PATH 등록</span>
+<span class="cmd-prompt">></span> echo "export PATH=\$JAVA_HOME/bin:\$PATH" >> /etc/profile.d/java.sh
+
+<span class="comment"># 즉시 적용</span>
+<span class="cmd-prompt">></span> source /etc/profile.d/java.sh</code></pre>
+    </div>
+</div>
+
+<div class="card" style="border-left: 5px solid var(--green);">
+    <h2>4. 최종 검증</h2>
+    <p>Java 엔진이 정상적으로 로드되었는지 확인합니다.</p>
+    <div class="terminal-window">
+        <div class="terminal-header">
+            <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+        </div>
+        <pre><code><span class="cmd-prompt">></span> java -version
+
+<span class="comment"># 출력: java version "17.0.12" ...</span></code></pre>
+    </div>
+</div>
+
+<p style="text-align:right; font-size:0.8rem; color:var(--text-muted); margin-top:30px;">
+    © 2026 Gustav Lab Technical Engineering Team
+</p>
