@@ -1,0 +1,84 @@
+﻿<h1>[RHEL] Red Hat Enterprise Linux Java 17 수동 설치 가이드</h1>
+
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+        <span class="badge badge-date">2026.04.21</span>
+        <span class="badge badge-tag">Technical Guide</span>
+    </div>
+    <h2>1. Docker Compose 구성 (UBI)</h2>
+    <p>RHEL의 공식 이미지인 <b>Universal Base Image (UBI)</b>를 활용합니다.</p>
+    <div class="terminal-window">
+        <div class="terminal-header">
+            <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            <span class="terminal-title">docker-compose.yml</span>
+        </div>
+        <pre><code>version: "3.8"
+
+services:
+  rhel-test:
+    image: registry.access.redhat.com/ubi8/ubi:latest
+    container_name: rhel-test-server
+    tty: true
+    volumes:
+      - .:/test_dir</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>2. 바이너리 압축 해제</h2>
+    <p>표준 JVM 경로에 JDK를 배치하여 관리 효율성을 높입니다.</p>
+    <div class="terminal-window">
+        <div class="terminal-header">
+            <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            <span class="terminal-title">Terminal</span>
+        </div>
+        <pre><code><span class="comment"># 1. JVM 디렉토리 생성</span>
+<span class="cmd-prompt">></span> mkdir -p /usr/lib/jvm
+
+<span class="comment"># 2. 지정 경로에 압축 해제</span>
+<span class="cmd-prompt">></span> tar -xvf jdk-17.0.12_linux-x64_bin.tar.gz -C /usr/lib/jvm/</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>3. 환경 변수 구성 (Persistence)</h2>
+    <p>RHEL의 쉘 초기화 스크립트를 사용하여 전역 환경 변수를 자동화합니다.</p>
+    <div class="terminal-window">
+        <div class="terminal-header">
+            <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            <span class="terminal-title">Bash Shell</span>
+        </div>
+        <pre><code><span class="comment"># JAVA_HOME 및 PATH 등록</span>
+<span class="cmd-prompt">></span> echo "export JAVA_HOME=/usr/lib/jvm/jdk-17.0.12" > /etc/profile.d/java.sh
+<span class="cmd-prompt">></span> echo "export PATH=\$JAVA_HOME/bin:\$PATH" >> /etc/profile.d/java.sh
+
+<span class="comment"># 즉시 적용</span>
+<span class="cmd-prompt">></span> source /etc/profile.d/java.sh</code></pre>
+    </div>
+</div>
+
+<div class="card" style="border-left: 5px solid var(--green);">
+    <h2>4. 설치 검증 및 증적</h2>
+    <p>Java 엔진 로드 여부와 실제 환경 설정 상태를 확인합니다.</p>
+    
+    <div class="terminal-window">
+        <div class="terminal-header">
+            <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+        </div>
+        <pre><code><span class="cmd-prompt">></span> java -version</code></pre>
+    </div>
+
+    <div class="img-box">
+        <img src="../../assets/images/rhel_verify_2.png" alt="RHEL Java Verification 2">
+        <div class="img-caption">설치 결과 증적: Java 버전 출력 확인</div>
+    </div>
+
+    <div class="img-box">
+        <img src="../../assets/images/rhel_verify_1.png" alt="RHEL Java Verification 1">
+        <div class="img-caption">설치 결과 증적: 시스템 환경 변수 설정 상태</div>
+    </div>
+</div>
+
+<p style="text-align:right; font-size:0.8rem; color:var(--text-muted); margin-top:30px;">
+    © 2026 Gustav Lab Technical Engineering Team
+</p>

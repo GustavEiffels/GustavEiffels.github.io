@@ -1,0 +1,67 @@
+﻿<h1>[Tomcat] 테스트용 ROOT.war 생성 및 배포 가이드</h1>
+
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+        <span class="badge badge-date">2026.04.21</span>
+        <span class="badge badge-tag">Middleware Utility</span>
+    </div>
+    <h2>1. 웹 콘텐츠 작성 (HTML)</h2>
+    <p>배포 성공 시 브라우저에 표시될 기본 페이지를 작성합니다. <code>index.html</code>이라는 파일명으로 저장합니다.</p>
+    <div class="terminal-window">
+        <div class="terminal-header">
+            <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            <span class="terminal-title">index.html</span>
+        </div>
+        <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;body&gt;
+    &lt;h1&gt;✅ Tomcat Deployment Success&lt;/h1&gt;
+    &lt;p&gt;The server is running perfectly!&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>2. WAR 패키징 (압축)</h2>
+    <p>HTML 파일을 ZIP 구조로 압축한 뒤 확장자를 <code>.war</code>로 변경하여 Tomcat이 인식할 수 있게 합니다.</p>
+    
+    <h3>Windows PowerShell</h3>
+    <div class="terminal-window">
+        <div class="terminal-header">
+            <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            <span class="terminal-title">PowerShell</span>
+        </div>
+        <pre><code><span class="cmd-prompt">PS></span> Compress-Archive -Path ./index.html -DestinationPath ./ROOT.zip
+<span class="cmd-prompt">PS></span> Rename-Item -Path ./ROOT.zip -NewName ROOT.war</code></pre>
+    </div>
+
+    <h3>Linux Bash</h3>
+    <div class="terminal-window">
+        <div class="terminal-header">
+            <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            <span class="terminal-title">Bash Shell</span>
+        </div>
+        <pre><code><span class="cmd-prompt">$</span> zip ROOT.war index.html</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>3. Tomcat 서버 배포</h2>
+    <p>생성된 <code>ROOT.war</code>를 Tomcat의 자동 배포 경로(<code>webapps</code>)로 복사합니다. 기존 ROOT 폴더를 먼저 삭제해야 새 파일이 즉시 반영됩니다.</p>
+    <div class="terminal-window">
+        <div class="terminal-header">
+            <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            <span class="terminal-title">Terminal</span>
+        </div>
+        <pre><code><span class="comment"># 1. 기존 ROOT 디렉토리 제거 (필수)</span>
+<span class="cmd-prompt">></span> rm -rf /opt/tomcat/webapps/ROOT
+
+<span class="comment"># 2. 새 WAR 파일 복사</span>
+<span class="cmd-prompt">></span> cp ROOT.war /opt/tomcat/webapps/</code></pre>
+    </div>
+</div>
+
+<p style="text-align:right; font-size:0.8rem; color:var(--text-muted); margin-top:30px;">
+    © 2026 Gustav Lab Technical Middleware Team
+</p>
