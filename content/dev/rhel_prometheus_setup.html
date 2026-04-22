@@ -1,0 +1,346 @@
+<style>
+.it-prom input[type="radio"] { position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
+.it-tab-bar { display:flex; gap:6px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:5px; width:fit-content; margin-bottom:32px; }
+.it-tab-bar label { padding:9px 26px; border-radius:7px; font-size:0.9rem; font-weight:600; color:var(--text-muted); cursor:pointer; transition:all 0.2s; user-select:none; }
+.it-tab-bar label:hover { color:var(--text); }
+.it-prom .panel { display:none; }
+.it-prom:has(#prom-air:checked) label[for="prom-air"] { background:var(--accent); color:#fff; }
+.it-prom:has(#prom-net:checked) label[for="prom-net"] { background:var(--accent); color:#fff; }
+.it-prom:has(#prom-air:checked) .panel-air { display:block; }
+.it-prom:has(#prom-net:checked) .panel-net { display:block; }
+.info-note { background:rgba(94,129,244,0.08); border:1px solid rgba(94,129,244,0.3); border-radius:8px; padding:12px 16px; margin:12px 0; font-size:0.88rem; color:#a9c1f5; line-height:1.7; }
+.warn-note { background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-radius:8px; padding:12px 16px; margin:12px 0; font-size:0.88rem; color:#fde68a; line-height:1.7; }
+.ok-note   { background:rgba(47,179,68,0.08);  border:1px solid rgba(47,179,68,0.3);  border-radius:8px; padding:12px 16px; margin:12px 0; font-size:0.88rem; color:#86efac; line-height:1.7; }
+.flow-bar  { display:flex; align-items:center; flex-wrap:wrap; gap:4px; margin-bottom:28px; }
+.flow-bar span { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:5px 11px; font-size:0.75rem; color:var(--text-muted); }
+.flow-bar i { color:var(--border); font-style:normal; font-size:0.85rem; }
+.section-divider { display:flex; align-items:center; gap:12px; margin:40px 0 28px; }
+.section-divider span { color:var(--text-muted); font-size:0.82rem; white-space:nowrap; padding:0 10px; background:var(--bg); }
+.section-divider::before, .section-divider::after { content:''; flex:1; border-top:1px dashed var(--border); }
+.arch-grid { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:12px; margin-bottom:32px; }
+.arch-box { text-align:center; padding:16px; background:var(--surface); border-radius:12px; border:1px solid var(--border); }
+.arch-box .arch-icon { font-size:1.8rem; margin-bottom:6px; }
+.arch-box .arch-name { font-weight:700; color:#fff; font-size:0.95rem; }
+.arch-box .arch-port { font-family:'JetBrains Mono',monospace; font-size:0.82rem; margin-top:4px; color:var(--accent); }
+.arch-box .arch-desc { font-size:0.78rem; color:var(--text-muted); margin-top:4px; }
+.arch-arrow { text-align:center; color:var(--text-muted); font-size:1.6rem; }
+</style>
+
+<h1>[RHEL] Prometheus &amp; Node Exporter 설치 가이드</h1>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:10px;">
+    <div>
+        <span class="badge badge-date">2026.04.22</span>
+        <span class="badge badge-tag">Prometheus 2.53.0 · Node Exporter 1.8.1 · RHEL 8</span>
+    </div>
+</div>
+
+<!-- Architecture -->
+<div class="arch-grid">
+    <div class="arch-box">
+        <div class="arch-icon">🖥️</div>
+        <div class="arch-name">Node Exporter</div>
+        <div class="arch-port">:9100</div>
+        <div class="arch-desc">CPU · MEM · DISK · NET 메트릭 수집</div>
+    </div>
+    <div class="arch-arrow">
+        <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;">scrape ←</div>
+        ←
+    </div>
+    <div class="arch-box">
+        <div class="arch-icon">🔥</div>
+        <div class="arch-name">Prometheus</div>
+        <div class="arch-port">:9090</div>
+        <div class="arch-desc">메트릭 수집 · 저장 · Web UI</div>
+    </div>
+</div>
+
+<div class="it-prom">
+    <input type="radio" name="prom-mode" id="prom-air" checked>
+    <input type="radio" name="prom-mode" id="prom-net">
+    <div class="it-tab-bar">
+        <label for="prom-air">🔒 폐쇄망 설치</label>
+        <label for="prom-net">🌐 온라인 설치</label>
+    </div>
+
+    <!-- ===== AIRGAP ===== -->
+    <div class="panel panel-air">
+        <div class="card">
+            <p><b>이관 파일 목록</b> — 두 파일을 폐쇄망 서버로 이관합니다. 단독 실행 바이너리로 별도 의존성이 필요 없습니다.</p>
+            <table>
+                <thead><tr><th>파일명</th><th>크기</th><th>포트</th></tr></thead>
+                <tbody>
+                    <tr><td><code>prometheus-2.53.0.linux-amd64.tar.gz</code></td><td>~69 MB</td><td>9090</td></tr>
+                    <tr><td><code>node_exporter-1.8.1.linux-amd64.tar.gz</code></td><td>~11 MB</td><td>9100</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div><!-- /panel-air -->
+
+    <!-- ===== ONLINE ===== -->
+    <div class="panel panel-net">
+        <div class="step-container">
+            <div class="step-header">
+                <div class="step-number">D</div>
+                <div class="step-title">바이너리 다운로드 (온라인 전용)</div>
+            </div>
+            <div class="card">
+                <p>GitHub Releases에서 두 바이너리를 직접 다운로드합니다.</p>
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                        <span class="terminal-title">root@server</span>
+                    </div>
+                    <pre><code>cd /tmp
+
+<span class="comment"># Node Exporter 다운로드</span>
+wget https://github.com/prometheus/node_exporter/releases/download/v1.8.1/node_exporter-1.8.1.linux-amd64.tar.gz
+
+<span class="comment"># Prometheus 다운로드</span>
+wget https://github.com/prometheus/prometheus/releases/download/v2.53.0/prometheus-2.53.0.linux-amd64.tar.gz</code></pre>
+                </div>
+                <div class="info-note">wget이 없으면: <code>dnf install -y wget</code></div>
+            </div>
+        </div>
+    </div><!-- /panel-net -->
+
+</div><!-- /it-prom -->
+
+<!-- ===== COMMON: Node Exporter ===== -->
+<div class="section-divider"><span>Node Exporter 설치</span></div>
+
+<div class="step-container">
+    <div class="step-header">
+        <div class="step-number">1</div>
+        <div class="step-title">Node Exporter 압축 해제 및 배치</div>
+    </div>
+    <div class="card">
+        <p><b>Node Exporter</b>는 Linux 호스트의 CPU·메모리·디스크·네트워크 메트릭을 HTTP endpoint로 노출합니다. 단독 바이너리로 별도 런타임이 필요 없습니다.</p>
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            </div>
+            <pre><code><span class="comment"># 설치 디렉토리 생성</span>
+mkdir -p /opt/node_exporter
+
+<span class="comment"># 압축 해제 (최상위 디렉토리 제거)</span>
+tar -xzf node_exporter-1.8.1.linux-amd64.tar.gz \
+    -C /opt/node_exporter/ --strip-components=1
+
+<span class="comment"># 바이너리 확인</span>
+ls /opt/node_exporter/</code></pre>
+        </div>
+        <div class="info-note"><b>--strip-components=1</b> — 최상위 디렉토리를 제거하고 바이너리를 /opt/node_exporter/ 바로 아래에 배치합니다.</div>
+    </div>
+</div>
+
+<div class="step-container">
+    <div class="step-header">
+        <div class="step-number">2</div>
+        <div class="step-title">전용 유저 생성 및 실행</div>
+    </div>
+    <div class="card">
+        <p>보안 원칙상 <b>nologin 쉘</b>로 설정된 시스템 전용 계정으로 최소 권한 실행합니다.</p>
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                <span class="terminal-title">유저 생성</span>
+            </div>
+            <pre><code>useradd -r -s /sbin/nologin node_exporter
+chown -R node_exporter:node_exporter /opt/node_exporter</code></pre>
+        </div>
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                <span class="terminal-title">방법 A — nohup (컨테이너·테스트 환경)</span>
+            </div>
+            <pre><code>nohup /opt/node_exporter/node_exporter \
+    --web.listen-address=":9100" \
+    > /var/log/node_exporter.log 2>&1 &
+
+echo "Node Exporter PID: $!"
+curl -s http://localhost:9100/metrics | head -5</code></pre>
+        </div>
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                <span class="terminal-title">방법 B — systemd (실 RHEL 서버)</span>
+            </div>
+            <pre><code>cat > /etc/systemd/system/node_exporter.service &lt;&lt;'EOF'
+[Unit]
+Description=Node Exporter
+After=network.target
+
+[Service]
+User=node_exporter
+ExecStart=/opt/node_exporter/node_exporter \
+    --web.listen-address=":9100"
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now node_exporter
+systemctl status node_exporter</code></pre>
+        </div>
+        <div class="ok-note">✅ <b>정상 확인</b> — <code>curl http://localhost:9100/metrics</code> 실행 시 <code># HELP ...</code> 형태의 메트릭 데이터가 출력되면 정상입니다.</div>
+    </div>
+</div>
+
+<!-- ===== COMMON: Prometheus ===== -->
+<div class="section-divider"><span>Prometheus 설치</span></div>
+
+<div class="step-container">
+    <div class="step-header">
+        <div class="step-number">3</div>
+        <div class="step-title">Prometheus 압축 해제 및 배치</div>
+    </div>
+    <div class="card">
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            </div>
+            <pre><code>mkdir -p /opt/prometheus
+
+tar -xzf prometheus-2.53.0.linux-amd64.tar.gz \
+    -C /opt/prometheus/ --strip-components=1
+
+mkdir -p /opt/prometheus/data
+
+ls /opt/prometheus/</code></pre>
+        </div>
+        <div class="info-note">
+            <b>주요 파일</b><br>
+            <code>prometheus</code> — 서버 바이너리 &nbsp;|&nbsp;
+            <code>promtool</code> — 설정 검증 도구 &nbsp;|&nbsp;
+            <code>prometheus.yml</code> — 기본 설정 파일
+        </div>
+    </div>
+</div>
+
+<div class="step-container">
+    <div class="step-header">
+        <div class="step-number">4</div>
+        <div class="step-title">전용 유저 생성 및 prometheus.yml 설정</div>
+    </div>
+    <div class="card">
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                <span class="terminal-title">유저 생성</span>
+            </div>
+            <pre><code>useradd -r -s /sbin/nologin prometheus
+chown -R prometheus:prometheus /opt/prometheus</code></pre>
+        </div>
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                <span class="terminal-title">/opt/prometheus/prometheus.yml</span>
+            </div>
+            <pre><code>cat > /opt/prometheus/prometheus.yml &lt;&lt;'EOF'
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+
+scrape_configs:
+
+  <span class="comment"># Prometheus 자기 자신 모니터링</span>
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  <span class="comment"># Node Exporter — 시스템 메트릭</span>
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+EOF
+
+<span class="comment"># 설정 파일 문법 검증</span>
+/opt/prometheus/promtool check config /opt/prometheus/prometheus.yml</code></pre>
+        </div>
+        <div class="ok-note">✅ <b>검증 성공</b> — <code>SUCCESS: /opt/prometheus/prometheus.yml is valid prometheus config file syntax</code></div>
+    </div>
+</div>
+
+<div class="step-container">
+    <div class="step-header">
+        <div class="step-number">5</div>
+        <div class="step-title">Prometheus 실행 및 전체 동작 확인</div>
+    </div>
+    <div class="card" style="border-left: 5px solid var(--green);">
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                <span class="terminal-title">방법 A — nohup (컨테이너·테스트 환경)</span>
+            </div>
+            <pre><code>nohup /opt/prometheus/prometheus \
+    --config.file=/opt/prometheus/prometheus.yml \
+    --storage.tsdb.path=/opt/prometheus/data \
+    --web.listen-address=":9090" \
+    --storage.tsdb.retention.time=15d \
+    > /var/log/prometheus.log 2>&1 &
+
+echo "Prometheus PID: $!"
+sleep 2 && curl -s http://localhost:9090/-/healthy</code></pre>
+        </div>
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                <span class="terminal-title">방법 B — systemd (실 RHEL 서버)</span>
+            </div>
+            <pre><code>cat > /etc/systemd/system/prometheus.service &lt;&lt;'EOF'
+[Unit]
+Description=Prometheus Monitoring
+After=network.target
+
+[Service]
+User=prometheus
+ExecStart=/opt/prometheus/prometheus \
+    --config.file=/opt/prometheus/prometheus.yml \
+    --storage.tsdb.path=/opt/prometheus/data \
+    --web.listen-address=":9090" \
+    --storage.tsdb.retention.time=15d
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now prometheus
+systemctl status prometheus</code></pre>
+        </div>
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                <span class="terminal-title">최종 확인</span>
+            </div>
+            <pre><code><span class="comment"># 프로세스 확인</span>
+ps aux | grep -E 'prometheus|node_exporter'
+
+<span class="comment"># 포트 리스닝 확인</span>
+ss -tlnp | grep -E '9090|9100'
+
+<span class="comment"># Prometheus 헬스체크</span>
+curl -s http://localhost:9090/-/healthy
+
+<span class="comment"># 타겟 상태 API 확인</span>
+curl -s http://localhost:9090/api/v1/targets | grep -o '"health":"[^"]*"'</code></pre>
+        </div>
+        <div class="ok-note">
+            ✅ <b>정상 확인</b> — <code>Prometheus Server is Healthy.</code><br>
+            브라우저: <code>http://서버IP:9090</code> → Prometheus Web UI (Status → Targets에서 Node Exporter 상태 확인)
+        </div>
+        <div class="info-note">
+            <b>서비스 관리</b><br>
+            Node Exporter 중지: <code>pkill node_exporter</code> / 로그: <code>tail -f /var/log/node_exporter.log</code><br>
+            Prometheus 중지: <code>pkill prometheus</code> / 로그: <code>tail -f /var/log/prometheus.log</code>
+        </div>
+    </div>
+</div>
+
+<p style="text-align:right; font-size:0.8rem; color:var(--text-muted); margin-top:30px;">
+    © 2026 Gustav Lab Technical Engineering Team | Prometheus 2.53.0 + Node Exporter 1.8.1 · RHEL 8
+</p>

@@ -1,0 +1,304 @@
+<style>
+.it-pg input[type="radio"] { position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
+.it-tab-bar { display:flex; gap:6px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:5px; width:fit-content; margin-bottom:32px; }
+.it-tab-bar label { padding:9px 26px; border-radius:7px; font-size:0.9rem; font-weight:600; color:var(--text-muted); cursor:pointer; transition:all 0.2s; user-select:none; }
+.it-tab-bar label:hover { color:var(--text); }
+.it-pg .panel { display:none; }
+.it-pg:has(#pg-air:checked) label[for="pg-air"] { background:var(--accent); color:#fff; }
+.it-pg:has(#pg-net:checked) label[for="pg-net"] { background:var(--accent); color:#fff; }
+.it-pg:has(#pg-air:checked) .panel-air { display:block; }
+.it-pg:has(#pg-net:checked) .panel-net { display:block; }
+.info-note { background:rgba(94,129,244,0.08); border:1px solid rgba(94,129,244,0.3); border-radius:8px; padding:12px 16px; margin:12px 0; font-size:0.88rem; color:#a9c1f5; line-height:1.7; }
+.warn-note { background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-radius:8px; padding:12px 16px; margin:12px 0; font-size:0.88rem; color:#fde68a; line-height:1.7; }
+.ok-note   { background:rgba(47,179,68,0.08);  border:1px solid rgba(47,179,68,0.3);  border-radius:8px; padding:12px 16px; margin:12px 0; font-size:0.88rem; color:#86efac; line-height:1.7; }
+.flow-bar  { display:flex; align-items:center; flex-wrap:wrap; gap:4px; margin-bottom:28px; }
+.flow-bar span { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:5px 11px; font-size:0.75rem; color:var(--text-muted); }
+.flow-bar i { color:var(--border); font-style:normal; font-size:0.85rem; }
+</style>
+
+<h1>[RHEL] PostgreSQL 17.2 설치 가이드</h1>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:10px;">
+    <div>
+        <span class="badge badge-date">2026.04.22</span>
+        <span class="badge badge-tag">PostgreSQL · RHEL 8 · Airgap · Online</span>
+    </div>
+</div>
+
+<div class="it-pg">
+    <input type="radio" name="pg-mode" id="pg-air" checked>
+    <input type="radio" name="pg-mode" id="pg-net">
+    <div class="it-tab-bar">
+        <label for="pg-air">🔒 폐쇄망 설치</label>
+        <label for="pg-net">🌐 온라인 설치</label>
+    </div>
+
+    <!-- ===== AIRGAP ===== -->
+    <div class="panel panel-air">
+        <div class="flow-bar">
+            <span>① RPM 압축 해제</span><i>›</i><span>② RPM 설치</span><i>›</i>
+            <span>③ 빌드 검증</span><i>›</i><span>④ 소스 해제</span><i>›</i>
+            <span>⑤ 컴파일·설치</span><i>›</i><span>⑥ 유저 생성</span><i>›</i><span>⑦ DB 초기화</span>
+        </div>
+
+        <div class="step-container">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <div class="step-title">postgre_LIBs.tar.gz 압축 해제 및 RPM 설치</div>
+            </div>
+            <div class="card">
+                <p>폐쇄망 서버로 이관된 <b>postgre_LIBs.tar.gz</b> (177개 RPM, 약 81MB)를 압축 해제한 뒤 일괄 설치합니다.</p>
+                <p><b>이관 파일:</b> <code>postgre_LIBs.tar.gz</code> + <code>postgresql-17.2.tar.gz</code></p>
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                        <span class="terminal-title">root@server — 파일 이관 후</span>
+                    </div>
+                    <pre><code><span class="comment"># 작업 디렉토리 생성 및 이동</span>
+mkdir -p /opt/install && cd /opt/install
+
+<span class="comment"># 압축 해제</span>
+tar -xzf postgre_LIBs.tar.gz
+
+<span class="comment"># RPM 파일 수 확인</span>
+ls *.rpm | wc -l
+
+<span class="comment"># 전체 RPM 일괄 설치</span>
+rpm -ivh *.rpm --nodeps --force</code></pre>
+                </div>
+                <div class="info-note">✅ <b>설치 완료 기준</b> — 177개 RPM 중 오류 없이 진행되면 정상. 이미 설치된 패키지는 <code>--force</code>로 덮어씁니다.</div>
+            </div>
+        </div>
+
+        <div class="step-container">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <div class="step-title">빌드 환경 검증</div>
+            </div>
+            <div class="card">
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                    </div>
+                    <pre><code><span class="comment"># GCC 확인</span>
+gcc --version
+
+<span class="comment"># Perl 핵심 모듈 확인</span>
+perl -e "use Getopt::Long; use Exporter; print 'Perl OK\n'"</code></pre>
+                </div>
+                <div class="info-note">두 명령 모두 정상 출력이 나와야 컴파일을 진행합니다.<br>
+                <code>gcc (GCC) 8.5.0 ...</code> &nbsp;/&nbsp; <code>Perl OK</code></div>
+            </div>
+        </div>
+
+        <div class="step-container">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <div class="step-title">소스 압축 해제 → Configure → 컴파일 → 설치</div>
+            </div>
+            <div class="card">
+                <p><b>--without-icu</b> 옵션으로 ICU 의존성을 제거합니다. 폐쇄망에서 icu 패키지를 별도 수집하지 않은 경우 필수입니다.</p>
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                        <span class="terminal-title">postgresql-17.2/</span>
+                    </div>
+                    <pre><code>cd /opt/install
+tar -xzf postgresql-17.2.tar.gz
+cd postgresql-17.2
+
+<span class="comment"># 빌드 설정 (ICU 제외)</span>
+./configure --prefix=/opt/pgsql --without-icu
+
+<span class="comment"># 병렬 컴파일</span>
+make -j$(nproc)
+
+<span class="comment"># 설치</span>
+make install
+
+<span class="comment"># 설치 확인</span>
+/opt/pgsql/bin/postgres --version</code></pre>
+                </div>
+                <div class="ok-note">✅ <b>성공 출력</b> — <code>postgres (PostgreSQL) 17.2</code></div>
+            </div>
+        </div>
+
+        <div class="step-container">
+            <div class="step-header">
+                <div class="step-number">4</div>
+                <div class="step-title">환경변수 설정</div>
+            </div>
+            <div class="card">
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                    </div>
+                    <pre><code>cat >> ~/.bash_profile &lt;&lt;'EOF'
+export PATH=/opt/pgsql/bin:$PATH
+export LD_LIBRARY_PATH=/opt/pgsql/lib:$LD_LIBRARY_PATH
+EOF
+
+source ~/.bash_profile</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="step-container">
+            <div class="step-header">
+                <div class="step-number">5</div>
+                <div class="step-title">postgres OS 유저 생성 및 디렉토리 권한 설정</div>
+            </div>
+            <div class="card">
+                <p><code>initdb</code>는 root로 실행 불가합니다. 전용 OS 유저를 생성하고 소유권을 부여합니다.</p>
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                        <span class="terminal-title">root 권한으로 실행</span>
+                    </div>
+                    <pre><code>useradd -m postgres
+mkdir -p /opt/pgsql/data
+chown -R postgres:postgres /opt/pgsql</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="step-container">
+            <div class="step-header">
+                <div class="step-number">6</div>
+                <div class="step-title">DB 초기화 · 서버 시작 · 계정 암호 설정</div>
+            </div>
+            <div class="card">
+                <p>이하 모든 명령은 <b>postgres 유저</b>로 실행합니다.</p>
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                        <span class="terminal-title">postgres 유저로 전환</span>
+                    </div>
+                    <pre><code>su - postgres
+
+<span class="comment"># DB 클러스터 초기화</span>
+/opt/pgsql/bin/initdb -D /opt/pgsql/data
+
+<span class="comment"># 외부 접속 허용</span>
+sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" \
+    /opt/pgsql/data/postgresql.conf
+echo "host all all 0.0.0.0/0 md5" >> /opt/pgsql/data/pg_hba.conf
+
+<span class="comment"># 서버 시작</span>
+/opt/pgsql/bin/pg_ctl -D /opt/pgsql/data \
+    -l /opt/pgsql/data/postgresql.log start
+
+<span class="comment"># psql 접속 후 암호 설정</span>
+/opt/pgsql/bin/psql -U postgres
+ALTER USER postgres WITH PASSWORD 'your_password';
+\q</code></pre>
+                </div>
+                <div class="ok-note">
+                    <b>서버 관리 명령 (postgres 유저)</b><br>
+                    중지: <code>/opt/pgsql/bin/pg_ctl -D /opt/pgsql/data stop</code><br>
+                    재시작: <code>/opt/pgsql/bin/pg_ctl -D /opt/pgsql/data restart</code><br>
+                    로그: <code>tail -f /opt/pgsql/data/postgresql.log</code>
+                </div>
+            </div>
+        </div>
+    </div><!-- /panel-air -->
+
+    <!-- ===== ONLINE ===== -->
+    <div class="panel panel-net">
+        <div class="flow-bar">
+            <span>① PGDG 리포 등록</span><i>›</i><span>② 모듈 비활성화</span><i>›</i>
+            <span>③ DNF 설치</span><i>›</i><span>④ DB 초기화</span><i>›</i>
+            <span>⑤ 외부 접속 설정</span><i>›</i><span>⑥ 서비스 시작</span>
+        </div>
+
+        <div class="step-container">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <div class="step-title">PGDG 공식 리포지토리 등록</div>
+            </div>
+            <div class="card">
+                <p>PostgreSQL 공식 PGDG 리포지토리를 등록합니다. RHEL 8 AppStream 내장 모듈과 충돌하지 않도록 비활성화가 필수입니다.</p>
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                        <span class="terminal-title">root@server</span>
+                    </div>
+                    <pre><code><span class="comment"># PGDG 리포지토리 RPM 설치</span>
+dnf install -y \
+  https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+
+<span class="comment"># AppStream 내장 PostgreSQL 모듈 비활성화 (버전 충돌 방지)</span>
+dnf -qy module disable postgresql</code></pre>
+                </div>
+                <div class="warn-note">⚠️ AppStream 모듈 비활성화를 생략하면 기본 버전(10.x)과 충돌이 발생합니다.</div>
+            </div>
+        </div>
+
+        <div class="step-container">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <div class="step-title">PostgreSQL 17 설치</div>
+            </div>
+            <div class="card">
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                    </div>
+                    <pre><code><span class="comment"># 서버 + 클라이언트 설치</span>
+dnf install -y postgresql17-server postgresql17
+
+<span class="comment"># 설치 확인</span>
+/usr/pgsql-17/bin/postgres --version</code></pre>
+                </div>
+                <div class="ok-note">✅ <b>성공 출력</b> — <code>postgres (PostgreSQL) 17.x</code></div>
+            </div>
+        </div>
+
+        <div class="step-container">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <div class="step-title">DB 초기화 → 외부 접속 설정 → 서비스 시작</div>
+            </div>
+            <div class="card">
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                    </div>
+                    <pre><code><span class="comment"># DB 클러스터 초기화</span>
+/usr/pgsql-17/bin/postgresql-17-setup initdb
+
+<span class="comment"># 외부 접속 허용</span>
+sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" \
+    /var/lib/pgsql/17/data/postgresql.conf
+echo "host all all 0.0.0.0/0 md5" >> /var/lib/pgsql/17/data/pg_hba.conf
+
+<span class="comment"># 부팅 시 자동 시작 + 즉시 시작</span>
+systemctl enable --now postgresql-17
+systemctl status postgresql-17</code></pre>
+                </div>
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                        <span class="terminal-title">postgres 계정 암호 설정</span>
+                    </div>
+                    <pre><code>sudo -u postgres psql
+
+ALTER USER postgres WITH PASSWORD 'your_password';
+\q</code></pre>
+                </div>
+                <div class="ok-note">
+                    <b>서비스 관리 명령</b><br>
+                    중지: <code>systemctl stop postgresql-17</code><br>
+                    재시작: <code>systemctl restart postgresql-17</code><br>
+                    로그: <code>journalctl -u postgresql-17 -f</code>
+                </div>
+                <div class="warn-note">⚠️ 운영 환경에서는 <code>0.0.0.0/0</code> 대신 허용할 IP 대역으로 제한하세요.</div>
+            </div>
+        </div>
+    </div><!-- /panel-net -->
+
+</div><!-- /it-pg -->
+
+<p style="text-align:right; font-size:0.8rem; color:var(--text-muted); margin-top:30px;">
+    © 2026 Gustav Lab Technical Engineering Team | PostgreSQL 17.2 · RHEL 8
+</p>

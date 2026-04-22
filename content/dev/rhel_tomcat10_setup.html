@@ -1,0 +1,213 @@
+<style>
+.it-tc input[type="radio"] { position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
+.it-tab-bar { display:flex; gap:6px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:5px; width:fit-content; margin-bottom:32px; }
+.it-tab-bar label { padding:9px 26px; border-radius:7px; font-size:0.9rem; font-weight:600; color:var(--text-muted); cursor:pointer; transition:all 0.2s; user-select:none; }
+.it-tab-bar label:hover { color:var(--text); }
+.it-tc .panel { display:none; }
+.it-tc:has(#tc-air:checked) label[for="tc-air"] { background:var(--accent); color:#fff; }
+.it-tc:has(#tc-net:checked) label[for="tc-net"] { background:var(--accent); color:#fff; }
+.it-tc:has(#tc-air:checked) .panel-air { display:block; }
+.it-tc:has(#tc-net:checked) .panel-net { display:block; }
+.info-note { background:rgba(94,129,244,0.08); border:1px solid rgba(94,129,244,0.3); border-radius:8px; padding:12px 16px; margin:12px 0; font-size:0.88rem; color:#a9c1f5; line-height:1.7; }
+.warn-note { background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-radius:8px; padding:12px 16px; margin:12px 0; font-size:0.88rem; color:#fde68a; line-height:1.7; }
+.ok-note   { background:rgba(47,179,68,0.08);  border:1px solid rgba(47,179,68,0.3);  border-radius:8px; padding:12px 16px; margin:12px 0; font-size:0.88rem; color:#86efac; line-height:1.7; }
+.flow-bar  { display:flex; align-items:center; flex-wrap:wrap; gap:4px; margin-bottom:28px; }
+.flow-bar span { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:5px 11px; font-size:0.75rem; color:var(--text-muted); }
+.flow-bar i { color:var(--border); font-style:normal; font-size:0.85rem; }
+.section-divider { display:flex; align-items:center; gap:12px; margin:40px 0 28px; }
+.section-divider span { color:var(--text-muted); font-size:0.82rem; white-space:nowrap; padding:0 10px; background:var(--bg); }
+.section-divider::before, .section-divider::after { content:''; flex:1; border-top:1px dashed var(--border); }
+</style>
+
+<h1>[RHEL] Tomcat 10.1 설치 가이드</h1>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:10px;">
+    <div>
+        <span class="badge badge-date">2026.04.22</span>
+        <span class="badge badge-tag">Tomcat 10.1 · RHEL 8 · Airgap · Online</span>
+    </div>
+</div>
+
+<div class="it-tc">
+    <input type="radio" name="tc-mode" id="tc-air" checked>
+    <input type="radio" name="tc-mode" id="tc-net">
+    <div class="it-tab-bar">
+        <label for="tc-air">🔒 폐쇄망 설치</label>
+        <label for="tc-net">🌐 온라인 설치</label>
+    </div>
+
+    <!-- ===== AIRGAP ===== -->
+    <div class="panel panel-air">
+        <div class="flow-bar">
+            <span>① 파일 이관</span><i>›</i><span>② 압축 해제</span><i>›</i>
+            <span>③ server.xml</span><i>›</i><span>④ setenv.sh</span><i>›</i>
+            <span>⑤ WAR 배포</span><i>›</i><span>⑥ 기동·확인</span>
+        </div>
+
+        <div class="step-container">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <div class="step-title">이관 파일 준비</div>
+            </div>
+            <div class="card">
+                <p>외부망 PC에서 Apache Tomcat 공식 배포 tar.gz를 다운로드하여 폐쇄망 서버로 이관합니다.</p>
+                <p><b>이관 파일:</b> <code>apache-tomcat-10.1.34.tar.gz</code> + <code>ROOT.war</code> (배포 파일)</p>
+                <div class="info-note">
+                    <b>사전 요건</b> — Java 17 설치 및 <code>JAVA_HOME</code> 환경변수가 설정되어 있어야 합니다.<br>
+                    <code>java -version</code>으로 확인 후 진행하세요.
+                </div>
+            </div>
+        </div>
+
+        <div class="step-container">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <div class="step-title">압축 해제 및 위치 지정</div>
+            </div>
+            <div class="card">
+                <p><code>root</code> 권한으로 지정된 서비스 경로에 압축을 풉니다.</p>
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                        <span class="terminal-title">root@rhel-test-server</span>
+                    </div>
+                    <pre><code><span class="comment"># 서비스 디렉토리 생성</span>
+<span class="cmd-prompt">[root]#</span> mkdir -p /home/test/test
+
+<span class="comment"># 지정 경로에 압축 해제</span>
+<span class="cmd-prompt">[root]#</span> tar -xvf apache-tomcat-10.1.34.tar.gz -C /home/test/test
+
+<span class="comment"># 확인</span>
+<span class="cmd-prompt">[root]#</span> ls /home/test/test/apache-tomcat-10.1.34/</code></pre>
+                </div>
+            </div>
+        </div>
+    </div><!-- /panel-air -->
+
+    <!-- ===== ONLINE ===== -->
+    <div class="panel panel-net">
+        <div class="flow-bar">
+            <span>① wget 다운로드</span><i>›</i><span>② 압축 해제</span><i>›</i>
+            <span>③ server.xml</span><i>›</i><span>④ setenv.sh</span><i>›</i>
+            <span>⑤ WAR 배포</span><i>›</i><span>⑥ 기동·확인</span>
+        </div>
+
+        <div class="step-container">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <div class="step-title">wget으로 Tomcat 다운로드</div>
+            </div>
+            <div class="card">
+                <p>Apache 공식 아카이브에서 Tomcat 10.1.34를 직접 다운로드합니다.</p>
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                        <span class="terminal-title">root@server</span>
+                    </div>
+                    <pre><code><span class="comment"># 작업 디렉토리</span>
+<span class="cmd-prompt">[root]#</span> cd /tmp
+
+<span class="comment"># Tomcat 10.1.34 다운로드</span>
+<span class="cmd-prompt">[root]#</span> wget https://archive.apache.org/dist/tomcat/tomcat-10/v10.1.34/bin/apache-tomcat-10.1.34.tar.gz
+
+<span class="comment"># 서비스 디렉토리 생성 및 압축 해제</span>
+<span class="cmd-prompt">[root]#</span> mkdir -p /home/test/test
+<span class="cmd-prompt">[root]#</span> tar -xvf apache-tomcat-10.1.34.tar.gz -C /home/test/test</code></pre>
+                </div>
+                <div class="info-note">wget이 없으면: <code>dnf install -y wget</code></div>
+            </div>
+        </div>
+    </div><!-- /panel-net -->
+
+</div><!-- /it-tc -->
+
+<!-- ===== COMMON SECTION ===== -->
+<div class="section-divider"><span>공통 설정 및 기동</span></div>
+
+<div class="step-container">
+    <div class="step-header">
+        <div class="step-number">C1</div>
+        <div class="step-title">Connector 최적화 (server.xml)</div>
+    </div>
+    <div class="card">
+        <p>네트워크 지연 및 대용량 패킷 처리를 위해 <code>maxSwallowSize="-1"</code>을 Connector에 추가합니다.</p>
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                <span class="terminal-title">server.xml</span>
+            </div>
+            <pre><code><span class="cmd-prompt">[root]#</span> vi /home/test/test/apache-tomcat-10.1.34/conf/server.xml
+
+<span class="comment">&lt;!-- Connector 섹션에 maxSwallowSize="-1" 추가 --&gt;</span>
+&lt;Connector port="8080" protocol="HTTP/1.1"
+           connectionTimeout="20000"
+           redirectPort="8443"
+           maxParameterCount="1000"
+           maxSwallowSize="-1" /&gt;</code></pre>
+        </div>
+        <div class="info-note"><b>maxSwallowSize="-1"</b> — 클라이언트 대용량 요청 바디를 끊지 않고 전부 수신합니다. 파일 업로드 오류 방지에 필수입니다.</div>
+    </div>
+</div>
+
+<div class="step-container">
+    <div class="step-header">
+        <div class="step-number">C2</div>
+        <div class="step-title">JVM 메모리 및 프로파일 설정 (setenv.sh)</div>
+    </div>
+    <div class="card">
+        <p>Tomcat 기동 시 자동으로 로드되는 <code>setenv.sh</code>에 JVM 옵션과 Spring 프로파일을 설정합니다.</p>
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                <span class="terminal-title">setenv.sh 생성</span>
+            </div>
+            <pre><code><span class="cmd-prompt">[root]#</span> echo '#!/bin/sh' > /home/test/test/apache-tomcat-10.1.34/bin/setenv.sh
+<span class="cmd-prompt">[root]#</span> echo 'export CATALINA_OPTS="$CATALINA_OPTS -Dspring.profiles.active=prod-deploy"' \
+    >> /home/test/test/apache-tomcat-10.1.34/bin/setenv.sh
+<span class="cmd-prompt">[root]#</span> echo 'export CATALINA_OPTS="$CATALINA_OPTS -Djava.net.preferIPv4Stack=true"' \
+    >> /home/test/test/apache-tomcat-10.1.34/bin/setenv.sh
+<span class="cmd-prompt">[root]#</span> echo 'export CATALINA_OPTS="$CATALINA_OPTS -Xms6G -Xmx6G"' \
+    >> /home/test/test/apache-tomcat-10.1.34/bin/setenv.sh
+
+<span class="comment"># 실행 권한 부여</span>
+<span class="cmd-prompt">[root]#</span> chmod +x /home/test/test/apache-tomcat-10.1.34/bin/setenv.sh</code></pre>
+        </div>
+        <div class="warn-note">⚠️ <code>-Xms6G -Xmx6G</code>는 서버 물리 메모리에 맞게 조정하세요. (일반적으로 물리 메모리의 50~75%)</div>
+    </div>
+</div>
+
+<div class="step-container">
+    <div class="step-header">
+        <div class="step-number">C3</div>
+        <div class="step-title">WAR 배포 및 서버 기동·모니터링</div>
+    </div>
+    <div class="card" style="border-left: 5px solid var(--green);">
+        <p>배포 파일(<code>ROOT.war</code>)을 webapps에 이동하고 서버를 기동하여 정상 여부를 확인합니다.</p>
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            </div>
+            <pre><code><span class="comment"># WAR 파일 배포</span>
+<span class="cmd-prompt">[root]#</span> mv ROOT.war /home/test/test/apache-tomcat-10.1.34/webapps/
+
+<span class="comment"># 서버 기동</span>
+<span class="cmd-prompt">[root]#</span> /home/test/test/apache-tomcat-10.1.34/bin/startup.sh
+
+<span class="comment"># 실시간 로그 확인</span>
+<span class="cmd-prompt">[root]#</span> tail -f /home/test/test/apache-tomcat-10.1.34/logs/catalina.out</code></pre>
+        </div>
+        <div class="ok-note">
+            ✅ <b>정상 기동 확인</b> — 로그에서 <code>Server startup in [N] milliseconds</code> 메시지 확인<br>
+            브라우저: <code>http://서버IP:8080</code> 접속
+        </div>
+        <div class="info-note">
+            <b>서버 관리 명령</b><br>
+            중지: <code>/home/test/test/apache-tomcat-10.1.34/bin/shutdown.sh</code><br>
+            재시작: shutdown.sh → startup.sh 순서로 실행
+        </div>
+    </div>
+</div>
+
+<p style="text-align:right; font-size:0.8rem; color:var(--text-muted); margin-top:30px;">
+    © 2026 Gustav Lab Technical Engineering Team | Tomcat 10.1.34 · RHEL 8
+</p>
