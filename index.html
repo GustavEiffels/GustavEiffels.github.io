@@ -3,10 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="google-site-verification"
+      content="nIcUuPfbZxcZDe0niRet3wV_M4gKzuZHz1O8yx--_OQ"
+    />
     <title>Singsiuk Lab</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
+    />
+    <meta
+      name="naver-site-verification"
+      content="cbb2dd6b175e7f24b794c957432ddc3942822995"
     />
     <link rel="stylesheet" href="assets/css/style.css" />
   </head>
@@ -108,16 +116,8 @@
           counter.innerHTML = `
             <div class="visitor-card">
               <div class="visitor-card-header">${eyeIcon} VISITORS</div>
-              <div class="visitor-count" id="visitor-count-num">—</div>
+              <img src="https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2FgustavEiffels.github.io&count_bg=%235e81f4&title_bg=%230f1117&title=%20&edge_flat=true" alt="visitor count" style="height:22px; margin-top:4px;" />
             </div>`;
-
-          fetch("https://api.counterapi.dev/v1/gustavEiffels-github-io/visits/up")
-            .then((r) => r.json())
-            .then((d) => {
-              const el = document.getElementById("visitor-count-num");
-              if (el && d.count) el.textContent = d.count.toLocaleString();
-            })
-            .catch(() => {});
         }
       })();
     </script>
