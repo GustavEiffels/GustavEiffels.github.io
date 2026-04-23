@@ -99,26 +99,40 @@
         }
       };
 
-      // Visitor counter - owner exclusion
+      // Visitor counter from stats.json
       (function () {
-        const counter = document.getElementById("visitor-counter");
         const isOwner = localStorage.getItem("site_owner") === "true";
-
+        const counter = document.getElementById("visitor-counter");
         const eyeIcon = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
 
         if (isOwner) {
           counter.innerHTML = `
             <div class="visitor-card">
-              <div class="visitor-card-header">${eyeIcon} VISITORS</div>
-              <div class="visitor-count" style="font-size:0.8rem; color:var(--text-muted);">owner mode</div>
+              <div class="visitor-card-header">${eyeIcon} ANALYTICS</div>
+              <div class="visitor-card-row">
+                <span class="visitor-card-label">owner mode</span>
+              </div>
             </div>`;
-        } else {
-          counter.innerHTML = `
-            <div class="visitor-card">
-              <div class="visitor-card-header">${eyeIcon} VISITORS</div>
-              <img src="https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2FgustavEiffels.github.io&count_bg=%235e81f4&title_bg=%230f1117&title=%20&edge_flat=true" alt="visitor count" style="height:22px; margin-top:4px;" />
-            </div>`;
+          return;
         }
+
+        fetch("/stats.json?t=" + Date.now())
+          .then((r) => r.json())
+          .then((d) => {
+            counter.innerHTML = `
+              <div class="visitor-card">
+                <div class="visitor-card-header">${eyeIcon} ANALYTICS</div>
+                <div class="visitor-card-row">
+                  <span class="visitor-card-label">visitors</span>
+                  <span class="visitor-card-value">${d.visitors.toLocaleString()}</span>
+                </div>
+                <div class="visitor-card-row">
+                  <span class="visitor-card-label">pageviews</span>
+                  <span class="visitor-card-value">${d.pageviews.toLocaleString()}</span>
+                </div>
+              </div>`;
+          })
+          .catch(() => {});
       })();
     </script>
 
