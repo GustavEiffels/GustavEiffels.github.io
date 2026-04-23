@@ -1,0 +1,145 @@
+<h1>SSE &amp; ASYNC Dispatch - Spring Security 인가 심층 분석</h1>
+
+<div class="card">
+  <span class="badge badge-tag">Spring Security</span>
+  <span class="badge badge-tag">SSE</span>
+  <span class="badge badge-tag">Async</span>
+  <span class="badge badge-date">2026-04-23</span>
+  <p style="margin-top: 14px;">
+    SSE(Server-Sent Events) 환경에서 Spring Security의 <span class="point">ASYNC Dispatch</span> 인가 처리 흐름을 분석하고, 실무 해결 코드까지 정리한 리서치 노트입니다.
+  </p>
+</div>
+
+<!-- 1. SSE 메커니즘 -->
+<h2>1. SSE(Server-Sent Events) 메커니즘</h2>
+<div class="card">
+  <p>
+    클라이언트가 1회 연결 요청 후, 서버가 일방적으로 데이터를 푸시하는 <span class="point">Persistent Connection</span> 방식입니다.
+  </p>
+  <blockquote>
+    <strong>비유: '구독형 신문'</strong><br>
+    한번 구독 신청(REQUEST)을 하면, 서버는 매일 신문을 배달(ASYNC Dispatch)합니다.
+    배달원이 문 앞에서 매번 신분증을 요구하면 배달이 지연되는 것과 같은 원리입니다.
+  </blockquote>
+</div>
+
+<!-- 2. Technical Deep Dive -->
+<h2>2. Technical Deep Dive (기술적 인과관계)</h2>
+<div class="card">
+  <h3 style="color: var(--accent); margin-bottom: 10px;">🧵 Thread &amp; ThreadLocal</h3>
+  <p>
+    Spring Security는 인증 정보를 <span class="point">ThreadLocal</span>에 저장합니다.
+    비동기 스레드나 <strong>ASYNC Dispatch</strong> 과정에서 스레드가 교체되면 기존 보안 컨텍스트가 유실되어 미인증 사용자로 간주됩니다.
+  </p>
+</div>
+<div class="card">
+  <h3 style="color: var(--accent); margin-bottom: 10px;">📄 File Descriptor (FD)</h3>
+  <p>
+    SSE는 소켓(FD)을 점유하여 스트리밍을 이미 시작한 상태(<span class="point">Committed</span>)입니다.
+    이 상황에서 보안 에러로 인해 리다이렉트를 시도하면 충돌 에러가 발생합니다.
+  </p>
+</div>
+
+<!-- 3. 전체 동작 흐름도 -->
+<h2>3. 전체 동작 흐름도</h2>
+<div class="terminal-window">
+  <div class="terminal-header">
+    <span class="dot red"></span>
+    <span class="dot yellow"></span>
+    <span class="dot green"></span>
+    <span class="terminal-title">SSE Dispatch Flow</span>
+  </div>
+  <pre><code>클라이언트                    Tomcat/Spring
+    │                              │
+    │── GET /status-stream ───────>│  ← [1단계] 클라이언트 단발성 요청
+    │   (쿠키/세션 포함)            │  (REQUEST dispatch, 인가 통과)
+    │                              │
+    │<── 연결 유지 ────────────────│  ← [2단계] 응답 헤더 전송 (Committed)
+    │                              │
+    │          [이벤트 발생]        │
+    │                              │──> [3단계] Tomcat 내부: ASYNC dispatch 생성
+    │                              │    (서버 내부적인 재시작 흐름)
+    │                              │
+    │                              │    Spring Security 재인가 시도
+    │                              │    → SecurityContext 없음
+    │                              │    → Access Denied ← [4단계] 에러 발생!
+    │                              │
+    │<── 데이터 전송 (차단됨)        │</code></pre>
+</div>
+
+<!-- 4. 최종 정리 -->
+<h2>4. 최종 정리: 엔지니어링 관점의 이해</h2>
+<div class="card">
+  <ul class="main-content" style="padding-left: 0; list-style: none;">
+    <li style="margin-bottom: 14px; padding-left: 28px; position: relative;">
+      <span style="position: absolute; left: 0;">✅</span>
+      <strong>등록은 단 한 번:</strong> 클라이언트는 서버에게 처음에만 등록 요청을 보내고, 이후엔 가만히 서있기만 합니다.
+    </li>
+    <li style="margin-bottom: 14px; padding-left: 28px; position: relative;">
+      <span style="position: absolute; left: 0;">✅</span>
+      <strong>내부적 재작동:</strong> 서버가 클라이언트 정보를 받아 확인한 후, 내부적으로 비동기 처리를 위한 <span class="point">ASYNC dispatch</span>를 생성합니다.
+    </li>
+    <li style="margin-bottom: 14px; padding-left: 28px; position: relative;">
+      <span style="position: absolute; left: 0;">✅</span>
+      <strong>데이터 투척:</strong> 서버는 일이 생기면 등록된 클라이언트 정보를 꺼내와서 ASYNC dispatch를 통해 데이터를 던져줍니다.
+    </li>
+    <li style="margin-bottom: 0; padding-left: 28px; position: relative;">
+      <span style="position: absolute; left: 0;">⚠️</span>
+      <strong>보안 필터의 오해:</strong> 이때 Spring Security가 서버 내부의 움직임을 새로운 외부 요청으로 착각하여 인가를 다시 검사하다가 정보를 못 찾아 에러를 냅니다.
+    </li>
+  </ul>
+</div>
+
+<!-- 5. 해결 방법 -->
+<h2>5. 해결 방법 (Java 실무 코드)</h2>
+<div class="step-container">
+  <div class="step-header">
+    <div class="step-number">1</div>
+    <div class="step-title">SecurityConfig.java 설정 추가</div>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+      <span class="terminal-title">SecurityConfig.java</span>
+    </div>
+    <pre><code><span class="comment">// SecurityConfig.java</span>
+http.authorizeHttpRequests(authorize -> {
+    authorize
+        <span class="comment">// 💡 핵심: "서버 내부의 ASYNC 흐름은 이미 검증된 것이니 통과시켜라"</span>
+        .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
+        .requestMatchers("/api/sse/**").authenticated()
+        .anyRequest().authenticated();
+});</code></pre>
+  </div>
+  <div class="card" style="margin-top: 0;">
+    <p style="margin: 0; font-size: 0.9rem;">
+      <span class="badge badge-warning">핵심 포인트</span>
+      <code>DispatcherType.ASYNC</code> 를 <code>permitAll()</code> 처리하면, 서버 내부에서 발생하는 ASYNC Dispatch는 Spring Security 인가 체크를 건너뜁니다.
+      최초 REQUEST 단계에서 이미 인가가 완료되었기 때문에 보안상 안전합니다.
+    </p>
+  </div>
+</div>
+
+<!-- 6. 참고 문헌 -->
+<h2>6. 참고 문헌</h2>
+<div class="card">
+  <ul style="font-size: 0.9rem; padding-left: 20px;">
+    <li style="margin-bottom: 10px;">
+      <a href="https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html" target="_blank" style="color: var(--accent);">
+        Spring Security Official Reference - Authorize HTTP Requests
+      </a>
+    </li>
+    <li style="margin-bottom: 10px;">
+      <a href="https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events" target="_blank" style="color: var(--accent);">
+        MDN Web Docs - Using server-sent events
+      </a>
+    </li>
+    <li>
+      <a href="https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/servlet/mvc/method/annotation/SseEmitter.html" target="_blank" style="color: var(--accent);">
+        Spring Framework SseEmitter API
+      </a>
+    </li>
+  </ul>
+</div>
