@@ -1,0 +1,533 @@
+<!-- [2026-04-27] Prometheus Core System Analysis -->
+<style>
+    .report-container {
+        position: relative;
+        width: 100%;
+    }
+    .report-main {
+        width: 100%;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    /* Floating TOC Sidebar */
+    .report-toc {
+        position: fixed;
+        top: 0;
+        right: -300px; /* Hidden by default */
+        width: 280px;
+        height: 100vh;
+        background: var(--surface);
+        border-left: 1px solid var(--border);
+        padding: 40px 25px;
+        z-index: 1001;
+        transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+        overflow-y: auto;
+    }
+    .report-toc.active {
+        right: 0;
+    }
+    .report-toc h3 {
+        font-size: 1.1rem;
+        color: var(--accent);
+        margin-bottom: 25px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .report-toc ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .report-toc li {
+        margin-bottom: 12px;
+        line-height: 1.4;
+    }
+    .report-toc a {
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: 0.2s;
+        display: block;
+        padding: 5px 0;
+    }
+    .report-toc a:hover {
+        color: var(--accent);
+        transform: translateX(5px);
+    }
+
+    /* Backdrop */
+    .toc-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0,0,0,0.6);
+        backdrop-filter: blur(3px);
+        z-index: 1000;
+        display: none;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    .toc-backdrop.active {
+        display: block;
+        opacity: 1;
+    }
+
+    /* Floating Toggle Button */
+    .toc-toggle-btn {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 56px;
+        height: 56px;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 50%;
+        font-size: 1.5rem;
+        cursor: pointer;
+        z-index: 1002;
+        box-shadow: 0 4px 15px var(--accent-glow);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+    .toc-toggle-btn:hover {
+        transform: scale(1.1) rotate(5deg);
+        box-shadow: 0 6px 20px var(--accent-glow);
+    }
+    
+    .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .equal-height { height: 100%; }
+    .icon-box { font-size: 2.5rem; margin-bottom: 15px; text-align: center; }
+    
+    /* Quiz Styles */
+    .quiz-container { background: var(--surface2); border: 1px solid var(--accent); border-radius: 12px; padding: 24px; margin-top: 50px; }
+    .quiz-item { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border); }
+    .quiz-question { font-weight: 600; margin-bottom: 10px; color: var(--yellow); }
+    .quiz-options { display: flex; flex-direction: column; gap: 8px; }
+    .quiz-option { 
+        background: var(--surface); border: 1px solid var(--border); padding: 10px 15px; border-radius: 6px; cursor: pointer; transition: 0.2s; 
+    }
+    .quiz-option:hover { background: var(--border); }
+    .answer-box { display: none; margin-top: 10px; padding: 10px; border-radius: 6px; background: rgba(47, 179, 68, 0.1); border-left: 4px solid var(--green); }
+
+    @media (max-width: 768px) {
+        .card-grid { grid-template-columns: 1fr; }
+        .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+    }
+</style>
+
+<div class="report-container">
+    <div class="report-main">
+        <h1>Prometheus Core System Analysis</h1>
+
+        <section id="definition">
+            <h2>1. Prometheus의 정의</h2>
+            <div class="card">
+                <div class="icon-box">📊</div>
+                <p>Prometheus는 <strong>시계열 데이터(Time Series Data)</strong> 수집 및 모니터링을 위한 오픈소스 툴입니다. 시스템의 현재 상태를 숫자로 기록하여 시간에 따른 변화를 분석합니다.</p>
+                <blockquote>
+                    <strong>메트릭(Metric) 데이터:</strong> 시간의 흐름에 따라 변화하는 시스템의 지표입니다. (예: CPU 사용량 80%, 메모리 잔량 4GB 등)
+                </blockquote>
+            </div>
+        </section>
+
+        <section id="storage">
+            <h2>2. 데이터 저장 메커니즘 (Storage)</h2>
+            <div class="card-grid">
+                <div class="card equal-height">
+                    <div class="badge badge-tag">저장 형식</div>
+                    <h3>tdata Format Deep Dive</h3>
+                    <p>수집된 데이터는 시계열 최적화 형식으로 로컬 파일 시스템에 저장됩니다.</p>
+                    <ul style="font-size: 0.85rem; padding-left: 20px; margin-top: 10px;">
+                        <li><strong>블록 구조:</strong> chunks(데이터), index(색인), meta.json, wal(로그)</li>
+                        <li><strong>WAL (Write-Ahead Log):</strong> 수집 즉시 로그로 기록하여 장애 시 메모리 데이터 복구 보장</li>
+                        <li><strong>컴팩션(Compaction):</strong> 작은 블록들을 병합하여 인덱스 크기 최적화 및 조회 속도 향상</li>
+                    </ul>
+                </div>
+                <div class="card equal-height">
+                    <div class="badge badge-tag">보관 정책</div>
+                    <h3>Retention Mechanism</h3>
+                    <p>데이터 무결성과 시스템 안정성을 위한 두 가지 보관 기준을 제공합니다.</p>
+                    <ul style="font-size: 0.85rem; padding-left: 20px; margin-top: 10px;">
+                        <li><strong>시간 기준:</strong> <code>retention.time</code> 설정 (과거 데이터 자동 폐기)</li>
+                        <li><strong>용량 기준:</strong> <code>retention.size</code> 설정 (디스크 Full 장애 방지)</li>
+                        <li><strong>삭제 단위:</strong> I/O 최적화를 위해 <strong>블록(Block)</strong> 단위로 일괄 삭제</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="indexing">
+            <h2>3. 빠른 데이터 조회의 비밀 (Indexing)</h2>
+            <div class="card">
+                <p>초당 수십만 개의 데이터가 들어와도 조회가 빠른 이유는 <strong>역색인(Inverted Index)</strong>과 <strong>블록 구조</strong> 덕분입니다.</p>
+                <div style="background: var(--surface2); padding: 20px; border-radius: 8px; margin: 15px 0; border-left: 4px solid var(--accent);">
+                    <strong style="color: var(--yellow);">💡 역색인이 일반 DB보다 압도적으로 빠른 이유</strong><br>
+                    <p style="font-size: 0.9rem; margin: 10px 0;">
+                        일반적인 관계형 DB(RDBMS)에서 <code>WHERE method='GET'</code>을 찾으려면 수백만 줄의 테이블을 위에서 아래로 훑어야 합니다(Full Scan).<br>
+                        반면, Prometheus의 역색인은 마치 <strong>책 뒤의 찾아보기(Index)</strong>와 같습니다.
+                    </p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem; background: var(--bg); padding: 10px; border-radius: 4px;">
+                        <div>
+                            <span style="color: var(--accent);">[라벨별 색인 지도]</span><br>
+                            - method="GET": [ID: 1, 5, 10]<br>
+                            - status="200": [ID: 5, 10, 20]
+                        </div>
+                        <div>
+                            <span style="color: var(--accent);">[조회 과정]</span><br>
+                            "두 리스트에서 겹치는 번호(ID)만 가져와!"<br>
+                            → <strong>ID 5, 10 즉시 추출</strong>
+                        </div>
+                    </div>
+                    <p style="font-size: 0.85rem; margin-top: 10px; color: var(--text-muted);">
+                        데이터가 10억 개가 있어도, Prometheus는 리스트 두 개만 비교하면 되기 때문에 데이터 양에 관계없이 0.001초 만에 응답이 가능합니다.
+                    </p>
+                </div>
+                <ul>
+                    <li><strong>역색인:</strong> 라벨(Label)을 기준으로 데이터 위치를 미리 지도처럼 만들어 둡니다.</li>
+                    <li><strong>청크(Chunk):</strong> 데이터를 2시간 단위의 블록으로 묶어 파일로 관리하여 검색 범위를 물리적으로 제한합니다.</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="promql">
+            <h2>4. PromQL (Prometheus Query Language)</h2>
+            <div class="card">
+                <p>수집된 데이터를 필터링하고 연산하는 강력한 쿼리 언어입니다.</p>
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                        <span class="terminal-title">PromQL Query</span>
+                    </div>
+                    <pre><code><span class="comment"># 최근 5분간 CPU 사용률 (Idle 제외)</span>
+100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)</code></pre>
+                </div>
+                <p style="font-size: 0.9rem; color: var(--text-muted);">* 위 코드는 <code>node_cpu_seconds_total</code> 메트릭의 변화율을 계산하여 전체에서 노는 시간(idle)을 뺀 백분율입니다.</p>
+            </div>
+        </section>
+
+        <section id="exporter">
+            <h2>5. Node Exporter</h2>
+            <div class="card">
+                <div class="icon-box">🔌</div>
+                <p>서버의 하드웨어 및 OS 커널 지표를 수집하여 Prometheus가 읽을 수 있는 HTTP 엔드포인트로 노출합니다.</p>
+                <ul>
+                    <li><strong>기본 포트:</strong> 9100</li>
+                    <li><strong>주요 수집 메트릭:</strong> <code>node_cpu_seconds_total</code>, <code>node_memory_MemAvailable_bytes</code>, <code>node_filesystem_avail_bytes</code></li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="install">
+            <h2>6. 설치 및 환경 설정 (Installation & Config)</h2>
+            <div class="card">
+                <h3>6.1 실행 및 Scraping 설정</h3>
+                <p>Prometheus 실행 시 <code>prometheus.yml</code> 파일을 통해 타겟을 정의합니다.</p>
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                        <span class="terminal-title">prometheus.yml</span>
+                    </div>
+                    <pre><code>global:
+  scrape_interval: 15s <span class="comment"># 15초마다 데이터 수집</span>
+
+scrape_configs:
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['192.168.0.10:9100'] <span class="comment"># Node Exporter 주소</span></code></pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="springboot">
+            <h2>7. Spring Boot 연동 (Micrometer)</h2>
+            <div class="card">
+                <p>Spring Boot 애플리케이션의 내부 메트릭을 노출하기 위해 Micrometer와 Actuator를 활용합니다.</p>
+                <div style="background: var(--code-bg); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--border);">
+                    <span style="color: var(--accent); font-family: monospace;">// build.gradle</span><br>
+                    <code style="color: #fff;">implementation 'io.micrometer:micrometer-registry-prometheus'</code>
+                </div>
+                <div style="background: var(--code-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
+                    <span style="color: var(--accent); font-family: monospace;">// application.yml</span><br>
+                    <code style="color: #fff;">management.endpoints.web.exposure.include: 'prometheus'</code>
+                </div>
+                <p style="margin-top: 15px;">위 설정 후 <code>/actuator/prometheus</code> 경로를 통해 JVM 상태, 힙 메모리, 쓰레드 정보 등이 노출됩니다.</p>
+            </div>
+        </section>
+
+        <section id="engineering">
+            <h2>8. 엔지니어링 고려 사항: Pull vs Push</h2>
+            <div class="card">
+                <p>Prometheus의 <strong>Pull 기반 아키텍처</strong>는 모니터링 시스템의 복잡도를 낮추고 안정성을 높이는 데 핵심적인 역할을 합니다.</p>
+                <table>
+                    <thead>
+                        <tr style="background: var(--surface2);">
+                            <th>특징</th>
+                            <th>내용</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>중앙 집중 부하 조절</td>
+                            <td>수집 서버가 주도권을 가지므로 대상 서버에 부하를 주지 않음</td>
+                        </tr>
+                        <tr>
+                            <td>서비스 가동성 확인</td>
+                            <td>Pull 실패 시 즉시 'Up/Down' 상태 판별 가능</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="deepdive">
+            <h2>9. TSDB 데이터 구조 심층 분석 (Block Storage)</h2>
+            <div class="card">
+                <p>Prometheus TSDB 블록은 독립적인 DB 역할을 수행하는 물리적 단위입니다.</p>
+                <div class="card-grid">
+                    <div class="card equal-height" style="background: rgba(94, 129, 244, 0.05); margin-bottom: 0;">
+                        <h4 style="color: var(--accent); margin-top: 0;">📁 chunks/</h4>
+                        <p style="font-size: 0.85rem;">실제 샘플 데이터 저장소. 시계열 데이터가 압축되어 불변 상태로 보관됩니다.</p>
+                    </div>
+                    <div class="card equal-height" style="background: rgba(94, 129, 244, 0.05); margin-bottom: 0;">
+                        <h4 style="color: var(--accent); margin-top: 0;">🔍 index</h4>
+                        <p style="font-size: 0.85rem;">역색인 정보 포함. 라벨을 통해 시리즈 ID와 청크 위치를 고속 검색합니다.</p>
+                    </div>
+                    <div class="card equal-height" style="background: rgba(94, 129, 244, 0.05); margin-bottom: 0;">
+                        <h4 style="color: var(--accent); margin-top: 0;">📝 wal/</h4>
+                        <p style="font-size: 0.85rem;">Write-Ahead Log. 메모리 데이터가 블록화되기 전까지 장애 복구를 위해 선기록됩니다.</p>
+                    </div>
+                    <div class="card equal-height" style="background: rgba(94, 129, 244, 0.05); margin-bottom: 0;">
+                        <h4 style="color: var(--accent); margin-top: 0;">📄 meta.json</h4>
+                        <p style="font-size: 0.85rem;">시간 범위, 샘플 수, 컴팩션 레벨 등 블록의 상태 정보를 기술합니다.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="compaction">
+            <h2>10. 컴팩션 (Compaction) 및 데이터 수명 주기</h2>
+            <div class="card">
+                <h3>10.1 컴팩션 메커니즘</h3>
+                <p>데이터가 축적됨에 따라 발생하는 성능 저하와 디스크 낭비를 해결하기 위해 컴팩션을 수행합니다.</p>
+                <div style="border-left: 4px solid var(--green); padding-left: 15px; margin-top: 15px;">
+                    <strong>병합 및 최적화 효과:</strong>
+                    <ul style="font-size: 0.9rem; margin-top: 8px;">
+                        <li><strong>쿼리 최적화:</strong> 수집된 여러 블록을 하나로 합쳐 탐색해야 할 인덱스 파일 수를 최소화합니다.</li>
+                        <li><strong>중복 제거:</strong> 여러 블록에 걸쳐 나타나는 동일한 라벨 정보를 통합하여 인덱스 크기 줄입니다.</li>
+                        <li><strong>오버랩 해결:</strong> 데이터 수집 지연으로 발생한 시간 범위 중복을 논리적으로 정렬합니다.</li>
+                    </ul>
+                </div>
+
+                <h3 style="margin-top: 30px;">10.2 데이터 저장 및 로드 흐름 (Full Lifecycle)</h3>
+                <div style="position: relative; padding-left: 30px; border-left: 2px dashed var(--border); margin-top: 20px;">
+                    <div style="margin-bottom: 20px;">
+                        <span class="badge badge-warning" style="color: #000;">STEP 1</span>
+                        <h4 style="margin: 5px 0; color: #fff;">수집 및 선기록 (Scrape & WAL)</h4>
+                        <p style="font-size: 0.85rem; color: var(--text-muted);">메트릭을 읽어오는 즉시 <strong>WAL</strong>에 기록하여 전원 차단 등에 대비한 영구 저장성을 확보합니다.</p>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <span class="badge badge-tag">STEP 2</span>
+                        <h4 style="margin: 5px 0; color: #fff;">메모리 적재 (Head Block)</h4>
+                        <p style="font-size: 0.85rem; color: var(--text-muted);">실시간 조회를 위해 메모리 공간인 <strong>Head Block</strong>에 데이터를 유지합니다. 이 시점부터 쿼리가 가능합니다.</p>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <span class="badge badge-tag">STEP 3</span>
+                        <h4 style="margin: 5px 0; color: #fff;">블록화 (Checkpointing)</h4>
+                        <p style="font-size: 0.85rem; color: var(--text-muted);">약 2시간 분량의 데이터가 모이면 메모리 데이터를 디스크 상의 <strong>불변 블록(Block)</strong>으로 변환합니다.</p>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <span class="badge badge-date">STEP 4</span>
+                        <h4 style="margin: 5px 0; color: #fff;">조회 및 로드 (Query Execution)</h4>
+                        <p style="font-size: 0.85rem; color: var(--text-muted);">사용자 쿼리 발생 시, <strong>Index</strong> 파일을 메모리 매핑(Mmap)하여 특정 시리즈를 찾고, 필요한 <strong>Chunks</strong> 데이터만 로드하여 반환합니다.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="index_internals">
+            <h2>11. 역색인(Inverted Index)의 내부 동작 및 조회 과정</h2>
+            <div class="card">
+                <p>Prometheus가 대규모 데이터에서 특정 시계열을 찾는 4단계 내부 메커니즘입니다.</p>
+                
+                <div style="background: var(--bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border);">
+                    <div style="margin-bottom: 20px;">
+                        <span style="color: var(--accent); font-weight: bold;">Step 1. Posting List 획득</span>
+                        <p style="font-size: 0.85rem; margin: 5px 0;">각 라벨(method="POST", status="500")에 대응하는 <strong>정렬된 시리즈 ID 리스트</strong>를 메모리로 가져옵니다.</p>
+                        <code style="display: block; margin-top: 5px; color: var(--text-muted);">List A: [10, 25, 42, 100] / List B: [25, 42, 88, 100]</code>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <span style="color: var(--green); font-weight: bold;">Step 2. 고속 교집합 연산 (Intersection)</span>
+                        <p style="font-size: 0.85rem; margin: 5px 0;">두 리스트가 정렬되어 있으므로, <strong>단 한 번의 스캔</strong>으로 겹치는 ID를 찾아냅니다. (컴퓨터 공학의 Merge 조인 방식)</p>
+                        <code style="display: block; margin-top: 5px; color: var(--text-muted);">Result: Series IDs [25, 100]</code>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <span style="color: var(--yellow); font-weight: bold;">Step 3. 시리즈 위치 참조</span>
+                        <p style="font-size: 0.85rem; margin: 5px 0;">인덱스 파일 내 <strong>Series Section</strong>을 참조하여, 해당 ID가 어느 <code>chunks/</code> 파일의 몇 번째 줄(Offset)에 있는지 파악합니다.</p>
+                    </div>
+                    
+                    <div>
+                        <span style="color: var(--red); font-weight: bold;">Step 4. Chunk 로드 및 반환</span>
+                        <p style="font-size: 0.85rem; margin: 5px 0;">파일 전체를 읽지 않고, <strong>필요한 오프셋 데이터만</strong> 디스크에서 메모리로 올려 사용자에게 즉시 전달합니다.</p>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; padding: 15px; background: var(--surface2); border-radius: 8px;">
+                    <strong style="color: var(--accent);">💡 핵심 인사이트:</strong>
+                    <p style="font-size: 0.9rem; margin-top: 10px;">
+                        RDBMS는 조건에 맞는 행을 찾기 위해 테이블을 뒤지지만, Prometheus는 <strong>숫자 리스트 간의 비교 연산</strong>으로 조회를 끝냅니다. 
+                        이것이 바로 Prometheus가 '시계열 데이터의 왕'으로 불리는 이유입니다.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section id="memory_strategy">
+            <h2>12. 실시간 데이터 처리의 핵심: 2시간의 마법 (Head Block & WAL)</h2>
+            <div class="card">
+                <p>Prometheus는 최신 데이터의 무결성과 성능을 보장하기 위해 <strong>메모리(Head Block)</strong>와 <strong>로그(WAL)</strong>를 병행 운용합니다.</p>
+                
+                <div class="card-grid">
+                    <div class="card equal-height" style="background: rgba(245, 158, 11, 0.05); border-color: var(--yellow); margin-bottom: 0;">
+                        <h4 style="color: var(--yellow); margin-top: 0;">🧠 메모리 (Head Block)</h4>
+                        <p style="font-size: 0.85rem;">실시간 수집 데이터를 보관하며 즉시 쿼리가 가능하도록 지원합니다. (수집 후 ~2시간)</p>
+                    </div>
+                    <div class="card equal-height" style="background: rgba(47, 179, 68, 0.05); border-color: var(--green); margin-bottom: 0;">
+                        <h4 style="color: var(--green); margin-top: 0;">🛡️ 보험 (WAL)</h4>
+                        <p style="font-size: 0.85rem;">서버 장애 시 메모리 데이터를 복구하기 위해 디스크에 한 줄씩 기록하는 로그입니다.</p>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; padding: 20px; background: var(--surface2); border-radius: 12px; border-left: 5px solid var(--accent);">
+                    <h4 style="margin-top: 0; color: #fff;">🔄 2시간 이후의 데이터 변화 (Promotion)</h4>
+                    <p style="font-size: 0.9rem;">
+                        데이터가 2시간 분량이 쌓이면 <strong>Checkpointing</strong>이 발생합니다. 메모리의 데이터를 내려받아 정식 <strong>Block</strong>을 생성하고, 
+                        이제는 불필요해진 이전의 <strong>WAL</strong> 기록들을 삭제하여 디스크를 효율적으로 관리합니다.
+                    </p>
+                    <blockquote style="font-size: 0.85rem; border-color: var(--accent);">
+                        이 구조 덕분에 Prometheus는 '실시간 조회 성능'과 '장애 시 데이터 복구'라는 두 마리 토끼를 동시에 잡을 수 있습니다.
+                    </blockquote>
+                </div>
+
+                <div style="margin-top: 15px; padding: 15px; background: rgba(214, 57, 57, 0.05); border: 1px dashed var(--red); border-radius: 8px;">
+                    <strong style="color: var(--red);">⚙️ Head Block 주기 조절 (Expert Only)</strong>
+                    <p style="font-size: 0.85rem; margin-top: 5px;">
+                        기본 2시간 주기는 <code>--storage.tsdb.min-block-duration</code> 플래그로 조절 가능합니다.<br>
+                        - <strong>주기 단축:</strong> 메모리 사용량 감소, 디스크 I/O 증가<br>
+                        - <strong>주기 연장:</strong> 메모리 사용량 급증 (비권장)
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section id="series_id">
+            <h2>13. Series ID의 역할과 데이터 매핑 매커니즘</h2>
+            <div class="card">
+                <p>라벨 검색 결과로 얻은 <strong>Series ID(정수)</strong>가 실제 데이터로 변환되는 기술적 과정입니다.</p>
+                
+                <div class="card-grid">
+                    <div class="card equal-height" style="background: var(--surface2); margin-bottom: 0;">
+                        <h4 style="color: var(--accent);">왜 숫자를 쓰는가?</h4>
+                        <ul style="font-size: 0.85rem; padding-left: 20px;">
+                            <li><strong>CPU 친화적:</strong> 문자열 비교보다 정수 비교가 수만 배 빠름</li>
+                            <li><strong>공간 효율:</strong> 라벨 중복 저장을 막아 디스크 사용량 감소</li>
+                        </ul>
+                    </div>
+                    <div class="card equal-height" style="background: var(--surface2); margin-bottom: 0;">
+                        <h4 style="color: var(--accent);">매핑 방식</h4>
+                        <ul style="font-size: 0.85rem; padding-left: 20px;">
+                            <li><strong>Index:</strong> ID → Chunk 파일 오프셋 지도</li>
+                            <li><strong>Chunk:</strong> 실제 압축된 시계열 데이터 저장소</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; padding: 20px; background: var(--bg); border-radius: 12px; border: 1px solid var(--border);">
+                    <h4 style="margin-top: 0; color: var(--yellow);">📚 도서관으로 비유하는 데이터 로드</h4>
+                    <p style="font-size: 0.9rem;">
+                        1. <strong>검색:</strong> "자바" 책을 도서 검색대에서 조회 (역색인)<br>
+                        2. <strong>기호 획득:</strong> 결과로 <code>IT-25</code>라는 청구 기호 획득 (Series ID)<br>
+                        3. <strong>지도 확인:</strong> <code>IT-25</code>는 "3층 5번 선반"에 있음을 확인 (Index 지도 참조)<br>
+                        4. <strong>책 대출:</strong> 실제 선반으로 가서 해당 <strong>책</strong>을 꺼내어 읽음 (Chunk Data 로드)
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section id="quiz" class="quiz-container">
+            <h2>🧠 Mastery Quiz</h2>
+            
+            <div class="quiz-item">
+                <p class="quiz-question">Q1. Prometheus가 데이터를 파일 형태로 저장할 때 사용하는 기본 형식은 무엇인가요?</p>
+                <div class="quiz-options">
+                    <div class="quiz-option" onclick="showAnswer(1)">1) JSON</div>
+                    <div class="quiz-option" onclick="showAnswer(1)">2) CSV</div>
+                    <div class="quiz-option" onclick="showAnswer(1)">3) tdata</div>
+                    <div class="quiz-option" onclick="showAnswer(1)">4) SQL</div>
+                </div>
+                <div id="ans1" class="answer-box">정답: <strong>3) tdata</strong><br>설명: Prometheus는 TSDB 블록 구조의 tdata 형식으로 데이터를 압축 저장합니다.</div>
+            </div>
+
+            <div class="quiz-item">
+                <p class="quiz-question">Q2. Prometheus의 기본 데이터 보관 주기(Retention)는 며칠인가요?</p>
+                <div class="quiz-options">
+                    <div class="quiz-option" onclick="showAnswer(2)">1) 7일</div>
+                    <div class="quiz-option" onclick="showAnswer(2)">2) 15일</div>
+                    <div class="quiz-option" onclick="showAnswer(2)">3) 30일</div>
+                    <div class="quiz-option" onclick="showAnswer(2)">4) 무제한</div>
+                </div>
+                <div id="ans2" class="answer-box">정답: <strong>2) 15일</strong><br>설명: 기본 설정은 15일이며, --storage.tsdb.retention.time 플래그로 변경 가능합니다.</div>
+            </div>
+
+            <div class="quiz-item">
+                <p class="quiz-question">Q3. 서버 하드웨어 메트릭을 수집하기 위해 설치해야 하는 컴포넌트는?</p>
+                <div class="quiz-options">
+                    <div class="quiz-option" onclick="showAnswer(3)">1) Pushgateway</div>
+                    <div class="quiz-option" onclick="showAnswer(3)">2) Alertmanager</div>
+                    <div class="quiz-option" onclick="showAnswer(3)">3) Node Exporter</div>
+                    <div class="quiz-option" onclick="showAnswer(3)">4) Grafana</div>
+                </div>
+                <div id="ans3" class="answer-box">정답: <strong>3) Node Exporter</strong><br>설명: 서버 OS 커널 지표를 노출하는 표준 에이전트입니다.</div>
+            </div>
+        </section>
+
+        <p style="text-align: center; color: var(--text-muted); margin-top: 40px; font-size: 0.8rem;">
+            Generated by Gemini CLI | 2026-04-27
+        </p>
+    </div>
+
+    <!-- TOC Sidebar Overlay -->
+    <div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+    <nav id="report-toc" class="report-toc">
+        <h3>📑 Contents</h3>
+        <ul>
+            <li><a href="#definition" onclick="toggleTOC()">1. Prometheus 정의</a></li>
+            <li><a href="#storage" onclick="toggleTOC()">2. 데이터 저장 메커니즘</a></li>
+            <li><a href="#indexing" onclick="toggleTOC()">3. 조회가 빠른 이유</a></li>
+            <li><a href="#promql" onclick="toggleTOC()">4. PromQL 쿼리 언어</a></li>
+            <li><a href="#exporter" onclick="toggleTOC()">5. Node Exporter</a></li>
+            <li><a href="#install" onclick="toggleTOC()">6. 설치 및 환경 설정</a></li>
+            <li><a href="#springboot" onclick="toggleTOC()">7. Spring Boot 연동</a></li>
+            <li><a href="#engineering" onclick="toggleTOC()">8. Pull vs Push 아키텍처</a></li>
+            <li><a href="#deepdive" onclick="toggleTOC()">9. TSDB 데이터 구조 심층 분석</a></li>
+            <li><a href="#compaction" onclick="toggleTOC()">10. 컴팩션 메커니즘</a></li>
+            <li><a href="#index_internals" onclick="toggleTOC()">11. 역색인 내부 동작 원리</a></li>
+            <li><a href="#memory_strategy" onclick="toggleTOC()">12. 2시간의 마법 (Head & WAL)</a></li>
+            <li><a href="#series_id" onclick="toggleTOC()">13. Series ID와 데이터 매핑</a></li>
+            <li><a href="#quiz" onclick="toggleTOC()">14. Mastery Quiz</a></li>
+        </ul>
+    </nav>
+
+    <!-- Floating Toggle Button -->
+    <button id="toc-toggle" class="toc-toggle-btn" onclick="toggleTOC()">📑</button>
+</div>

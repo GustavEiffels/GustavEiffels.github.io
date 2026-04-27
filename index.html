@@ -93,6 +93,24 @@
         });
       }
 
+      // --- Global Content Helpers ---
+      function toggleTOC() {
+        const toc = document.getElementById("report-toc");
+        const backdrop = document.getElementById("toc-backdrop");
+        if (toc && backdrop) {
+          toc.classList.toggle("active");
+          backdrop.classList.toggle("active");
+        }
+      }
+
+      function showAnswer(num) {
+        const ans = document.getElementById("ans" + num);
+        if (ans) {
+          ans.style.display = ans.style.display === "block" ? "none" : "block";
+        }
+      }
+      // ------------------------------
+
       window.onpopstate = function (event) {
         if (event.state && event.state.page) {
           loadContent(event.state.page);
