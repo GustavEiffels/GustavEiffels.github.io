@@ -105,18 +105,27 @@
     </main>
 
     <script>
-      async function loadContent(page) {
+      // URL 해시에서 페이지 로드 (뒤로가기 / 직접 URL 접근 지원)
+      async function _loadFragment(page) {
         const target = document.getElementById("content-target");
         target.style.opacity = 0;
 
         try {
-          const path = `content/${page}.html`;
-          const response = await fetch(path);
+          const response = await fetch(`content/${page}.html`);
 
           if (response.ok) {
             const html = await response.text();
             setTimeout(() => {
               target.innerHTML = html;
+
+              // innerHTML은 <script>를 실행하지 않으므로 수동으로 재실행
+              target.querySelectorAll("script").forEach((old) => {
+                const s = document.createElement("script");
+                s.textContent = old.textContent;
+                document.body.appendChild(s);
+                s.remove();
+              });
+
               target.style.opacity = 1;
               updateActiveLink(page);
             }, 200);
@@ -130,13 +139,17 @@
         }
       }
 
+      async function loadContent(page) {
+        history.pushState({ page }, "", "#" + page);
+        await _loadFragment(page);
+      }
+
       function updateActiveLink(page) {
         document.querySelectorAll(".sidebar a").forEach((a) => {
-          if (a.getAttribute("data-page") === page) {
-            a.classList.add("active");
-          } else {
-            a.classList.remove("active");
-          }
+          const dataPage = a.getAttribute("data-page");
+          const isActive =
+            dataPage && (page === dataPage || page.startsWith(dataPage + "/"));
+          a.classList.toggle("active", !!isActive);
         });
       }
 
@@ -160,9 +173,18 @@
 
       window.onpopstate = function (event) {
         if (event.state && event.state.page) {
-          loadContent(event.state.page);
+          _loadFragment(event.state.page);
         }
       };
+
+      // 페이지 최초 진입 시 URL 해시로 콘텐츠 복원
+      (function () {
+        const hash = window.location.hash.slice(1);
+        if (hash) {
+          history.replaceState({ page: hash }, "", "#" + hash);
+          _loadFragment(hash);
+        }
+      })();
 
       // Visitor counter from stats.json
       (function () {
