@@ -1,0 +1,1070 @@
+<!-- [2026-05-06] Spring Boot @Transactional 완전 이해 -->
+<style>
+/* ── TOC ── */
+.report-toc {
+  position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+  background: var(--surface); border-left: 1px solid var(--border);
+  padding: 40px 25px; z-index: 1001;
+  transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+}
+.report-toc.active { right: 0; }
+.report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.report-toc ul { list-style: none; padding: 0; margin: 0; }
+.report-toc li { margin-bottom: 12px; line-height: 1.4; }
+.report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+.report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+.toc-backdrop {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+  z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+}
+.toc-backdrop.active { display: block; opacity: 1; }
+.toc-toggle-btn {
+  position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+  background: var(--accent); color: #fff; border: none; border-radius: 50%;
+  font-size: 1.5rem; cursor: pointer; z-index: 1002;
+  box-shadow: 0 4px 15px var(--accent-glow);
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+}
+.toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); box-shadow: 0 6px 20px var(--accent-glow); }
+@media (max-width: 768px) {
+  .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+}
+
+/* ── Scoped Styles ── */
+.tx-section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+.tx-section-number {
+  width: 32px; height: 32px; border-radius: 50%; background: var(--accent);
+  color: #fff; font-size: 13px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+}
+
+/* Callout — white-space: pre-line 으로 마침표 뒤 줄바꿈 */
+.tx-callout {
+  border-left: 4px solid var(--accent);
+  background: rgba(94,129,244,0.05);
+  border-radius: 0 10px 10px 0;
+  padding: 14px 18px; margin: 16px 0; font-size: 14px;
+  white-space: pre-line;
+}
+.tx-callout.warn  { border-color: var(--yellow); background: rgba(245,158,11,0.05); }
+.tx-callout.ok    { border-color: var(--green);  background: rgba(47,179,68,0.05); }
+.tx-callout.bad   { border-color: var(--red);    background: rgba(214,57,57,0.05); }
+.tx-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+/* Sub-heading */
+.tx-sub { font-size: 1rem; font-weight: 700; color: var(--green); margin: 24px 0 12px; }
+
+/* Propagation cards */
+.tx-prop-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin: 20px 0; }
+@media (max-width: 700px) { .tx-prop-grid { grid-template-columns: 1fr; } }
+.tx-prop-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+.tx-prop-card h4 { font-size: 13px; font-weight: 800; margin-bottom: 10px; color: var(--accent); }
+.tx-prop-card p  { font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+.tx-prop-card p:last-child { margin-bottom: 0; }
+
+/* Summary */
+.tx-summary {
+  background: linear-gradient(135deg, rgba(94,129,244,0.08), rgba(47,179,68,0.08));
+  border: 1px solid rgba(94,129,244,0.25);
+  border-radius: 12px; padding: 24px 28px; margin-bottom: 24px;
+}
+.tx-summary h3 { color: var(--green); font-size: 0.85rem; font-weight: 700; margin-bottom: 14px; letter-spacing: 1px; text-transform: uppercase; }
+.tx-summary ul { padding-left: 0; list-style: none; }
+.tx-summary ul li { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text); }
+.tx-summary ul li:last-child { border-bottom: none; }
+.tx-summary ul li::before { content: "→ "; color: var(--green); font-weight: 700; }
+
+/* Syntax coloring */
+.tx-kw  { color: #c792ea; }
+.tx-cls { color: #82aaff; }
+.tx-fn  { color: #82aaff; }
+.tx-str { color: #c3e88d; }
+.tx-cmt { color: #546e7a; font-style: italic; }
+.tx-ann { color: #f78c6c; }
+.tx-num { color: #f78c6c; }
+.tx-ret { color: #4ecdc4; }
+.tx-ok  { color: var(--green); font-weight: 700; }
+.tx-bad { color: var(--red);   font-weight: 700; }
+.tx-hi  { color: var(--accent); font-weight: 700; }
+.tx-hi2 { color: #4ecdc4; font-weight: 700; }
+.tx-hi3 { color: var(--yellow); font-weight: 700; }
+.tx-dim { color: var(--text-muted); }
+.tx-rollback    { color: var(--green); font-weight: 700; }
+.tx-no-rollback { color: var(--red);   font-weight: 700; }
+
+/* Quiz */
+.tx-quiz-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 14px; }
+.tx-quiz-q { font-weight: 700; color: #fff; margin-bottom: 14px; font-size: 15px; }
+.tx-qnum { color: var(--accent); margin-right: 8px; }
+.tx-options { display: flex; flex-direction: column; gap: 8px; }
+.tx-option {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; cursor: pointer; font-size: 14px;
+  transition: border-color .2s, background .2s; user-select: none;
+}
+.tx-option:hover { border-color: var(--accent); background: rgba(94,129,244,0.08); }
+.tx-option.tx-selected { border-color: var(--accent) !important; background: rgba(94,129,244,0.18) !important; }
+.tx-option.tx-selected .tx-opt-label { background: var(--accent) !important; color: #fff !important; }
+.tx-opt-label {
+  width: 22px; height: 22px; border-radius: 50%; background: var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; flex-shrink: 0; transition: background .2s;
+}
+.tx-option.tx-correct { border-color: var(--green) !important; background: rgba(47,179,68,0.12) !important; }
+.tx-option.tx-wrong   { border-color: var(--red)   !important; background: rgba(214,57,57,0.12) !important; }
+.tx-option.tx-correct .tx-opt-label { background: var(--green) !important; color: #fff !important; }
+.tx-option.tx-wrong   .tx-opt-label { background: var(--red)   !important; color: #fff !important; }
+.tx-quiz-explain {
+  margin-top: 12px; padding: 10px 14px; background: var(--surface); border-radius: 8px;
+  font-size: 13px; color: var(--text-muted); display: none; border-left: 3px solid var(--accent);
+}
+.tx-quiz-explain.show { display: block; }
+.tx-quiz-actions { display: flex; gap: 10px; margin-top: 10px; }
+.tx-btn { padding: 7px 16px; border-radius: 8px; border: none; font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity .2s; }
+.tx-btn:hover { opacity: .85; }
+.tx-btn-primary { background: var(--accent); color: #fff; }
+.tx-btn-reset   { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+.tx-quiz-score { text-align: center; padding: 20px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; margin-top: 16px; display: none; }
+.tx-score-num { font-size: 2.6rem; font-weight: 900; background: linear-gradient(90deg, var(--accent), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.tx-quiz-score p { color: var(--text-muted); margin-top: 8px; font-size: 14px; }
+</style>
+
+
+<h1>Spring Boot — @Transactional 완전 이해</h1>
+
+<div class="card" style="text-align:center; background: linear-gradient(135deg, var(--surface), var(--surface2));">
+  <span class="badge badge-tag">Spring Boot</span>
+  <span class="badge badge-tag">@Transactional</span>
+  <span class="badge badge-tag">Propagation</span>
+  <span class="badge badge-tag">Isolation</span>
+  <span class="badge badge-tag">Rollback</span>
+  <span class="badge badge-date">2026-05-06</span>
+  <p style="margin-top:14px; color:var(--text-muted); font-size:14px;">
+    AOP 원리부터 Propagation · Isolation · Rollback 규칙까지 — 읽고 나면 직접 설명할 수 있다
+  </p>
+</div>
+
+
+<!-- ① @Transactional 이란 -->
+<div class="card" id="what-is-tx">
+  <div class="tx-section-header">
+    <div class="tx-section-number">1</div>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">@Transactional 이란</h2>
+  </div>
+
+  <p>
+    <span class="point">@Transactional</span>은 횡단 관심사 중 하나인 <strong>DB 트랜잭션 관리</strong>를 AOP로 처리해주는 Spring의 어노테이션이다.
+    개발자가 직접 커넥션을 열고 커밋·롤백을 작성할 필요 없이, 어노테이션 하나로 Proxy가 이 모든 것을 대신 처리한다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">@Transactional 없이 직접 작성</span>
+    </div>
+    <pre><code><span class="tx-kw">public void</span> <span class="tx-fn">createOrder</span>(<span class="tx-cls">OrderDto</span> dto) {
+    <span class="tx-cls">Connection</span> conn = dataSource.getConnection();
+    conn.setAutoCommit(<span class="tx-kw">false</span>);
+    <span class="tx-kw">try</span> {
+        orderRepo.save(dto.toOrder());
+        inventoryRepo.decrease(dto.itemId);
+        conn.commit();
+    } <span class="tx-kw">catch</span> (<span class="tx-cls">Exception</span> e) {
+        conn.rollback();   <span class="tx-cmt">// 실패하면 전부 되돌림</span>
+        <span class="tx-kw">throw</span> e;
+    } <span class="tx-kw">finally</span> {
+        conn.close();
+    }
+}</code></pre>
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">@Transactional 사용 후 — Proxy가 위 코드를 대신 실행</span>
+    </div>
+    <pre><code><span class="tx-ann">@Transactional</span>
+<span class="tx-kw">public void</span> <span class="tx-fn">createOrder</span>(<span class="tx-cls">OrderDto</span> dto) {
+    orderRepo.save(dto.toOrder());
+    inventoryRepo.decrease(dto.itemId);
+}</code></pre>
+  </div>
+
+  <div class="tx-callout ok">
+    <strong>AOP 연결 고리</strong>
+    Spring은 @Transactional이 붙은 클래스를 CGLIB Proxy로 감싼다.
+    메서드 호출 시 Proxy가 먼저 트랜잭션을 시작하고, 메서드 완료 후 커밋 또는 예외 발생 시 롤백한다.
+    개발자가 직접 호출하는 것은 항상 <strong>Proxy 객체다.</strong>
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Proxy 실행 흐름</span>
+    </div>
+    <pre><code style="color:var(--text-muted) !important;"><span class="tx-dim">Controller</span>
+    ↓ orderService.createOrder()
+<span class="tx-hi">Proxy (CGLIB)</span>
+    ↓ 트랜잭션 시작 (BEGIN)
+<span class="tx-hi2">진짜 OrderService.createOrder()</span>
+    ↓ orderRepo.save()  ↓ inventoryRepo.decrease()
+<span class="tx-hi">Proxy (CGLIB)</span>
+    ↓ 정상 완료 → <span class="tx-ok">COMMIT</span>
+    ↓ 예외 발생 → <span class="tx-bad">ROLLBACK</span></code></pre>
+  </div>
+</div>
+
+
+<!-- ② Propagation -->
+<div class="card" id="propagation">
+  <div class="tx-section-header">
+    <div class="tx-section-number">2</div>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">Propagation — 트랜잭션 전파 방식</h2>
+  </div>
+
+  <p>
+    메서드 A가 트랜잭션 안에서 메서드 B를 호출할 때,
+    <strong>B가 A의 트랜잭션에 어떻게 참여할지</strong>를 결정하는 설정이다.
+  </p>
+
+  <div class="tx-prop-grid">
+    <div class="tx-prop-card">
+      <h4>REQUIRED (기본값)</h4>
+      <p>트랜잭션 있으면 → 참여</p>
+      <p>트랜잭션 없으면 → 새로 생성</p>
+      <p style="color:var(--yellow)">하나의 작업 단위로 묶을 때</p>
+    </div>
+    <div class="tx-prop-card">
+      <h4>REQUIRES_NEW</h4>
+      <p>트랜잭션 있으면 → 일시 중단, 별도 생성</p>
+      <p>트랜잭션 없으면 → 새로 생성</p>
+      <p style="color:var(--yellow)">실패해도 꼭 남겨야 할 기록</p>
+    </div>
+    <div class="tx-prop-card">
+      <h4>NESTED</h4>
+      <p>트랜잭션 있으면 → savepoint 찍고 중첩</p>
+      <p>트랜잭션 없으면 → REQUIRED와 동일</p>
+      <p style="color:var(--yellow)">실패해도 외부는 계속 진행</p>
+    </div>
+  </div>
+
+  <hr style="border:none; border-top:1px solid var(--border); margin: 24px 0;">
+
+  <!-- REQUIRED -->
+  <p class="tx-sub">REQUIRED — 전부 하나로 묶기</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">OrderService.java — REQUIRED</span>
+    </div>
+    <pre><code><span class="tx-ann">@Service</span>
+<span class="tx-kw">public class</span> <span class="tx-cls">OrderService</span> {
+
+    <span class="tx-ann">@Transactional</span>  <span class="tx-cmt">// REQUIRED — 트랜잭션 A 시작</span>
+    <span class="tx-kw">public void</span> <span class="tx-fn">createOrder</span>(<span class="tx-cls">OrderDto</span> dto) {
+        orderRepo.save(dto.toOrder());       <span class="tx-cmt">// 트랜잭션 A 안에서 실행</span>
+        inventoryRepo.decrease(dto.itemId);  <span class="tx-cmt">// 트랜잭션 A 안에서 실행</span>
+        <span class="tx-cmt">// inventoryRepo.decrease() 에서 예외 → order도 함께 롤백</span>
+    }
+}</code></pre>
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">REQUIRED 실행 흐름</span>
+    </div>
+    <pre><code style="color:var(--text-muted) !important;"><span class="tx-hi">트랜잭션 A 시작</span>
+    └─ orderRepo.save()         <span class="tx-dim">← A 안에서</span>
+    └─ inventoryRepo.decrease() <span class="tx-dim">← A 안에서</span>
+<span class="tx-bad">예외 발생!</span>
+<span class="tx-bad">트랜잭션 A 전체 롤백</span>          <span class="tx-dim">← order + inventory 둘 다 취소</span></code></pre>
+  </div>
+
+  <div class="tx-callout ok">
+    <strong>언제 쓰나</strong>
+    주문 저장과 재고 차감처럼 <strong>반드시 함께 성공하거나 함께 실패해야 하는</strong> 작업
+  </div>
+
+  <hr style="border:none; border-top:1px solid var(--border); margin: 24px 0;">
+
+  <!-- REQUIRES_NEW -->
+  <p class="tx-sub">REQUIRES_NEW — 트랜잭션 분리하기</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">OrderService.java + AuditService.java — REQUIRES_NEW</span>
+    </div>
+    <pre><code><span class="tx-ann">@Transactional</span>  <span class="tx-cmt">// 트랜잭션 A</span>
+<span class="tx-kw">public void</span> <span class="tx-fn">createOrder</span>(<span class="tx-cls">OrderDto</span> dto) {
+    orderRepo.save(dto.toOrder());
+    auditService.log(<span class="tx-str">"주문 생성"</span>);    <span class="tx-cmt">// REQUIRES_NEW 호출</span>
+    inventoryRepo.decrease(dto.itemId);
+}
+
+<span class="tx-ann">@Transactional</span>(propagation = Propagation.<span class="tx-ret">REQUIRES_NEW</span>)  <span class="tx-cmt">// 트랜잭션 B (별도)</span>
+<span class="tx-kw">public void</span> <span class="tx-fn">log</span>(<span class="tx-cls">String</span> message) {
+    auditRepo.save(<span class="tx-kw">new</span> <span class="tx-cls">AuditLog</span>(message));
+}</code></pre>
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">REQUIRES_NEW 실행 흐름</span>
+    </div>
+    <pre><code style="color:var(--text-muted) !important;"><span class="tx-hi">트랜잭션 A 시작</span>
+    └─ orderRepo.save()              <span class="tx-dim">← A 안에서</span>
+    └─ auditService.log() 진입
+<span class="tx-hi3">트랜잭션 A 일시 중단</span>
+<span class="tx-hi2">트랜잭션 B 시작</span>                   <span class="tx-dim">← 별도 커넥션</span>
+    auditRepo.save()
+<span class="tx-ok">트랜잭션 B 커밋</span>                   <span class="tx-dim">← A와 완전히 무관하게 독립 커밋</span>
+<span class="tx-hi3">트랜잭션 A 재개</span>
+    └─ inventoryRepo.decrease()
+<span class="tx-ok">트랜잭션 A 커밋</span>
+
+<span class="tx-dim">→ A가 나중에 롤백되더라도 B(감사 로그)는 이미 커밋됨 — 로그는 남는다</span></code></pre>
+  </div>
+
+  <p class="tx-sub">B 예외 발생 시 — A에게 미치는 영향</p>
+
+  <p>B는 독립 트랜잭션이라 <strong>B는 자동으로 롤백</strong>된다. 하지만 예외 객체 자체는 A로 전파된다. A가 그 예외를 어떻게 처리하느냐가 A의 운명을 결정한다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Case 1 — A가 예외를 catch 하는 경우</span>
+    </div>
+    <pre><code style="color:var(--text-muted) !important;"><span class="tx-hi">트랜잭션 A 시작</span>
+    └─ doA()                          <span class="tx-dim">← INSERT 1</span>
+<span class="tx-hi3">트랜잭션 A 일시 중단</span>
+<span class="tx-hi2">트랜잭션 B 시작 (독립)</span>
+    └─ doB()                          <span class="tx-dim">← INSERT 2</span>
+    └─ 예외 발생 → <span class="tx-bad">B 롤백</span>            <span class="tx-dim">← INSERT 2 취소</span>
+    └─ 예외 객체가 A 로 전파
+<span class="tx-hi3">트랜잭션 A 재개</span>
+    └─ <span class="tx-ok">catch(e) { ... }</span>             <span class="tx-dim">← A가 예외를 처리하고 계속 진행</span>
+    └─ doMore()
+<span class="tx-ok">트랜잭션 A 커밋</span>                   <span class="tx-dim">← INSERT 1 반영, INSERT 2 는 취소된 상태</span></code></pre>
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Case 2 — A가 예외를 catch 하지 않는 경우</span>
+    </div>
+    <pre><code style="color:var(--text-muted) !important;"><span class="tx-hi">트랜잭션 A 시작</span>
+    └─ doA()                          <span class="tx-dim">← INSERT 1</span>
+<span class="tx-hi3">트랜잭션 A 일시 중단</span>
+<span class="tx-hi2">트랜잭션 B 시작 (독립)</span>
+    └─ doB()                          <span class="tx-dim">← INSERT 2</span>
+    └─ 예외 발생 → <span class="tx-bad">B 롤백</span>            <span class="tx-dim">← INSERT 2 취소</span>
+    └─ 예외 객체가 A 의 @Transactional 경계까지 전파
+<span class="tx-bad">트랜잭션 A 롤백</span>                   <span class="tx-dim">← INSERT 1 도 취소</span></code></pre>
+  </div>
+
+  <table>
+    <tr><th>A의 예외 처리</th><th>B 결과</th><th>A 결과</th></tr>
+    <tr><td>catch 로 잡음</td><td style="color:var(--red)">롤백 (항상)</td><td style="color:var(--green)">커밋</td></tr>
+    <tr><td>catch 없이 전파</td><td style="color:var(--red)">롤백 (항상)</td><td style="color:var(--red)">롤백</td></tr>
+  </table>
+
+  <div class="tx-callout">
+    <strong>핵심</strong>
+    B의 롤백은 <strong>자동</strong>이다.
+    그 예외 객체가 A까지 올라오므로, A의 롤백 여부는 A가 예외를 처리하느냐에 달려 있다.
+    "B가 롤백됐다"가 "A도 롤백된다"를 의미하지는 않는다.
+  </div>
+
+  <div class="tx-callout ok">
+    <strong>언제 쓰나</strong>
+    감사(Audit) 로그, 이메일 발송 기록처럼 <strong>메인 작업이 실패해도 기록은 반드시 남아야 할 때</strong>
+  </div>
+
+  <div class="tx-callout warn">
+    <strong>주의 — 커넥션 풀 위험</strong>
+    REQUIRES_NEW는 DB 커넥션을 2개 동시에 연다.
+    커넥션 풀이 꽉 차 있으면 B가 커넥션을 얻으려다 대기 → A도 기다리는 데드락이 발생할 수 있다.
+    커넥션 풀 크기를 고려해서 사용해야 한다.
+  </div>
+
+  <hr style="border:none; border-top:1px solid var(--border); margin: 24px 0;">
+
+  <!-- NESTED -->
+  <p class="tx-sub">NESTED — 부분 롤백 (savepoint)</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">OrderService.java + CouponService.java — NESTED</span>
+    </div>
+    <pre><code><span class="tx-ann">@Transactional</span>  <span class="tx-cmt">// 트랜잭션 A</span>
+<span class="tx-kw">public void</span> <span class="tx-fn">createOrder</span>(<span class="tx-cls">OrderDto</span> dto) {
+    orderRepo.save(dto.toOrder());
+
+    <span class="tx-kw">try</span> {
+        couponService.applyCoupon(dto.couponId);  <span class="tx-cmt">// NESTED 호출</span>
+    } <span class="tx-kw">catch</span> (<span class="tx-cls">Exception</span> e) {
+        log.warn(<span class="tx-str">"쿠폰 적용 실패, 정가로 진행"</span>);
+        <span class="tx-cmt">// 예외를 잡아서 처리 → A는 계속 진행</span>
+    }
+
+    inventoryRepo.decrease(dto.itemId);
+}
+
+<span class="tx-ann">@Transactional</span>(propagation = Propagation.<span class="tx-ret">NESTED</span>)
+<span class="tx-kw">public void</span> <span class="tx-fn">applyCoupon</span>(<span class="tx-cls">Long</span> couponId) {
+    couponRepo.markUsed(couponId);
+    discountRepo.apply(couponId);
+}</code></pre>
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">NESTED 실행 흐름 — 내부 예외 발생 시</span>
+    </div>
+    <pre><code style="color:var(--text-muted) !important;"><span class="tx-hi">트랜잭션 A 시작</span>
+    └─ orderRepo.save()        <span class="tx-dim">← A에 기록</span>
+    └─ <span class="tx-hi3">[SAVEPOINT 생성]</span>         <span class="tx-dim">← NESTED 진입 시점에 찍어둠</span>
+        couponRepo.markUsed()
+        discountRepo.apply()
+<span class="tx-bad">예외 발생!</span>
+    └─ <span class="tx-hi3">SAVEPOINT 까지만 롤백</span>   <span class="tx-dim">← coupon 관련 작업만 취소</span>
+                                <span class="tx-dim">orderRepo.save() 는 살아있음</span>
+    └─ catch에서 예외 처리
+    └─ inventoryRepo.decrease() <span class="tx-dim">← 계속 실행</span>
+<span class="tx-ok">트랜잭션 A 커밋</span></code></pre>
+  </div>
+
+  <div class="tx-callout ok">
+    <strong>언제 쓰나</strong>
+    쿠폰 적용, 포인트 사용처럼 <strong>실패해도 메인 흐름(주문)은 계속 진행해야 하는 부가 작업</strong>
+  </div>
+
+  <p class="tx-sub">NESTED — 반대 방향: 외부(A)가 롤백되면?</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">외부 트랜잭션 롤백 시 NESTED의 운명</span>
+    </div>
+    <pre><code style="color:var(--text-muted) !important;"><span class="tx-hi">트랜잭션 A 시작</span>
+    └─ orderRepo.save()
+    <span class="tx-hi3">[SAVEPOINT]</span>
+    couponRepo.markUsed()      <span class="tx-dim">← 커밋 안 됨, A 안에 포함</span>
+    inventoryRepo.decrease()   <span class="tx-bad">← 예외 발생!</span>
+
+<span class="tx-bad">트랜잭션 A 전체 롤백</span>
+    <span class="tx-dim">← SAVEPOINT 포함 전체 취소</span>
+    <span class="tx-dim">couponRepo.markUsed() 도 같이 사라짐</span></code></pre>
+  </div>
+
+  <div class="tx-callout bad">
+    <strong>중요 — NESTED는 물리적으로 같은 트랜잭션</strong>
+    NESTED가 롤백해도 외부는 살 수 있지만, 반대로 외부(A)가 롤백되면 NESTED 작업도 전부 사라진다.
+    REQUIRES_NEW는 이미 별도로 커밋됐으므로 외부 롤백의 영향을 받지 않는 것과 다른 점이다.
+  </div>
+
+  <p class="tx-sub">외부 A가 롤백되는 두 가지 경우</p>
+
+  <p>NESTED(B)가 정상 종료됐어도 A 전체가 롤백되는 경우가 있다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Case 1 — B의 예외를 A가 catch 하지 않는 경우</span>
+    </div>
+    <pre><code style="color:var(--text-muted) !important;"><span class="tx-ann">@Transactional</span>
+<span class="tx-kw">public void</span> <span class="tx-fn">A</span>() {
+    doA();
+    B();         <span class="tx-cmt">// B 예외 발생 — catch 없음</span>
+    <span class="tx-cmt">// 예외가 A의 @Transactional 까지 전파</span>
+}
+
+<span class="tx-dim">────────────────────────────────────────────</span>
+<span class="tx-hi">트랜잭션 A 시작</span>
+    └─ doA()            <span class="tx-dim">← INSERT 1</span>
+    <span class="tx-hi3">[SAVEPOINT]</span>
+    └─ B() → 예외 발생 → <span class="tx-bad">savepoint까지 롤백</span>
+    └─ 예외가 A 경계까지 전파 (catch 없음)
+<span class="tx-bad">트랜잭션 A 전체 롤백</span>  <span class="tx-dim">← INSERT 1 도 취소</span></code></pre>
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Case 2 — B 성공 후 A의 다른 작업(C)에서 예외 발생</span>
+    </div>
+    <pre><code style="color:var(--text-muted) !important;"><span class="tx-ann">@Transactional</span>
+<span class="tx-kw">public void</span> <span class="tx-fn">A</span>() {
+    doA();
+    B();         <span class="tx-cmt">// NESTED — 정상 완료</span>
+    C();         <span class="tx-cmt">// 여기서 예외 발생!</span>
+}
+
+<span class="tx-dim">────────────────────────────────────────────</span>
+<span class="tx-hi">트랜잭션 A 시작</span>
+    └─ doA()            <span class="tx-dim">← INSERT 1</span>
+    <span class="tx-hi3">[SAVEPOINT 생성]</span>
+    └─ B() 실행
+        └─ doB()        <span class="tx-dim">← INSERT 2</span>
+    └─ B 정상 완료 → savepoint release
+    └─ C() → <span class="tx-bad">예외 발생!</span>
+<span class="tx-bad">트랜잭션 A 전체 롤백</span>
+    <span class="tx-dim">← INSERT 1 취소</span>
+    <span class="tx-dim">← INSERT 2 도 취소 ← B가 성공했어도 아직 커밋된 게 아님</span></code></pre>
+  </div>
+
+  <div class="tx-callout bad">
+    <strong>B가 성공했어도 롤백되는 이유</strong>
+    NESTED의 savepoint release는 "B의 작업을 A 트랜잭션 안으로 합쳤다"는 뜻이다.
+    DB에 최종 커밋된 것이 아니라, A 트랜잭션이 커밋되어야 비로소 영구 반영된다.
+    그러므로 A가 롤백되면 B의 INSERT 2 도 함께 사라진다.
+    REQUIRES_NEW였다면 B는 이미 독립 커밋이 완료된 상태라 C 예외가 B에 영향을 줄 수 없다.
+  </div>
+
+  <table>
+    <tr><th>상황</th><th>REQUIRES_NEW</th><th>NESTED</th></tr>
+    <tr><td>B 예외, A catch O</td><td>B 롤백 / <span style="color:var(--green)">A 커밋</span></td><td>B→savepoint 롤백 / <span style="color:var(--green)">A 커밋</span></td></tr>
+    <tr><td>B 예외, A catch X</td><td>B 롤백 / <span style="color:var(--red)">A 롤백</span></td><td><span style="color:var(--red)">A 전체 롤백</span></td></tr>
+    <tr><td>B 성공, A 자신(C)의 예외</td><td>B 커밋 유지 / <span style="color:var(--red)">A만 롤백</span></td><td><span style="color:var(--red)">A 전체 롤백 (B 포함)</span></td></tr>
+  </table>
+
+  <p class="tx-sub">세 가지 비교 정리</p>
+
+  <table>
+    <tr><th>상황</th><th>REQUIRED</th><th>REQUIRES_NEW</th><th>NESTED</th></tr>
+    <tr><td>트랜잭션 있을 때</td><td>기존에 참여</td><td>기존 중단, 별도 생성</td><td>savepoint 찍고 중첩</td></tr>
+    <tr><td>내부 예외 발생</td><td>전체 롤백</td><td>내부만 롤백 (외부 무관)</td><td>savepoint까지만 롤백</td></tr>
+    <tr><td>외부 롤백 시</td><td>함께 롤백</td><td><strong style="color:var(--green)">영향 없음</strong> (이미 커밋)</td><td><strong style="color:var(--red)">함께 롤백</strong> (같은 트랜잭션)</td></tr>
+    <tr><td>DB 커넥션</td><td>1개</td><td><strong style="color:var(--red)">2개 동시 사용</strong></td><td>1개</td></tr>
+    <tr><td>대표 사용처</td><td>주문 + 재고</td><td>감사 로그, 알림 기록</td><td>쿠폰 적용, 포인트 사용</td></tr>
+  </table>
+
+  <div class="tx-callout warn">
+    <strong>NESTED 외부에서 catch 필수</strong>
+    외부에서 예외를 잡지 않으면 예외가 A까지 전파되어 A 전체가 롤백된다.
+    NESTED 호출부를 반드시 <code>try-catch</code>로 감싸야 "부분 롤백 후 계속 진행"이 가능하다.
+  </div>
+</div>
+
+
+<!-- ③ Rollback 규칙 -->
+<div class="card" id="rollback">
+  <div class="tx-section-header">
+    <div class="tx-section-number">3</div>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">Rollback 규칙 — Checked vs Unchecked Exception</h2>
+  </div>
+
+  <p>
+    <strong>@Transactional의 기본 롤백 규칙</strong>:
+    <span style="color:var(--green)">RuntimeException</span>과 <span style="color:var(--green)">Error</span>만 자동 롤백,
+    <span style="color:var(--red)">Checked Exception은 롤백하지 않는다.</span>
+  </p>
+
+  <p class="tx-sub">Java 예외 계층 구조 — 이게 기준이다</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Exception Hierarchy</span>
+    </div>
+    <pre><code>Throwable
+├── <span class="tx-rollback">Error</span>                     <span class="tx-dim">← 롤백 O  (OutOfMemoryError, StackOverflowError)</span>
+└── Exception
+    ├── <span class="tx-rollback">RuntimeException</span>      <span class="tx-dim">← 롤백 O  (Unchecked)</span>
+    │   ├── <span class="tx-dim">NullPointerException</span>
+    │   ├── <span class="tx-dim">IllegalArgumentException</span>
+    │   ├── <span class="tx-dim">IllegalStateException</span>
+    │   └── <span class="tx-dim">...</span>
+    └── <span class="tx-no-rollback">(그 외 Exception)</span>    <span class="tx-dim">← 롤백 X  (Checked)</span>
+        ├── <span class="tx-dim">IOException</span>
+        ├── <span class="tx-dim">SQLException</span>
+        └── <span class="tx-dim">...</span></code></pre>
+  </div>
+
+  <p class="tx-sub">실용적 구분법 — 컴파일러가 강제하면 Checked</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Checked vs Unchecked</span>
+    </div>
+    <pre><code><span class="tx-cmt">// Checked — 컴파일러가 try-catch 또는 throws를 강제한다</span>
+<span class="tx-kw">public void</span> <span class="tx-fn">readFile</span>() <span class="tx-kw">throws</span> <span class="tx-cls">IOException</span> {   <span class="tx-cmt">// 안 쓰면 컴파일 에러</span>
+    <span class="tx-cls">Files</span>.readAllBytes(<span class="tx-cls">Path</span>.of(<span class="tx-str">"data.txt"</span>));
+}
+
+<span class="tx-cmt">// Unchecked — 컴파일러가 아무것도 강제하지 않는다</span>
+<span class="tx-kw">public void</span> <span class="tx-fn">divide</span>(<span class="tx-kw">int</span> a, <span class="tx-kw">int</span> b) {
+    <span class="tx-kw">if</span> (b == <span class="tx-num">0</span>) <span class="tx-kw">throw new</span> <span class="tx-cls">IllegalArgumentException</span>(<span class="tx-str">"0으로 나눌 수 없음"</span>);
+    <span class="tx-kw">return</span> a / b;
+}</code></pre>
+  </div>
+
+  <div class="tx-callout">
+    <strong>왜 Checked는 기본 롤백이 아닌가?</strong>
+    Checked Exception은 "예상 가능하고 복구 가능한 상황"으로 Java가 설계했다.
+    파일 없음, 네트워크 끊김 — 이런 상황은 롤백보다 재시도나 대체 처리가 맞을 수도 있다.
+    그래서 Spring은 개발자가 직접 판단하도록 기본값을 "롤백 안 함"으로 둔 것이다.
+  </div>
+
+  <p class="tx-sub">실무에서 자주 쓰는 설정</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">rollbackFor / noRollbackFor</span>
+    </div>
+    <pre><code><span class="tx-cmt">// Checked Exception도 롤백시키고 싶을 때</span>
+<span class="tx-ann">@Transactional</span>(rollbackFor = <span class="tx-cls">Exception</span>.<span class="tx-kw">class</span>)
+<span class="tx-kw">public void</span> <span class="tx-fn">save</span>() { ... }
+
+<span class="tx-cmt">// 특정 예외만 롤백 제외</span>
+<span class="tx-ann">@Transactional</span>(noRollbackFor = <span class="tx-cls">IllegalArgumentException</span>.<span class="tx-kw">class</span>)
+<span class="tx-kw">public void</span> <span class="tx-fn">process</span>() { ... }</code></pre>
+  </div>
+
+  <p class="tx-sub">자주 당하는 함정 — catch로 예외를 삼키는 경우</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">예외를 삼키면 롤백이 안 된다</span>
+    </div>
+    <pre><code><span class="tx-ann">@Transactional</span>
+<span class="tx-kw">public void</span> <span class="tx-fn">createOrder</span>(<span class="tx-cls">OrderDto</span> dto) {
+    orderRepo.save(dto.toOrder());
+
+    <span class="tx-kw">try</span> {
+        externalApi.call();   <span class="tx-cmt">// RuntimeException 발생</span>
+    } <span class="tx-kw">catch</span> (<span class="tx-cls">Exception</span> e) {
+        log.error(<span class="tx-str">"API 실패"</span>, e);
+        <span class="tx-cmt">// 여기서 예외를 삼키면 → Proxy는 예외를 인지하지 못함</span>
+        <span class="tx-cmt">// → 롤백 트리거 자체가 없어짐 → orderRepo.save() 가 커밋됨!</span>
+    }
+}</code></pre>
+  </div>
+
+  <div class="tx-callout bad">
+    <strong>함정</strong>
+    catch로 예외를 삼키면 Proxy까지 예외가 전파되지 않는다.
+    Proxy는 예외를 받아야 롤백을 실행하는데, 예외가 없으면 정상으로 간주하고 커밋한다.
+    롤백이 필요하면 예외를 다시 던지거나 <code>TransactionAspectSupport.currentTransactionStatus().setRollbackOnly()</code>를 호출해야 한다.
+  </div>
+
+  <table>
+    <tr><th>예외 종류</th><th>기본 롤백 여부</th><th>예시</th></tr>
+    <tr><td><span class="badge badge-date">RuntimeException</span></td><td style="color:var(--green)">롤백 O</td><td>NullPointerException, IllegalArgumentException</td></tr>
+    <tr><td><span class="badge badge-date">Error</span></td><td style="color:var(--green)">롤백 O</td><td>OutOfMemoryError, StackOverflowError</td></tr>
+    <tr><td><span class="badge badge-warning" style="background:rgba(214,57,57,0.1);color:var(--red);border-color:rgba(214,57,57,0.3);">Checked Exception</span></td><td style="color:var(--red)">롤백 X (기본)</td><td>IOException, SQLException</td></tr>
+    <tr><td><span class="badge badge-warning">catch로 삼킨 예외</span></td><td style="color:var(--red)">롤백 X</td><td>Proxy가 예외를 인지하지 못해 커밋됨</td></tr>
+  </table>
+</div>
+
+
+<!-- ④ Isolation -->
+<div class="card" id="isolation">
+  <div class="tx-section-header">
+    <div class="tx-section-number">4</div>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">Isolation — 격리 수준</h2>
+  </div>
+
+  <p>
+    여러 트랜잭션이 <strong>동시에 실행될 때</strong>, 한 트랜잭션의 변경 사항이 다른 트랜잭션에 얼마나 보이는지를 결정하는 설정이다.
+    격리 수준이 높을수록 데이터 정합성은 올라가지만, <strong>잠금 경합이 늘어나 처리량(TPS)이 떨어진다.</strong>
+  </p>
+
+  <p class="tx-sub">이상 현상 1 — Dirty Read (커밋 안 된 데이터를 읽음)</p>
+  <p>트랜잭션 A가 <strong>커밋하지 않은 변경분</strong>을 트랜잭션 B가 읽는 현상이다. A가 롤백하면 B는 DB에 없는 데이터를 기준으로 처리한 셈이 된다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Dirty Read</span>
+    </div>
+    <pre><code style="color:var(--text-muted) !important;"><span class="tx-hi">트랜잭션 A</span>: UPDATE 잔액 = 0              <span class="tx-dim">← 아직 커밋 안 함</span>
+<span class="tx-hi2">트랜잭션 B</span>: SELECT 잔액 → <span class="tx-bad">0 읽음</span>   <span class="tx-dim">← 없는 데이터를 기준으로 로직 실행!</span>
+<span class="tx-hi">트랜잭션 A</span>: ROLLBACK                    <span class="tx-dim">← 잔액은 원래 10,000이었음</span>
+<span class="tx-hi2">트랜잭션 B</span>: 0을 기준으로 이미 처리    <span class="tx-bad">← 데이터 오염</span></code></pre>
+  </div>
+
+  <p class="tx-sub">이상 현상 2 — Non-repeatable Read (같은 row를 두 번 읽었는데 값이 달라짐)</p>
+  <p>한 트랜잭션 안에서 <strong>같은 row를 두 번 SELECT</strong>했을 때, 그 사이에 다른 트랜잭션이 해당 row를 UPDATE·커밋하여 값이 달라지는 현상이다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Non-repeatable Read</span>
+    </div>
+    <pre><code style="color:var(--text-muted) !important;"><span class="tx-hi">트랜잭션 A</span>: SELECT 재고 → 10
+<span class="tx-hi2">트랜잭션 B</span>: UPDATE 재고 = 0 + COMMIT
+<span class="tx-hi">트랜잭션 A</span>: SELECT 재고 → <span class="tx-bad">0</span>   <span class="tx-dim">← 같은 쿼리인데 값이 달라짐</span>
+<span class="tx-dim">→ A가 재고를 10으로 믿고 계속 처리하면 데이터 불일치 발생</span></code></pre>
+  </div>
+
+  <p class="tx-sub">이상 현상 3 — Phantom Read (같은 조건으로 조회했는데 row 수가 달라짐)</p>
+  <p>한 트랜잭션 안에서 <strong>같은 WHERE 조건으로 두 번 SELECT</strong>했을 때, 그 사이에 다른 트랜잭션이 INSERT·커밋하여 결과 집합의 <em>건수(row 수)</em>가 달라지는 현상이다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Phantom Read</span>
+    </div>
+    <pre><code style="color:var(--text-muted) !important;"><span class="tx-hi">트랜잭션 A</span>: SELECT * WHERE 금액 &gt; 1000 → <span class="tx-hi2">3건</span>
+<span class="tx-hi2">트랜잭션 B</span>: INSERT 금액 = 5000 + COMMIT
+<span class="tx-hi">트랜잭션 A</span>: SELECT * WHERE 금액 &gt; 1000 → <span class="tx-bad">4건</span>   <span class="tx-dim">← 유령 row 등장</span>
+<span class="tx-dim">→ 건수를 기준으로 처리하는 로직이면 오류 발생</span></code></pre>
+  </div>
+
+  <div class="tx-callout">
+    <strong>Non-repeatable Read vs Phantom Read</strong>
+    Non-repeatable Read는 이미 존재하는 <strong>row의 값</strong>이 바뀌는 것이고,
+    Phantom Read는 존재하지 않던 <strong>row가 추가되거나 삭제</strong>되는 것이다.
+    전자는 읽은 row에 공유 락을 걸면 되지만, 후자는 아직 존재하지 않는 row 범위까지 잠가야 하므로 Gap Lock이 필요하다.
+  </div>
+
+  <hr style="border:none; border-top:1px solid var(--border); margin: 24px 0;">
+
+  <p class="tx-sub">4가지 격리 수준 — 이상 현상 차단 범위</p>
+
+  <table>
+    <tr><th>격리 수준</th><th>Dirty Read</th><th>Non-repeatable Read</th><th>Phantom Read</th><th>성능</th></tr>
+    <tr>
+      <td><strong>READ_UNCOMMITTED</strong></td>
+      <td style="color:var(--red)">발생</td><td style="color:var(--red)">발생</td><td style="color:var(--red)">발생</td>
+      <td style="color:var(--green)">가장 빠름</td>
+    </tr>
+    <tr>
+      <td><strong>READ_COMMITTED</strong></td>
+      <td style="color:var(--green)">차단</td><td style="color:var(--red)">발생</td><td style="color:var(--red)">발생</td>
+      <td style="color:var(--green)">빠름</td>
+    </tr>
+    <tr>
+      <td><strong>REPEATABLE_READ</strong></td>
+      <td style="color:var(--green)">차단</td><td style="color:var(--green)">차단</td>
+      <td style="color:var(--red)">발생 <span style="color:var(--text-muted);font-weight:400">(이론)</span></td>
+      <td>보통</td>
+    </tr>
+    <tr>
+      <td><strong>SERIALIZABLE</strong></td>
+      <td style="color:var(--green)">차단</td><td style="color:var(--green)">차단</td><td style="color:var(--green)">차단</td>
+      <td style="color:var(--red)">가장 느림</td>
+    </tr>
+  </table>
+
+  <p class="tx-sub">각 격리 수준의 동작 원리</p>
+
+  <table>
+    <tr><th>격리 수준</th><th>동작</th><th>실무 사용</th></tr>
+    <tr>
+      <td><strong>READ_UNCOMMITTED</strong></td>
+      <td>커밋 여부와 관계없이 변경 중인 데이터를 그대로 읽는다. 잠금을 거의 사용하지 않아 가장 빠르지만 데이터 신뢰성이 없다.</td>
+      <td style="color:var(--red)">실무 사용 없음</td>
+    </tr>
+    <tr>
+      <td><strong>READ_COMMITTED</strong></td>
+      <td>SELECT 실행 시점에 <strong>커밋 완료된 최신 데이터</strong>를 읽는다 (Statement-level snapshot). 같은 쿼리를 두 번 실행하면 그 사이 커밋이 발생할 경우 다른 결과가 나올 수 있다.</td>
+      <td style="color:var(--green)">대부분의 서비스 기본값</td>
+    </tr>
+    <tr>
+      <td><strong>REPEATABLE_READ</strong></td>
+      <td><strong>트랜잭션 시작 시점의 스냅샷</strong>을 고정해서 읽는다 (MVCC). 트랜잭션 내에서 같은 row를 몇 번 읽어도 항상 동일한 값을 반환한다.</td>
+      <td>MySQL InnoDB 기본값</td>
+    </tr>
+    <tr>
+      <td><strong>SERIALIZABLE</strong></td>
+      <td>읽기에도 <strong>공유 락(S-Lock)</strong>을 걸어 트랜잭션을 직렬처럼 실행한다. 모든 이상 현상을 차단하지만 동시 처리 성능이 급격히 떨어진다.</td>
+      <td style="color:var(--yellow)">금융 · 극한 정합성 필요 시</td>
+    </tr>
+  </table>
+
+  <div class="tx-callout">
+    <strong>MVCC (Multi-Version Concurrency Control) 란?</strong>
+    데이터를 수정할 때 기존 버전을 지우지 않고 <strong>새 버전을 추가</strong>하는 방식이다.
+    읽기 트랜잭션은 자신의 시작 시점 버전을 보고, 쓰기 트랜잭션은 새 버전을 만든다.
+    읽기와 쓰기가 서로를 차단하지 않으므로 잠금 없이 높은 동시성을 유지할 수 있다.
+    MySQL InnoDB, PostgreSQL 모두 MVCC를 사용한다.
+  </div>
+
+  <p class="tx-sub">MySQL InnoDB의 REPEATABLE_READ — 이론과 실제가 다르다</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">SQL 표준 vs MySQL InnoDB 실제</span>
+    </div>
+    <pre><code style="color:var(--text-muted) !important;"><span class="tx-dim">SQL 표준</span>
+  REPEATABLE_READ → Non-repeatable Read <span class="tx-ok">차단</span>, Phantom Read <span class="tx-bad">발생 가능</span>
+
+<span class="tx-hi3">MySQL InnoDB 실제</span>
+  REPEATABLE_READ → Non-repeatable Read <span class="tx-ok">차단</span>, Phantom Read <span class="tx-ok">실질적 차단</span>
+  <span class="tx-dim">이유: 쓰기(UPDATE·DELETE) 시 Gap Lock + Next-Key Lock을 함께 사용하기 때문</span></code></pre>
+  </div>
+
+  <div class="tx-callout warn">
+    <strong>Gap Lock / Next-Key Lock 이란?</strong>
+    일반 잠금은 존재하는 row에만 걸리지만, <strong>Gap Lock</strong>은 row와 row 사이의 <em>빈 공간(gap)</em>에 잠금을 건다.
+    <strong>Next-Key Lock</strong>은 Gap Lock + 해당 row 잠금의 조합이다.
+    예를 들어 <code>WHERE 금액 &gt; 1000</code> 조회 후 그 범위에 Next-Key Lock이 걸리면, 다른 트랜잭션이 해당 범위에 INSERT하지 못해 Phantom Read가 발생하지 않는다.
+    단, <code>SELECT … FOR UPDATE</code> 또는 <code>UPDATE·DELETE</code> 시에만 적용되며, 일반 SELECT(MVCC 스냅샷 읽기)는 Gap Lock 없이 스냅샷만 사용한다.
+  </div>
+
+  <p class="tx-sub">DB별 기본값</p>
+
+  <table>
+    <tr><th>DB</th><th>기본 격리 수준</th><th>비고</th></tr>
+    <tr><td>MySQL InnoDB</td><td><span class="badge badge-warning">REPEATABLE_READ</span></td><td>Gap Lock으로 Phantom Read도 실질적 차단</td></tr>
+    <tr><td>PostgreSQL</td><td><span class="badge badge-tag">READ_COMMITTED</span></td><td>MVCC 기반, REPEATABLE_READ도 SSI(직렬화 가능 스냅샷)로 구현</td></tr>
+    <tr><td>Oracle</td><td><span class="badge badge-tag">READ_COMMITTED</span></td><td>MVCC 기반, READ_UNCOMMITTED 미지원</td></tr>
+    <tr><td>Spring <code>DEFAULT</code></td><td colspan="2">DB 드라이버 기본값을 그대로 따름 — 별도 지정 없으면 이 값 사용</td></tr>
+  </table>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">격리 수준 직접 지정</span>
+    </div>
+    <pre><code><span class="tx-cmt">// 격리 수준 직접 지정 — 반드시 DB가 해당 레벨을 지원해야 한다</span>
+<span class="tx-ann">@Transactional</span>(isolation = Isolation.<span class="tx-ret">READ_COMMITTED</span>)
+<span class="tx-kw">public</span> <span class="tx-cls">List</span>&lt;<span class="tx-cls">Product</span>&gt; <span class="tx-fn">getProducts</span>() { ... }
+
+<span class="tx-cmt">// Spring의 DEFAULT는 DB 기본값을 따름</span>
+<span class="tx-ann">@Transactional</span>(isolation = Isolation.<span class="tx-ret">DEFAULT</span>)
+<span class="tx-kw">public</span> <span class="tx-cls">List</span>&lt;<span class="tx-cls">Product</span>&gt; <span class="tx-fn">getProducts</span>() { ... }</code></pre>
+  </div>
+
+  <div class="tx-callout ok">
+    <strong>실무 가이드</strong>
+    대부분의 경우 <strong>DB 기본값을 그대로 사용</strong>한다.
+    이상 현상이 실제 문제가 될 때는 격리 수준을 올리는 것보다 <strong>SELECT … FOR UPDATE(비관적 락)</strong>나 <strong>버전 컬럼 비교(낙관적 락)</strong>로 해결하는 것이 성능 영향이 적다.
+    <code>SERIALIZABLE</code>은 읽기도 모두 잠그므로 특별한 이유가 없으면 피한다.
+  </div>
+</div>
+
+
+<!-- Summary -->
+<div class="tx-summary">
+  <h3>핵심 정리</h3>
+  <ul>
+    <li>@Transactional = AOP Proxy가 트랜잭션 시작/커밋/롤백을 대신 처리</li>
+    <li>REQUIRED: 하나로 묶기 (기본) — 실패하면 전체 롤백</li>
+    <li>REQUIRES_NEW: 완전 별도 트랜잭션 — 내부 커밋은 외부 롤백의 영향 없음, 커넥션 2개 주의</li>
+    <li>NESTED: savepoint 부분 롤백 — 외부 catch 필수, 외부 롤백 시 함께 사라짐</li>
+    <li>Rollback: RuntimeException/Error → 자동 롤백 / Checked Exception → 롤백 안 됨 (기본)</li>
+    <li>catch로 예외 삼키면 Proxy가 인지 못해 롤백 안 됨 — 함정</li>
+    <li>Isolation: 격리 강할수록 이상 현상 줄지만 성능 저하, 실무는 DB 기본값 사용</li>
+  </ul>
+</div>
+
+
+<!-- ⑤ 퀴즈 -->
+<div class="card" id="quiz">
+  <div class="tx-section-header">
+    <div class="tx-section-number">5</div>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">퀴즈 — 직접 확인해보자</h2>
+  </div>
+
+  <!-- Q1 -->
+  <div class="tx-quiz-item" data-answer="c">
+    <div class="tx-quiz-q"><span class="tx-qnum">Q1.</span> REQUIRES_NEW로 실행된 내부 트랜잭션이 커밋된 후 외부 트랜잭션이 롤백되면?</div>
+    <div class="tx-options">
+      <div class="tx-option" onclick="txChoose(this,'a')"><span class="tx-opt-label">A</span> 내부 트랜잭션도 함께 롤백된다</div>
+      <div class="tx-option" onclick="txChoose(this,'b')"><span class="tx-opt-label">B</span> 두 트랜잭션 모두 롤백된다</div>
+      <div class="tx-option" onclick="txChoose(this,'c')"><span class="tx-opt-label">C</span> 내부 트랜잭션은 이미 커밋됐으므로 영향 없다</div>
+      <div class="tx-option" onclick="txChoose(this,'d')"><span class="tx-opt-label">D</span> 외부 트랜잭션도 커밋 강제된다</div>
+    </div>
+    <div class="tx-quiz-explain">
+      <strong style="color:var(--green)">정답: C</strong><br>
+      REQUIRES_NEW는 완전히 별개의 트랜잭션이다. 내부가 먼저 커밋되면 외부 롤백과 무관하게 DB에 반영된 상태다. 이것이 감사 로그에 REQUIRES_NEW를 쓰는 이유 — 메인 작업이 실패해도 로그는 남아야 하기 때문이다.
+    </div>
+    <div class="tx-quiz-actions">
+      <button class="tx-btn tx-btn-primary" onclick="txSubmit(this)">확인</button>
+      <button class="tx-btn tx-btn-reset" onclick="txReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <!-- Q2 -->
+  <div class="tx-quiz-item" data-answer="b">
+    <div class="tx-quiz-q"><span class="tx-qnum">Q2.</span> NESTED 트랜잭션에서 예외가 발생했을 때 외부 트랜잭션이 계속 진행되려면?</div>
+    <div class="tx-options">
+      <div class="tx-option" onclick="txChoose(this,'a')"><span class="tx-opt-label">A</span> 아무 처리 없이 자동으로 부분 롤백 후 계속된다</div>
+      <div class="tx-option" onclick="txChoose(this,'b')"><span class="tx-opt-label">B</span> 외부에서 반드시 try-catch로 예외를 잡아야 한다</div>
+      <div class="tx-option" onclick="txChoose(this,'c')"><span class="tx-opt-label">C</span> NESTED 내부에서 예외를 삼켜야 한다</div>
+      <div class="tx-option" onclick="txChoose(this,'d')"><span class="tx-opt-label">D</span> rollbackFor 설정으로 제어할 수 있다</div>
+    </div>
+    <div class="tx-quiz-explain">
+      <strong style="color:var(--green)">정답: B</strong><br>
+      NESTED가 예외를 던지면 그 예외가 외부 트랜잭션 A까지 전파된다. A가 예외를 받으면 A 전체를 롤백한다. 외부에서 try-catch로 예외를 잡아야만 "NESTED는 savepoint까지 롤백, A는 계속 진행"이 가능하다.
+    </div>
+    <div class="tx-quiz-actions">
+      <button class="tx-btn tx-btn-primary" onclick="txSubmit(this)">확인</button>
+      <button class="tx-btn tx-btn-reset" onclick="txReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <!-- Q3 -->
+  <div class="tx-quiz-item" data-answer="d">
+    <div class="tx-quiz-q"><span class="tx-qnum">Q3.</span> 다음 코드에서 orderRepo.save()는 어떻게 되는가?</div>
+    <div class="terminal-window" style="margin-bottom:14px;">
+      <div class="terminal-header">
+        <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+        <span class="terminal-title">OrderService.java</span>
+      </div>
+      <pre><code><span class="tx-ann">@Transactional</span>
+<span class="tx-kw">public void</span> <span class="tx-fn">createOrder</span>() {
+    orderRepo.save(order);
+    <span class="tx-kw">try</span> {
+        <span class="tx-kw">throw new</span> <span class="tx-cls">RuntimeException</span>(<span class="tx-str">"실패"</span>);
+    } <span class="tx-kw">catch</span> (<span class="tx-cls">RuntimeException</span> e) {
+        log.error(<span class="tx-str">"에러 발생"</span>, e);  <span class="tx-cmt">// 예외를 삼킴</span>
+    }
+}</code></pre>
+    </div>
+    <div class="tx-options">
+      <div class="tx-option" onclick="txChoose(this,'a')"><span class="tx-opt-label">A</span> RuntimeException이므로 롤백된다</div>
+      <div class="tx-option" onclick="txChoose(this,'b')"><span class="tx-opt-label">B</span> try-catch 내부이므로 롤백된다</div>
+      <div class="tx-option" onclick="txChoose(this,'c')"><span class="tx-opt-label">C</span> 트랜잭션 자체가 실패한다</div>
+      <div class="tx-option" onclick="txChoose(this,'d')"><span class="tx-opt-label">D</span> 커밋된다 (Proxy가 예외를 인지하지 못함)</div>
+    </div>
+    <div class="tx-quiz-explain">
+      <strong style="color:var(--green)">정답: D</strong><br>
+      catch로 예외를 삼키면 Proxy까지 예외가 전파되지 않는다. Proxy는 예외를 받아야 롤백을 실행하는데, 메서드가 정상적으로 종료된 것처럼 보이므로 커밋한다. orderRepo.save()가 DB에 반영된다.
+    </div>
+    <div class="tx-quiz-actions">
+      <button class="tx-btn tx-btn-primary" onclick="txSubmit(this)">확인</button>
+      <button class="tx-btn tx-btn-reset" onclick="txReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <!-- Q4 -->
+  <div class="tx-quiz-item" data-answer="a">
+    <div class="tx-quiz-q"><span class="tx-qnum">Q4.</span> @Transactional 기본 설정에서 롤백이 발생하지 않는 경우는?</div>
+    <div class="tx-options">
+      <div class="tx-option" onclick="txChoose(this,'a')"><span class="tx-opt-label">A</span> IOException 이 throws 로 전파됨</div>
+      <div class="tx-option" onclick="txChoose(this,'b')"><span class="tx-opt-label">B</span> NullPointerException 이 throws 로 전파됨</div>
+      <div class="tx-option" onclick="txChoose(this,'c')"><span class="tx-opt-label">C</span> OutOfMemoryError 가 발생함</div>
+      <div class="tx-option" onclick="txChoose(this,'d')"><span class="tx-opt-label">D</span> IllegalStateException 이 throws 로 전파됨</div>
+    </div>
+    <div class="tx-quiz-explain">
+      <strong style="color:var(--green)">정답: A</strong><br>
+      IOException은 Checked Exception이다. RuntimeException을 상속하지 않으므로 @Transactional 기본 설정에서는 롤백하지 않는다. rollbackFor = Exception.class를 명시해야 롤백된다. 나머지(NullPointerException, IllegalStateException)는 RuntimeException, OutOfMemoryError는 Error이므로 모두 기본 롤백 대상이다.
+    </div>
+    <div class="tx-quiz-actions">
+      <button class="tx-btn tx-btn-primary" onclick="txSubmit(this)">확인</button>
+      <button class="tx-btn tx-btn-reset" onclick="txReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <!-- Q5 -->
+  <div class="tx-quiz-item" data-answer="b">
+    <div class="tx-quiz-q"><span class="tx-qnum">Q5.</span> 트랜잭션 A(REQUIRED) 안에서 NESTED 트랜잭션 B가 실행됐다. B는 성공했고 이후 A에서 예외가 발생했다. 결과는?</div>
+    <div class="tx-options">
+      <div class="tx-option" onclick="txChoose(this,'a')"><span class="tx-opt-label">A</span> B는 이미 성공했으므로 B 작업은 커밋, A만 롤백</div>
+      <div class="tx-option" onclick="txChoose(this,'b')"><span class="tx-opt-label">B</span> A 전체 롤백 — B 작업도 함께 취소</div>
+      <div class="tx-option" onclick="txChoose(this,'c')"><span class="tx-opt-label">C</span> B는 NESTED이므로 항상 독립적으로 커밋 유지</div>
+      <div class="tx-option" onclick="txChoose(this,'d')"><span class="tx-opt-label">D</span> savepoint 덕분에 B는 커밋, A는 B 이후만 롤백</div>
+    </div>
+    <div class="tx-quiz-explain">
+      <strong style="color:var(--green)">정답: B</strong><br>
+      NESTED는 물리적으로 같은 트랜잭션이다. B가 성공했더라도 아직 커밋된 것이 아니라 A와 함께 대기 중인 상태다. A가 롤백되면 savepoint를 포함한 모든 변경이 취소된다. REQUIRES_NEW와 달리 NESTED는 외부 롤백으로부터 보호받지 못한다.
+    </div>
+    <div class="tx-quiz-actions">
+      <button class="tx-btn tx-btn-primary" onclick="txSubmit(this)">확인</button>
+      <button class="tx-btn tx-btn-reset" onclick="txReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <div class="tx-quiz-score" id="txScoreBoard">
+    <div class="tx-score-num" id="txScoreNum">0 / 5</div>
+    <p id="txScoreMsg"></p>
+  </div>
+</div>
+
+
+<p style="text-align:right; font-size:0.8rem; color:var(--text-muted); margin-top:30px;">
+  © 2026 Gustav Lab Technical Study Log
+</p>
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#what-is-tx"   onclick="toggleTOC()">1. @Transactional 이란</a></li>
+    <li><a href="#propagation"  onclick="toggleTOC()">2. Propagation 전파 방식</a></li>
+    <li><a href="#rollback"     onclick="toggleTOC()">3. Rollback 규칙</a></li>
+    <li><a href="#isolation"    onclick="toggleTOC()">4. Isolation 격리 수준</a></li>
+    <li><a href="#quiz"         onclick="toggleTOC()">5. 퀴즈</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>
+
+<script>
+  function txChoose(el, val) {
+    const item = el.closest('.tx-quiz-item');
+    if (item.dataset.done) return;
+    item.querySelectorAll('.tx-option').forEach(o => o.classList.remove('tx-selected'));
+    el.classList.add('tx-selected');
+    item.dataset.selected = val;
+  }
+
+  function txSubmit(btn) {
+    const item = btn.closest('.tx-quiz-item');
+    if (item.dataset.done) return;
+    const selected = item.dataset.selected;
+    if (!selected) { alert('선택지를 골라주세요.'); return; }
+    const answer = item.dataset.answer;
+    item.dataset.done = '1';
+
+    item.querySelectorAll('.tx-option').forEach(o => {
+      const v = o.getAttribute('onclick').match(/'(\w)'/)[1];
+      o.classList.remove('tx-selected');
+      if (v === answer)                   o.classList.add('tx-correct');
+      if (v === selected && v !== answer) o.classList.add('tx-wrong');
+    });
+    item.querySelector('.tx-quiz-explain').classList.add('show');
+    txCheckAllDone();
+  }
+
+  function txReset(btn) {
+    const item = btn.closest('.tx-quiz-item');
+    delete item.dataset.done;
+    delete item.dataset.selected;
+    item.querySelectorAll('.tx-option').forEach(o => {
+      o.classList.remove('tx-correct', 'tx-wrong', 'tx-selected');
+    });
+    item.querySelector('.tx-quiz-explain').classList.remove('show');
+    document.getElementById('txScoreBoard').style.display = 'none';
+  }
+
+  function txCheckAllDone() {
+    const items = document.querySelectorAll('.tx-quiz-item');
+    const done  = [...items].filter(i => i.dataset.done);
+    if (done.length < items.length) return;
+
+    let score = 0;
+    items.forEach(item => {
+      if (item.dataset.selected === item.dataset.answer) score++;
+    });
+
+    const board = document.getElementById('txScoreBoard');
+    document.getElementById('txScoreNum').textContent = score + ' / ' + items.length;
+    const msgs = ['다시 한번 읽어보자!', '조금 더 읽어보자.', '반은 왔다!', '거의 다 왔다!', '완벽하다!', '완벽하다!'];
+    document.getElementById('txScoreMsg').textContent = msgs[score] || '';
+    board.style.display = 'block';
+    board.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+</script>
