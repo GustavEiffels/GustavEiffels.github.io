@@ -1,0 +1,868 @@
+<!-- [2026-05-08] Proxy Pattern — Static · JDK Dynamic · CGLIB 완전 이해 -->
+<style>
+  .report-toc {
+    position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+    background: var(--surface); border-left: 1px solid var(--border);
+    padding: 40px 25px; z-index: 1001;
+    transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+  }
+  .report-toc.active { right: 0; }
+  .report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .report-toc ul { list-style: none; padding: 0; margin: 0; }
+  .report-toc li { margin-bottom: 12px; line-height: 1.4; }
+  .report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+  .report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+  .toc-backdrop {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+    z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+  }
+  .toc-backdrop.active { display: block; opacity: 1; }
+  .toc-toggle-btn {
+    position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+    background: var(--accent); color: #fff; border: none; border-radius: 50%;
+    font-size: 1.5rem; cursor: pointer; z-index: 1002;
+    box-shadow: 0 4px 15px var(--accent-glow);
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+  }
+  .toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); }
+  @media (max-width: 768px) {
+    .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+  }
+</style>
+<style>
+  /* ── PRX Fragment Scoped Styles ── */
+  .prx-section-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 20px;
+  }
+  .prx-section-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .prx-callout {
+    border-left: 4px solid var(--accent);
+    background: rgba(94, 129, 244, 0.05);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 16px 0;
+    font-size: 14px; white-space: pre-line;
+  }
+  .prx-callout.warn { border-color: var(--yellow); background: rgba(245, 158, 11, 0.05); }
+  .prx-callout.ok   { border-color: var(--green);  background: rgba(47, 179, 68, 0.05); }
+  .prx-callout.bad  { border-color: var(--red);    background: rgba(214, 57, 57, 0.05); }
+  .prx-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+  .prx-compare-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0;
+  }
+  .prx-compare-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+  }
+  .prx-compare-card.good { border-color: var(--green); }
+  .prx-compare-card.bad  { border-color: var(--red); }
+  .prx-compare-card h4 { font-size: 13px; font-weight: 800; margin-bottom: 10px; }
+  .prx-compare-card.good h4 { color: var(--green); }
+  .prx-compare-card.bad  h4 { color: var(--red); }
+  .prx-compare-card p { font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+  .prx-compare-card p:last-child { margin-bottom: 0; }
+
+  .prx-tri-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin: 20px 0;
+  }
+  .prx-tri-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px;
+  }
+  .prx-tri-card h4 { font-size: 13px; font-weight: 800; margin-bottom: 10px; color: var(--accent); }
+  .prx-tri-card p  { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+  .prx-tri-card p:last-child { margin-bottom: 0; }
+
+  .prx-sub-title {
+    font-size: .95rem; font-weight: 700; color: #4ecdc4;
+    margin: 24px 0 10px; padding-left: 10px;
+    border-left: 3px solid #4ecdc4;
+  }
+
+  .prx-timeline {
+    position: relative; padding-left: 28px; margin: 20px 0;
+  }
+  .prx-timeline::before {
+    content: ''; position: absolute;
+    left: 8px; top: 0; bottom: 0;
+    width: 2px; background: var(--border);
+  }
+  .prx-tl-item { position: relative; margin-bottom: 24px; }
+  .prx-tl-item::before {
+    content: ''; position: absolute;
+    left: -24px; top: 6px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--bg);
+  }
+  .prx-tl-item h4 { font-size: 14px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+  .prx-tl-item p  { font-size: 13px; color: var(--text-muted); margin-bottom: 0; }
+  .prx-tl-tag {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    padding: 1px 7px; border-radius: 4px; margin-bottom: 6px;
+  }
+
+  .prx-summary {
+    background: linear-gradient(135deg, rgba(94,129,244,0.08), rgba(47,179,68,0.08));
+    border: 1px solid rgba(94,129,244,0.25);
+    border-radius: 12px; padding: 24px 28px; margin-bottom: 24px;
+  }
+  .prx-summary h3 {
+    color: var(--green); font-size: .85rem; font-weight: 700;
+    margin-bottom: 14px; letter-spacing: 1px; text-transform: uppercase;
+  }
+  .prx-summary ul { padding-left: 0; list-style: none; }
+  .prx-summary ul li {
+    padding: 7px 0; border-bottom: 1px solid var(--border);
+    font-size: 14px; color: var(--text);
+  }
+  .prx-summary ul li:last-child { border-bottom: none; }
+  .prx-summary ul li::before { content: "→ "; color: var(--green); font-weight: 700; }
+
+  .prx-tag {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 4px; margin-right: 4px;
+  }
+  .prx-tag-blue   { background: #1e2e6e; color: var(--accent); }
+  .prx-tag-green  { background: #1a3a2a; color: var(--green); }
+  .prx-tag-orange { background: #3a2e10; color: var(--yellow); }
+  .prx-tag-red    { background: #3a1a1a; color: var(--red); }
+
+  .prx-kw  { color: #c792ea; }
+  .prx-cls { color: #82aaff; }
+  .prx-fn  { color: #82aaff; }
+  .prx-str { color: #c3e88d; }
+  .prx-cmt { color: #546e7a; font-style: italic; }
+  .prx-ann { color: #f78c6c; }
+  .prx-ok  { color: var(--green); font-weight: 700; }
+  .prx-bad { color: var(--red); font-weight: 700; }
+  .prx-hi  { color: var(--accent); font-weight: 700; }
+  .prx-hi2 { color: #4ecdc4; font-weight: 700; }
+  .prx-hi3 { color: var(--yellow); font-weight: 700; }
+  .prx-dim { color: var(--text-muted); }
+
+  .prx-quiz-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 24px; margin-bottom: 14px;
+  }
+  .prx-quiz-q { font-weight: 700; color: #fff; margin-bottom: 14px; font-size: 15px; }
+  .prx-qnum  { color: var(--accent); margin-right: 8px; }
+  .prx-options { display: flex; flex-direction: column; gap: 8px; }
+  .prx-option {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px;
+    cursor: pointer; font-size: 14px;
+    transition: border-color 0.2s, background 0.2s; user-select: none;
+  }
+  .prx-option:hover { border-color: var(--accent); background: rgba(94,129,244,0.08); }
+  .prx-option.prx-selected { border-color: var(--accent) !important; background: rgba(94,129,244,0.18) !important; }
+  .prx-option.prx-selected .prx-opt-label { background: var(--accent) !important; color: #fff !important; }
+  .prx-opt-label {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--border); display: flex; align-items: center;
+    justify-content: center; font-size: 11px; font-weight: 700;
+    flex-shrink: 0; transition: background 0.2s;
+  }
+  .prx-option.prx-correct { border-color: var(--green) !important; background: rgba(47,179,68,0.12) !important; }
+  .prx-option.prx-wrong   { border-color: var(--red)   !important; background: rgba(214,57,57,0.12)  !important; }
+  .prx-option.prx-correct .prx-opt-label { background: var(--green) !important; color: #fff !important; }
+  .prx-option.prx-wrong   .prx-opt-label { background: var(--red)   !important; color: #fff !important; }
+  .prx-quiz-explain {
+    margin-top: 12px; padding: 10px 14px;
+    background: var(--surface); border-radius: 8px;
+    font-size: 13px; color: var(--text-muted);
+    display: none; border-left: 3px solid var(--accent);
+  }
+  .prx-quiz-explain.show { display: block; }
+  .prx-quiz-actions { display: flex; gap: 10px; margin-top: 10px; }
+  .prx-btn {
+    padding: 7px 16px; border-radius: 8px; border: none;
+    font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity 0.2s;
+  }
+  .prx-btn:hover { opacity: 0.85; }
+  .prx-btn-primary { background: var(--accent); color: #fff; }
+  .prx-btn-reset { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+  .prx-quiz-score {
+    text-align: center; padding: 20px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; margin-top: 16px; display: none;
+  }
+  .prx-score-num {
+    font-size: 2.6rem; font-weight: 900;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .prx-quiz-score p { color: var(--text-muted); margin-top: 8px; font-size: 14px; }
+
+  @media (max-width: 768px) {
+    .prx-compare-grid { grid-template-columns: 1fr; }
+    .prx-tri-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<h1>Proxy Pattern — Static · JDK Dynamic · CGLIB 완전 이해</h1>
+
+<div class="card" style="text-align:center; background: linear-gradient(135deg, var(--surface), var(--surface2));">
+  <span class="badge badge-tag">Design Pattern</span>
+  <span class="badge badge-tag">Java</span>
+  <span class="badge badge-tag">JDK Dynamic Proxy</span>
+  <span class="badge badge-tag">CGLIB</span>
+  <span class="badge badge-date">2026-05-08</span>
+  <p style="margin-top: 14px; color: var(--text-muted); font-size: 14px;">
+    순수 Java 코드로 처음부터 — 왜 CGLIB까지 왔는지 이해한다
+  </p>
+</div>
+
+<!-- ① Proxy란 무엇인가 -->
+<div class="card" id="what-is-proxy">
+  <div class="prx-section-header">
+    <div class="prx-section-number">1</div>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">Proxy란 무엇인가</h2>
+  </div>
+
+  <p>Proxy는 <strong>진짜 객체 앞에 서서 호출을 가로채는 대리인</strong>이다. 클라이언트는 대리인인지 진짜인지 알 필요가 없다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Proxy 핵심 구조</span>
+    </div>
+    <pre><code style="color:var(--text-muted);">클라이언트  →  <span class="prx-hi">[Proxy]</span>  →  <span class="prx-hi2">[진짜 객체]</span>
+
+              <span class="prx-hi">↑ 여기서 가로채서</span>
+              <span class="prx-hi">앞뒤로 로직을 끼워 넣는다</span></code></pre>
+  </div>
+
+  <p>핵심은 <strong>"같은 타입으로 위장"</strong>하는 것이다. 클라이언트가 인터페이스(타입)로만 소통하기 때문에 Proxy로 바꿔치기해도 눈치채지 못한다.</p>
+
+  <div class="prx-callout">
+    <strong>Proxy가 필요한 상황</strong>
+    진짜 객체를 수정하지 않고 — 로깅, 캐싱, 권한 체크, 트랜잭션 등을 앞뒤에 끼워 넣어야 할 때.
+  </div>
+</div>
+
+<!-- ② Static Proxy -->
+<div class="card" id="static-proxy">
+  <div class="prx-section-header">
+    <div class="prx-section-number">2</div>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">Static Proxy — 손으로 직접 만들기</h2>
+  </div>
+
+  <p>Proxy 패턴은 세 요소로 구성된다. 인터페이스를 공유하기 때문에 클라이언트 코드는 바꿀 필요가 없다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Static Proxy — 인터페이스 · 진짜 객체 · Proxy</span>
+    </div>
+    <pre><code><span class="prx-cmt">// ① 공통 인터페이스 — 클라이언트는 이것만 안다</span>
+<span class="prx-kw">interface</span> <span class="prx-cls">UserRepository</span> {
+    <span class="prx-kw">void</span>   <span class="prx-fn">save</span>(<span class="prx-cls">String</span> name);
+    <span class="prx-cls">String</span> <span class="prx-fn">findById</span>(<span class="prx-kw">int</span> id);
+}
+
+<span class="prx-cmt">// ② 진짜 객체 — 비즈니스 로직만</span>
+<span class="prx-kw">class</span> <span class="prx-cls">RealUserRepository</span> <span class="prx-kw">implements</span> <span class="prx-cls">UserRepository</span> {
+    <span class="prx-ann">@Override</span>
+    <span class="prx-kw">public void</span> <span class="prx-fn">save</span>(<span class="prx-cls">String</span> name) {
+        <span class="prx-cls">System</span>.out.<span class="prx-fn">println</span>(<span class="prx-str">"DB에 저장: "</span> + name);
+    }
+    <span class="prx-ann">@Override</span>
+    <span class="prx-kw">public</span> <span class="prx-cls">String</span> <span class="prx-fn">findById</span>(<span class="prx-kw">int</span> id) {
+        <span class="prx-kw">return</span> <span class="prx-str">"User_"</span> + id;
+    }
+}
+
+<span class="prx-cmt">// ③ Proxy — 같은 인터페이스 구현, 진짜 객체를 품음</span>
+<span class="prx-kw">class</span> <span class="prx-cls">LoggingUserProxy</span> <span class="prx-kw">implements</span> <span class="prx-cls">UserRepository</span> {
+
+    <span class="prx-kw">private final</span> <span class="prx-cls">UserRepository</span> <span class="prx-hi">target</span>;  <span class="prx-cmt">// 진짜 객체</span>
+
+    <span class="prx-kw">public</span> <span class="prx-fn">LoggingUserProxy</span>(<span class="prx-cls">UserRepository</span> target) { <span class="prx-kw">this</span>.target = target; }
+
+    <span class="prx-ann">@Override</span>
+    <span class="prx-kw">public void</span> <span class="prx-fn">save</span>(<span class="prx-cls">String</span> name) {
+        <span class="prx-cls">System</span>.out.<span class="prx-fn">println</span>(<span class="prx-str">"[LOG] save 시작"</span>);
+        <span class="prx-hi">target</span>.<span class="prx-fn">save</span>(name);                  <span class="prx-cmt">// 진짜 호출</span>
+        <span class="prx-cls">System</span>.out.<span class="prx-fn">println</span>(<span class="prx-str">"[LOG] save 완료"</span>);
+    }
+
+    <span class="prx-ann">@Override</span>
+    <span class="prx-kw">public</span> <span class="prx-cls">String</span> <span class="prx-fn">findById</span>(<span class="prx-kw">int</span> id) {
+        <span class="prx-cls">System</span>.out.<span class="prx-fn">println</span>(<span class="prx-str">"[LOG] findById 시작"</span>);
+        <span class="prx-cls">String</span> result = <span class="prx-hi">target</span>.<span class="prx-fn">findById</span>(id);  <span class="prx-cmt">// 진짜 호출</span>
+        <span class="prx-cls">System</span>.out.<span class="prx-fn">println</span>(<span class="prx-str">"[LOG] findById 결과: "</span> + result);
+        <span class="prx-kw">return</span> result;
+    }
+}</code></pre>
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">사용 — 클라이언트는 Proxy인지 모른다</span>
+    </div>
+    <pre><code><span class="prx-cmt">// 진짜 객체를 Proxy로 감싸서 주입</span>
+<span class="prx-cls">UserRepository</span> repo = <span class="prx-kw">new</span> <span class="prx-cls">LoggingUserProxy</span>(<span class="prx-kw">new</span> <span class="prx-cls">RealUserRepository</span>());
+
+repo.<span class="prx-fn">save</span>(<span class="prx-str">"홍길동"</span>);
+repo.<span class="prx-fn">findById</span>(<span class="prx-kw">1</span>);</code></pre>
+  </div>
+
+  <div class="prx-callout ok">
+    <strong>클라이언트 코드 변경 없음</strong>
+    <code>UserRepository</code> 타입으로 받기 때문에, 내부가 Proxy든 Real이든 클라이언트 코드는 동일하다.
+  </div>
+</div>
+
+<!-- ③ Static Proxy의 문제 -->
+<div class="card" id="static-problem">
+  <div class="prx-section-header">
+    <div class="prx-section-number">3</div>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">Static Proxy의 문제 — 반복이 폭발한다</h2>
+  </div>
+
+  <p>로깅 로직은 똑같은데, 메서드마다 <code>@Override</code>를 반복해야 한다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">메서드 수만큼 반복</span>
+    </div>
+    <pre><code><span class="prx-kw">class</span> <span class="prx-cls">LoggingUserProxy</span> <span class="prx-kw">implements</span> <span class="prx-cls">UserRepository</span> {
+
+    <span class="prx-ann">@Override</span>
+    <span class="prx-kw">public void</span>   <span class="prx-fn">save</span>(...)     { <span class="prx-bad">log;</span> target.<span class="prx-fn">save</span>(...);     <span class="prx-bad">log;</span> }  <span class="prx-cmt">// 반복</span>
+    <span class="prx-ann">@Override</span>
+    <span class="prx-kw">public void</span>   <span class="prx-fn">update</span>(...)   { <span class="prx-bad">log;</span> target.<span class="prx-fn">update</span>(...);   <span class="prx-bad">log;</span> }  <span class="prx-cmt">// 반복</span>
+    <span class="prx-ann">@Override</span>
+    <span class="prx-kw">public void</span>   <span class="prx-fn">delete</span>(...)   { <span class="prx-bad">log;</span> target.<span class="prx-fn">delete</span>(...);   <span class="prx-bad">log;</span> }  <span class="prx-cmt">// 반복</span>
+    <span class="prx-ann">@Override</span>
+    <span class="prx-kw">public</span> <span class="prx-cls">String</span> <span class="prx-fn">findById</span>(...) { <span class="prx-bad">log;</span> <span class="prx-kw">return</span> target.<span class="prx-fn">findById</span>(...); <span class="prx-bad">log;</span> }  <span class="prx-cmt">// 반복</span>
+    <span class="prx-cmt">// 메서드 100개면 100번 반복...</span>
+}</code></pre>
+  </div>
+
+  <div class="prx-callout bad">
+    <strong>두 가지 문제</strong>
+    1. 메서드마다 같은 코드 반복 — DRY 위반
+    2. 인터페이스에 메서드가 추가되면 Proxy도 반드시 수정해야 함
+  </div>
+
+  <p>이 문제를 해결하기 위해 <strong>JDK Dynamic Proxy</strong>가 등장했다.</p>
+</div>
+
+<!-- ④ JDK Dynamic Proxy -->
+<div class="card" id="jdk-proxy">
+  <div class="prx-section-header">
+    <div class="prx-section-number">4</div>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">JDK Dynamic Proxy — 런타임에 동적 생성</h2>
+  </div>
+
+  <p>Java 내장 API. Proxy 클래스를 직접 작성하지 않아도 된다. <strong>모든 메서드 호출이 <code>invoke()</code> 하나로 들어온다.</strong></p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">InvocationHandler — 모든 메서드를 한 곳에서</span>
+    </div>
+    <pre><code><span class="prx-kw">import</span> java.lang.reflect.<span class="prx-cls">InvocationHandler</span>;
+<span class="prx-kw">import</span> java.lang.reflect.<span class="prx-cls">Method</span>;
+<span class="prx-kw">import</span> java.lang.reflect.<span class="prx-cls">Proxy</span>;
+
+<span class="prx-cmt">// 핸들러 — 모든 메서드 호출이 invoke() 하나로 집결</span>
+<span class="prx-kw">class</span> <span class="prx-cls">LoggingHandler</span> <span class="prx-kw">implements</span> <span class="prx-cls">InvocationHandler</span> {
+
+    <span class="prx-kw">private final</span> <span class="prx-cls">Object</span> <span class="prx-hi">target</span>;  <span class="prx-cmt">// Object로 받음 — 어떤 타입이든 OK</span>
+
+    <span class="prx-kw">public</span> <span class="prx-fn">LoggingHandler</span>(<span class="prx-cls">Object</span> target) { <span class="prx-kw">this</span>.target = target; }
+
+    <span class="prx-ann">@Override</span>
+    <span class="prx-kw">public</span> <span class="prx-cls">Object</span> <span class="prx-fn">invoke</span>(<span class="prx-cls">Object</span> proxy, <span class="prx-cls">Method</span> <span class="prx-hi2">method</span>, <span class="prx-cls">Object</span>[] args) <span class="prx-kw">throws</span> <span class="prx-cls">Throwable</span> {
+        <span class="prx-cmt">// save(), findById(), update() ... 어떤 메서드든 여기로 들어옴</span>
+        <span class="prx-cls">System</span>.out.<span class="prx-fn">println</span>(<span class="prx-str">"[LOG] "</span> + <span class="prx-hi2">method</span>.<span class="prx-fn">getName</span>() + <span class="prx-str">" 시작"</span>);
+
+        <span class="prx-cls">Object</span> result = <span class="prx-hi2">method</span>.<span class="prx-fn">invoke</span>(<span class="prx-hi">target</span>, args);  <span class="prx-cmt">// Reflection으로 진짜 메서드 호출</span>
+
+        <span class="prx-cls">System</span>.out.<span class="prx-fn">println</span>(<span class="prx-str">"[LOG] "</span> + <span class="prx-hi2">method</span>.<span class="prx-fn">getName</span>() + <span class="prx-str">" 완료"</span>);
+        <span class="prx-kw">return</span> result;
+    }
+}</code></pre>
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Proxy.newProxyInstance() — Proxy 생성</span>
+    </div>
+    <pre><code><span class="prx-cls">UserRepository</span> real = <span class="prx-kw">new</span> <span class="prx-cls">RealUserRepository</span>();
+
+<span class="prx-cls">UserRepository</span> proxy = (<span class="prx-cls">UserRepository</span>) <span class="prx-cls">Proxy</span>.<span class="prx-fn">newProxyInstance</span>(
+    real.<span class="prx-fn">getClass</span>().<span class="prx-fn">getClassLoader</span>(),       <span class="prx-cmt">// 클래스로더</span>
+    <span class="prx-kw">new</span> <span class="prx-cls">Class</span>[]{ <span class="prx-cls">UserRepository</span>.<span class="prx-kw">class</span> },   <span class="prx-cmt">// 구현할 인터페이스 목록</span>
+    <span class="prx-kw">new</span> <span class="prx-cls">LoggingHandler</span>(real)               <span class="prx-cmt">// 가로챌 핸들러</span>
+);
+
+proxy.<span class="prx-fn">save</span>(<span class="prx-str">"홍길동"</span>);    <span class="prx-cmt">// → invoke(proxy, save메서드, ["홍길동"])</span>
+proxy.<span class="prx-fn">findById</span>(1);    <span class="prx-cmt">// → invoke(proxy, findById메서드, [1])</span></code></pre>
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">런타임 흐름</span>
+    </div>
+    <pre><code style="color:var(--text-muted);">proxy.<span class="prx-fn">save</span>(<span class="prx-str">"홍길동"</span>)
+    ↓
+<span class="prx-hi">LoggingHandler.invoke()</span>    <span class="prx-dim">← save, findById, update 전부 여기로</span>
+    → method.getName()  =  <span class="prx-str">"save"</span>
+    → <span class="prx-hi2">method.invoke(target, args)</span>   <span class="prx-dim">← Reflection으로 진짜 호출</span>
+        → <span class="prx-hi2">RealUserRepository.save("홍길동")</span>
+    ← 반환
+    ↓
+결과 반환</code></pre>
+  </div>
+
+  <div class="prx-compare-grid">
+    <div class="prx-compare-card bad">
+      <h4>Static Proxy</h4>
+      <p>메서드 3개 → Override 3번</p>
+      <p>메서드 100개 → Override 100번</p>
+      <p>인터페이스 변경 시 Proxy도 수정</p>
+    </div>
+    <div class="prx-compare-card good">
+      <h4>JDK Dynamic Proxy</h4>
+      <p>메서드 몇 개든 → invoke() 1개</p>
+      <p>인터페이스 변경 시 Proxy 수정 불필요</p>
+      <p>핸들러 하나로 여러 타입에 재사용 가능</p>
+    </div>
+  </div>
+</div>
+
+<!-- ⑤ JDK Proxy의 한계 -->
+<div class="card" id="jdk-limit">
+  <div class="prx-section-header">
+    <div class="prx-section-number">5</div>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">JDK Dynamic Proxy의 한계 — 인터페이스 필수</h2>
+  </div>
+
+  <p>JDK Dynamic Proxy는 인터페이스를 구현하는 방식으로 Proxy를 생성한다. 인터페이스가 없으면 동작하지 않는다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">인터페이스 없는 클래스 → JDK Proxy 불가</span>
+    </div>
+    <pre><code><span class="prx-cmt">// 인터페이스 없는 일반 클래스</span>
+<span class="prx-kw">class</span> <span class="prx-cls">OrderService</span> {   <span class="prx-cmt">// implements 없음</span>
+    <span class="prx-kw">public void</span> <span class="prx-fn">order</span>(<span class="prx-cls">String</span> item) {
+        <span class="prx-cls">System</span>.out.<span class="prx-fn">println</span>(item + <span class="prx-str">" 주문 완료"</span>);
+    }
+}
+
+<span class="prx-cls">OrderService</span> real = <span class="prx-kw">new</span> <span class="prx-cls">OrderService</span>();
+
+<span class="prx-cmt">// JDK Dynamic Proxy 시도 → 실패</span>
+<span class="prx-cls">Object</span> proxy = <span class="prx-cls">Proxy</span>.<span class="prx-fn">newProxyInstance</span>(
+    real.<span class="prx-fn">getClass</span>().<span class="prx-fn">getClassLoader</span>(),
+    <span class="prx-kw">new</span> <span class="prx-cls">Class</span>[]{ ??? },   <span class="prx-bad">// 인터페이스가 없음 → 넣을 게 없다</span>
+    <span class="prx-kw">new</span> <span class="prx-cls">LoggingHandler</span>(real)
+);
+<span class="prx-cmt">// 결과: IllegalArgumentException 발생</span></code></pre>
+  </div>
+
+  <div class="prx-callout warn">
+    <strong>실무 한계</strong>
+    Spring에서 모든 Service에 인터페이스를 강제하는 것은 번거롭다.
+    그래서 <strong>CGLIB</strong>이 등장했다.
+  </div>
+</div>
+
+<!-- ⑥ CGLIB -->
+<div class="card" id="cglib">
+  <div class="prx-section-header">
+    <div class="prx-section-number">6</div>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">CGLIB — 상속으로 Proxy 생성</h2>
+  </div>
+
+  <p>CGLIB(Code Generation Library)은 원본 클래스를 <strong>상속한 자식 클래스</strong>를 바이트코드로 런타임에 생성한다. 자식이 부모 메서드를 <code>@Override</code>해서 가로챈다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">CGLIB이 런타임에 자동 생성하는 Proxy (개념적 표현)</span>
+    </div>
+    <pre><code><span class="prx-cmt">// 원본 클래스 — 인터페이스 없어도 된다</span>
+<span class="prx-kw">class</span> <span class="prx-cls">OrderService</span> {
+    <span class="prx-kw">public void</span> <span class="prx-fn">order</span>(<span class="prx-cls">String</span> item) {
+        <span class="prx-cls">System</span>.out.<span class="prx-fn">println</span>(item + <span class="prx-str">" 주문 완료"</span>);
+    }
+}
+
+<span class="prx-cmt">// CGLIB이 런타임에 자동 생성하는 Proxy (개념적 표현)</span>
+<span class="prx-kw">class</span> <span class="prx-cls">OrderService$$CGLIB</span> <span class="prx-kw">extends</span> <span class="prx-cls">OrderService</span> {  <span class="prx-cmt">// 상속</span>
+
+    <span class="prx-ann">@Override</span>
+    <span class="prx-kw">public void</span> <span class="prx-fn">order</span>(<span class="prx-cls">String</span> item) {
+        <span class="prx-cls">System</span>.out.<span class="prx-fn">println</span>(<span class="prx-str">"[LOG] order 시작"</span>);  <span class="prx-cmt">// Before</span>
+        <span class="prx-kw">super</span>.<span class="prx-fn">order</span>(item);                          <span class="prx-cmt">// 진짜 메서드 호출</span>
+        <span class="prx-cls">System</span>.out.<span class="prx-fn">println</span>(<span class="prx-str">"[LOG] order 완료"</span>);    <span class="prx-cmt">// After</span>
+    }
+}</code></pre>
+  </div>
+
+  <div class="prx-sub-title">순수 Java에서 CGLIB 사용</div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Enhancer — CGLIB Proxy 생성</span>
+    </div>
+    <pre><code><span class="prx-kw">import</span> net.sf.cglib.proxy.<span class="prx-cls">Enhancer</span>;
+<span class="prx-kw">import</span> net.sf.cglib.proxy.<span class="prx-cls">MethodInterceptor</span>;
+
+<span class="prx-cls">Enhancer</span> enhancer = <span class="prx-kw">new</span> <span class="prx-cls">Enhancer</span>();
+enhancer.<span class="prx-fn">setSuperclass</span>(<span class="prx-cls">OrderService</span>.<span class="prx-kw">class</span>);   <span class="prx-cmt">// 상속할 클래스 지정</span>
+enhancer.<span class="prx-fn">setCallback</span>((<span class="prx-cls">MethodInterceptor</span>) (obj, method, args, proxy) -&gt; {
+    <span class="prx-cls">System</span>.out.<span class="prx-fn">println</span>(<span class="prx-str">"[LOG] "</span> + method.<span class="prx-fn">getName</span>() + <span class="prx-str">" 시작"</span>);
+    <span class="prx-cls">Object</span> result = proxy.<span class="prx-fn">invokeSuper</span>(obj, args);  <span class="prx-cmt">// 부모(진짜) 메서드 호출</span>
+    <span class="prx-cls">System</span>.out.<span class="prx-fn">println</span>(<span class="prx-str">"[LOG] "</span> + method.<span class="prx-fn">getName</span>() + <span class="prx-str">" 완료"</span>);
+    <span class="prx-kw">return</span> result;
+});
+
+<span class="prx-cls">OrderService</span> proxy = (<span class="prx-cls">OrderService</span>) enhancer.<span class="prx-fn">create</span>();
+proxy.<span class="prx-fn">order</span>(<span class="prx-str">"노트북"</span>);</code></pre>
+  </div>
+
+  <div class="prx-callout warn">
+    <strong>CGLIB의 제한</strong>
+    상속 방식이기 때문에 <code>final</code> 클래스와 <code>final</code> 메서드에는 적용 불가.
+    Override 자체가 불가능하기 때문이다.
+  </div>
+</div>
+
+<!-- ⑦ 3가지 비교 -->
+<div class="card" id="comparison">
+  <div class="prx-section-header">
+    <div class="prx-section-number">7</div>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">3가지 방식 완전 비교</h2>
+  </div>
+
+  <div class="prx-tri-grid">
+    <div class="prx-tri-card">
+      <h4>Static Proxy</h4>
+      <p><span class="prx-tag prx-tag-orange">수동</span> 직접 작성</p>
+      <p>인터페이스 필요</p>
+      <p>메서드마다 Override 반복</p>
+      <p>가장 이해하기 쉬움</p>
+    </div>
+    <div class="prx-tri-card">
+      <h4>JDK Dynamic Proxy</h4>
+      <p><span class="prx-tag prx-tag-blue">Java 내장</span> 런타임 생성</p>
+      <p><span class="prx-tag prx-tag-red">인터페이스 필수</span></p>
+      <p>invoke() 하나로 처리</p>
+      <p>인터페이스 없으면 불가</p>
+    </div>
+    <div class="prx-tri-card">
+      <h4>CGLIB</h4>
+      <p><span class="prx-tag prx-tag-green">외부 라이브러리</span> 런타임 생성</p>
+      <p>인터페이스 불필요</p>
+      <p>클래스 상속으로 Override</p>
+      <p>final 클래스/메서드 불가</p>
+    </div>
+  </div>
+
+  <table>
+    <tr>
+      <th>기준</th>
+      <th>Static Proxy</th>
+      <th>JDK Dynamic</th>
+      <th>CGLIB</th>
+    </tr>
+    <tr>
+      <td><strong>Proxy 생성</strong></td>
+      <td>직접 작성</td>
+      <td>런타임 자동</td>
+      <td>런타임 자동</td>
+    </tr>
+    <tr>
+      <td><strong>인터페이스 필요</strong></td>
+      <td>필요</td>
+      <td><span class="prx-tag prx-tag-red">필수</span></td>
+      <td><span class="prx-tag prx-tag-green">불필요</span></td>
+    </tr>
+    <tr>
+      <td><strong>동작 방식</strong></td>
+      <td>직접 구현</td>
+      <td>인터페이스 구현</td>
+      <td>클래스 상속</td>
+    </tr>
+    <tr>
+      <td><strong>final 클래스</strong></td>
+      <td>가능</td>
+      <td>가능</td>
+      <td><span class="prx-tag prx-tag-red">불가</span></td>
+    </tr>
+    <tr>
+      <td><strong>Spring 사용</strong></td>
+      <td>X</td>
+      <td>Spring 4.x 이전 기본</td>
+      <td><span class="prx-tag prx-tag-blue">Spring Boot 기본</span></td>
+    </tr>
+  </table>
+</div>
+
+<!-- ⑧ 진화 흐름 -->
+<div class="card" id="evolution">
+  <div class="prx-section-header">
+    <div class="prx-section-number">8</div>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">진화 흐름 — 왜 CGLIB까지 왔나</h2>
+  </div>
+
+  <div class="prx-timeline">
+    <div class="prx-tl-item">
+      <div class="prx-tl-tag prx-tag-orange">Static Proxy</div>
+      <h4>직접 손으로 Proxy 작성</h4>
+      <p>개념은 명확하지만 메서드마다 같은 코드 반복 → DRY 위반</p>
+    </div>
+    <div class="prx-tl-item">
+      <div class="prx-tl-tag prx-tag-blue">JDK Dynamic Proxy</div>
+      <h4>invoke() 하나로 반복 제거</h4>
+      <p>모든 메서드 호출이 한 곳으로. 단, 인터페이스가 없으면 사용 불가</p>
+    </div>
+    <div class="prx-tl-item">
+      <div class="prx-tl-tag prx-tag-green">CGLIB</div>
+      <h4>상속으로 인터페이스 제약 돌파</h4>
+      <p>클래스를 직접 상속해 Override → 인터페이스 없는 클래스도 Proxy 생성 가능</p>
+    </div>
+    <div class="prx-tl-item">
+      <div class="prx-tl-tag prx-tag-blue">Spring Boot</div>
+      <h4>CGLIB을 기본으로 채택</h4>
+      <p>@Transactional, @Cacheable 등 → 서버 시작 시 자동으로 CGLIB Proxy 생성하여 Bean으로 등록</p>
+    </div>
+  </div>
+
+  <div class="prx-sub-title">전체 흐름 한눈에</div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">진화 흐름 다이어그램</span>
+    </div>
+    <pre><code style="color:var(--text-muted);"><span class="prx-hi3">Static Proxy</span>          <span class="prx-dim">→ 직접 만드는 것, 개념 가장 명확</span>
+       <span class="prx-dim">↓ (반복 문제)</span>
+<span class="prx-hi">JDK Dynamic Proxy</span>     <span class="prx-dim">→ 반복 제거, 단 인터페이스 필요</span>
+       <span class="prx-dim">↓ (인터페이스 없는 클래스 문제)</span>
+<span class="prx-hi2">CGLIB</span>                  <span class="prx-dim">→ 인터페이스 없어도 됨 (상속 방식)</span>
+       <span class="prx-dim">↓ (Spring이 자동으로 사용)</span>
+<span class="prx-hi">Spring @Transactional</span>  <span class="prx-dim">→ CGLIB Proxy를 자동으로 생성·주입</span></code></pre>
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="prx-summary">
+  <h3>핵심 요약</h3>
+  <ul>
+    <li>Proxy = 진짜 객체와 <strong>같은 타입으로 위장한 대리인</strong> — 클라이언트 코드 변경 없음</li>
+    <li>Static Proxy = 직접 작성, 메서드마다 Override → 메서드 수만큼 반복</li>
+    <li>JDK Dynamic Proxy = <code>invoke()</code> 하나로 모든 메서드 처리, 단 <strong>인터페이스 필수</strong></li>
+    <li>CGLIB = 클래스 상속으로 Override → 인터페이스 없어도 되지만 <strong>final 불가</strong></li>
+    <li>Spring Boot = CGLIB 기본 채택, <code>@Transactional</code> 등이 붙으면 자동으로 Proxy Bean 등록</li>
+    <li>기억법: <strong>비서(Proxy)</strong>가 사장님(진짜 객체) 앞에 서서, 외부는 비서를 사장님으로 안다</li>
+  </ul>
+</div>
+
+<!-- ⑨ 퀴즈 -->
+<div class="card" id="quiz">
+  <div class="prx-section-header">
+    <div class="prx-section-number">9</div>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">퀴즈 — 직접 확인해보자</h2>
+  </div>
+
+  <!-- Q1 -->
+  <div class="prx-quiz-item" data-answer="b">
+    <div class="prx-quiz-q"><span class="prx-qnum">Q1.</span> Proxy 패턴의 핵심 조건은?</div>
+    <div class="prx-options">
+      <div class="prx-option" onclick="prxChoose(this,'a')"><span class="prx-opt-label">A</span> 진짜 객체보다 반드시 더 빠르게 동작해야 한다</div>
+      <div class="prx-option" onclick="prxChoose(this,'b')"><span class="prx-opt-label">B</span> 클라이언트가 Proxy인지 진짜 객체인지 알 수 없도록 같은 타입으로 위장한다</div>
+      <div class="prx-option" onclick="prxChoose(this,'c')"><span class="prx-opt-label">C</span> 진짜 객체를 상속받아야 한다</div>
+      <div class="prx-option" onclick="prxChoose(this,'d')"><span class="prx-opt-label">D</span> 반드시 인터페이스를 사용해야 한다</div>
+    </div>
+    <div class="prx-quiz-explain">
+      <strong style="color:var(--green)">정답: B</strong><br>
+      Proxy의 핵심은 "같은 타입으로 위장"이다. 클라이언트가 인터페이스(타입)로만 소통하기 때문에 Proxy로 바꿔치기해도 눈치채지 못한다. 인터페이스가 아닌 상속으로도 같은 효과를 낼 수 있으므로 D는 틀렸다.
+    </div>
+    <div class="prx-quiz-actions">
+      <button class="prx-btn prx-btn-primary" onclick="prxSubmit(this)">확인</button>
+      <button class="prx-btn prx-btn-reset" onclick="prxReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <!-- Q2 -->
+  <div class="prx-quiz-item" data-answer="c">
+    <div class="prx-quiz-q"><span class="prx-qnum">Q2.</span> Static Proxy의 가장 큰 단점은?</div>
+    <div class="prx-options">
+      <div class="prx-option" onclick="prxChoose(this,'a')"><span class="prx-opt-label">A</span> 런타임에 Proxy를 만들어야 해서 느리다</div>
+      <div class="prx-option" onclick="prxChoose(this,'b')"><span class="prx-opt-label">B</span> 인터페이스 없이는 사용할 수 없다</div>
+      <div class="prx-option" onclick="prxChoose(this,'c')"><span class="prx-opt-label">C</span> 메서드마다 같은 코드를 반복해서 Override해야 한다</div>
+      <div class="prx-option" onclick="prxChoose(this,'d')"><span class="prx-opt-label">D</span> final 클래스에 적용할 수 없다</div>
+    </div>
+    <div class="prx-quiz-explain">
+      <strong style="color:var(--green)">정답: C</strong><br>
+      Static Proxy는 인터페이스의 모든 메서드를 직접 Override해야 한다. 로깅 로직은 똑같은데 메서드 100개면 100번 반복해야 하는 DRY 위반이 핵심 문제다. B는 CGLIB의 장점이 필요한 이유, D는 CGLIB의 제한이다.
+    </div>
+    <div class="prx-quiz-actions">
+      <button class="prx-btn prx-btn-primary" onclick="prxSubmit(this)">확인</button>
+      <button class="prx-btn prx-btn-reset" onclick="prxReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <!-- Q3 -->
+  <div class="prx-quiz-item" data-answer="a">
+    <div class="prx-quiz-q"><span class="prx-qnum">Q3.</span> JDK Dynamic Proxy에서 모든 메서드 호출이 집결하는 곳은?</div>
+    <div class="prx-options">
+      <div class="prx-option" onclick="prxChoose(this,'a')"><span class="prx-opt-label">A</span> InvocationHandler의 invoke() 메서드</div>
+      <div class="prx-option" onclick="prxChoose(this,'b')"><span class="prx-opt-label">B</span> MethodInterceptor의 intercept() 메서드</div>
+      <div class="prx-option" onclick="prxChoose(this,'c')"><span class="prx-opt-label">C</span> Enhancer의 create() 메서드</div>
+      <div class="prx-option" onclick="prxChoose(this,'d')"><span class="prx-opt-label">D</span> Proxy.newProxyInstance() 메서드</div>
+    </div>
+    <div class="prx-quiz-explain">
+      <strong style="color:var(--green)">정답: A</strong><br>
+      JDK Dynamic Proxy에서는 <code>InvocationHandler</code>를 구현하면 되고, <code>save()</code>, <code>findById()</code> 등 어떤 메서드를 호출하든 <code>invoke()</code> 하나로 집결한다. B는 CGLIB의 콜백, C와 D는 Proxy 생성 API다.
+    </div>
+    <div class="prx-quiz-actions">
+      <button class="prx-btn prx-btn-primary" onclick="prxSubmit(this)">확인</button>
+      <button class="prx-btn prx-btn-reset" onclick="prxReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <!-- Q4 -->
+  <div class="prx-quiz-item" data-answer="d">
+    <div class="prx-quiz-q"><span class="prx-qnum">Q4.</span> CGLIB이 Proxy를 만들 수 없는 경우는?</div>
+    <div class="prx-options">
+      <div class="prx-option" onclick="prxChoose(this,'a')"><span class="prx-opt-label">A</span> 인터페이스가 없는 클래스</div>
+      <div class="prx-option" onclick="prxChoose(this,'b')"><span class="prx-opt-label">B</span> 메서드가 100개 이상인 클래스</div>
+      <div class="prx-option" onclick="prxChoose(this,'c')"><span class="prx-opt-label">C</span> @Service 어노테이션이 없는 클래스</div>
+      <div class="prx-option" onclick="prxChoose(this,'d')"><span class="prx-opt-label">D</span> final로 선언된 클래스 또는 메서드</div>
+    </div>
+    <div class="prx-quiz-explain">
+      <strong style="color:var(--green)">정답: D</strong><br>
+      CGLIB은 원본 클래스를 상속해서 자식 클래스를 만드는 방식이다. <code>final</code> 클래스는 상속이 불가하고, <code>final</code> 메서드는 Override가 불가하므로 CGLIB Proxy를 만들 수 없다. A는 오히려 CGLIB의 강점이다.
+    </div>
+    <div class="prx-quiz-actions">
+      <button class="prx-btn prx-btn-primary" onclick="prxSubmit(this)">확인</button>
+      <button class="prx-btn prx-btn-reset" onclick="prxReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <!-- Q5 -->
+  <div class="prx-quiz-item" data-answer="c">
+    <div class="prx-quiz-q"><span class="prx-qnum">Q5.</span> Spring Boot가 @Transactional이 붙은 Service에 CGLIB을 기본으로 선택한 이유는?</div>
+    <div class="prx-options">
+      <div class="prx-option" onclick="prxChoose(this,'a')"><span class="prx-opt-label">A</span> CGLIB이 JDK Dynamic Proxy보다 항상 빠르기 때문</div>
+      <div class="prx-option" onclick="prxChoose(this,'b')"><span class="prx-opt-label">B</span> 인터페이스 기반 설계가 복잡하기 때문</div>
+      <div class="prx-option" onclick="prxChoose(this,'c')"><span class="prx-opt-label">C</span> 인터페이스 없이도 Proxy를 만들 수 있어 Service 클래스에 항상 적용 가능하기 때문</div>
+      <div class="prx-option" onclick="prxChoose(this,'d')"><span class="prx-opt-label">D</span> CGLIB이 Java 표준 라이브러리에 포함되어 있기 때문</div>
+    </div>
+    <div class="prx-quiz-explain">
+      <strong style="color:var(--green)">정답: C</strong><br>
+      실무에서 Service 클래스가 항상 인터페이스를 구현하는 것은 아니다. CGLIB은 인터페이스 없이도 클래스 상속만으로 Proxy를 생성할 수 있기 때문에 Spring Boot가 기본값으로 채택했다. CGLIB은 외부 라이브러리이지만 Spring Boot에 포함되어 있다.
+    </div>
+    <div class="prx-quiz-actions">
+      <button class="prx-btn prx-btn-primary" onclick="prxSubmit(this)">확인</button>
+      <button class="prx-btn prx-btn-reset" onclick="prxReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <div class="prx-quiz-score" id="prxScoreBoard">
+    <div class="prx-score-num" id="prxScoreNum">0 / 5</div>
+    <p id="prxScoreMsg"></p>
+  </div>
+</div>
+
+<p style="text-align:right; font-size:0.8rem; color:var(--text-muted); margin-top:30px;">
+  © 2026 Gustav Lab Technical Study Log
+</p>
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#what-is-proxy" onclick="toggleTOC()">1. Proxy란 무엇인가</a></li>
+    <li><a href="#static-proxy" onclick="toggleTOC()">2. Static Proxy</a></li>
+    <li><a href="#static-problem" onclick="toggleTOC()">3. Static Proxy의 문제</a></li>
+    <li><a href="#jdk-proxy" onclick="toggleTOC()">4. JDK Dynamic Proxy</a></li>
+    <li><a href="#jdk-limit" onclick="toggleTOC()">5. JDK Proxy의 한계</a></li>
+    <li><a href="#cglib" onclick="toggleTOC()">6. CGLIB</a></li>
+    <li><a href="#comparison" onclick="toggleTOC()">7. 3가지 비교</a></li>
+    <li><a href="#evolution" onclick="toggleTOC()">8. 진화 흐름</a></li>
+    <li><a href="#quiz" onclick="toggleTOC()">9. 퀴즈</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>
+
+<script>
+  function prxChoose(el, val) {
+    const item = el.closest('.prx-quiz-item');
+    if (item.dataset.done) return;
+    item.querySelectorAll('.prx-option').forEach(o => o.classList.remove('prx-selected'));
+    el.classList.add('prx-selected');
+    item.dataset.selected = val;
+  }
+
+  function prxSubmit(btn) {
+    const item = btn.closest('.prx-quiz-item');
+    if (item.dataset.done) return;
+    const selected = item.dataset.selected;
+    if (!selected) { alert('선택지를 골라주세요.'); return; }
+    const answer = item.dataset.answer;
+    item.dataset.done = '1';
+    item.querySelectorAll('.prx-option').forEach(o => {
+      const v = o.getAttribute('onclick').match(/'(\w)'/)[1];
+      o.classList.remove('prx-selected');
+      if (v === answer) o.classList.add('prx-correct');
+      if (v === selected && v !== answer) o.classList.add('prx-wrong');
+    });
+    item.querySelector('.prx-quiz-explain').classList.add('show');
+    prxCheckAllDone();
+  }
+
+  function prxReset(btn) {
+    const item = btn.closest('.prx-quiz-item');
+    delete item.dataset.done;
+    delete item.dataset.selected;
+    item.querySelectorAll('.prx-option').forEach(o => {
+      o.classList.remove('prx-correct', 'prx-wrong', 'prx-selected');
+    });
+    item.querySelector('.prx-quiz-explain').classList.remove('show');
+    document.getElementById('prxScoreBoard').style.display = 'none';
+  }
+
+  function prxCheckAllDone() {
+    const items = document.querySelectorAll('.prx-quiz-item');
+    const done = [...items].filter(i => i.dataset.done);
+    if (done.length < items.length) return;
+    let score = 0;
+    items.forEach(item => { if (item.dataset.selected === item.dataset.answer) score++; });
+    const board = document.getElementById('prxScoreBoard');
+    document.getElementById('prxScoreNum').textContent = score + ' / ' + items.length;
+    const msgs = ['다시 한번 읽어보자!', '조금 더 읽어보자.', '반은 왔다!', '거의 다 왔다!', '완벽하다!', '완벽하다!'];
+    document.getElementById('prxScoreMsg').textContent = msgs[score] || '';
+    board.style.display = 'block';
+    board.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+</script>
