@@ -1,0 +1,1195 @@
+<!-- [2026-05-14] B 트리 & B+ 트리 완전 이해 -->
+<style>
+  .report-toc {
+    position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+    background: var(--surface); border-left: 1px solid var(--border);
+    padding: 40px 25px; z-index: 1001;
+    transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+  }
+  .report-toc.active { right: 0; }
+  .report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .report-toc ul { list-style: none; padding: 0; margin: 0; }
+  .report-toc li { margin-bottom: 12px; line-height: 1.4; }
+  .report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+  .report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+  .toc-backdrop {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+    z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+  }
+  .toc-backdrop.active { display: block; opacity: 1; }
+  .toc-toggle-btn {
+    position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+    background: var(--accent); color: #fff; border: none; border-radius: 50%;
+    font-size: 1.5rem; cursor: pointer; z-index: 1002;
+    box-shadow: 0 4px 15px var(--accent-glow);
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+  }
+  .toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); }
+
+  /* ── 챕터 헤더 ── */
+  .ch-label {
+    display: flex; align-items: center; gap: 14px;
+    margin: 48px 0 16px; padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+  }
+  .ch-label:first-of-type { margin-top: 0; }
+  .ch-badge {
+    display: inline-flex; align-items: center;
+    background: var(--accent); color: #fff;
+    font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+    padding: 4px 12px; border-radius: 6px; flex-shrink: 0;
+  }
+  .ch-label h2 { font-size: 1.1rem; font-weight: 800; color: #fff; margin: 0; }
+
+  /* ── 섹션 번호 ── */
+  .sec-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .sec-num {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--surface2); border: 2px solid var(--border);
+    color: var(--accent); font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .sec-header h3 { font-size: 1.0rem; font-weight: 700; color: #fff; margin: 0; }
+
+  /* ── 비교 카드 ── */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+  .compare-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px;
+  }
+  .compare-card.good { border-color: var(--green); }
+  .compare-card.bad  { border-color: var(--red); }
+  .compare-card h4 { font-size: 13px; font-weight: 800; margin: 0 0 10px; }
+  .compare-card.good h4 { color: var(--green); }
+  .compare-card.bad  h4 { color: var(--red); }
+  .compare-card p { font-size: 13px; color: var(--text-muted); margin: 0 0 6px; }
+
+  /* ── sub-title ── */
+  .sub-title {
+    font-size: .9rem; font-weight: 700; color: #4ecdc4;
+    margin: 22px 0 10px; padding-left: 10px;
+    border-left: 3px solid #4ecdc4;
+  }
+
+  /* ── 하이라이트 ── */
+  .hi  { color: var(--accent);  font-weight: 700; }
+  .hi2 { color: #4ecdc4; font-weight: 700; }
+  .hi3 { color: var(--yellow); font-weight: 700; }
+  .ok  { color: var(--green); font-weight: 700; }
+  .bad { color: var(--red);   font-weight: 700; }
+
+  /* ── callout (원본 스타일 보존) ── */
+  .btree-callout {
+    border-left: 4px solid var(--accent);
+    background: #1e2235; border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 18px 0; font-size: 13px;
+  }
+  .btree-callout.warn { border-color: var(--yellow); }
+  .btree-callout.ok   { border-color: var(--green); }
+  .btree-callout.bad  { border-color: var(--red); }
+  .btree-callout strong { display: block; margin-bottom: 5px; color: #fff; font-size: 12px; }
+
+  /* ── Summary ── */
+  .btree-summary {
+    background: linear-gradient(135deg, #1a2040, #1a2a30);
+    border: 1px solid #2e4060; border-radius: 14px;
+    padding: 28px 32px; margin-bottom: 20px;
+  }
+  .btree-summary h3 {
+    color: #4ecdc4; font-size: .9rem; font-weight: 700;
+    margin: 0 0 14px; letter-spacing: 1px; text-transform: uppercase;
+  }
+  .btree-summary ul { padding: 0; list-style: none; margin: 0; }
+  .btree-summary ul li {
+    padding: 7px 0; border-bottom: 1px solid #2e3a50;
+    font-size: 14px; color: var(--text);
+  }
+  .btree-summary ul li:last-child { border-bottom: none; }
+  .btree-summary ul li::before { content: "→ "; color: #4ecdc4; font-weight: 700; }
+
+  /* ── 퀴즈 ── */
+  .quiz-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 22px 24px; margin-bottom: 16px;
+  }
+  .quiz-q { font-weight: 700; color: #fff; margin-bottom: 14px; font-size: 15px; }
+  .quiz-q .qnum { color: var(--accent); margin-right: 8px; }
+  .options { display: flex; flex-direction: column; gap: 8px; }
+  .option {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px;
+    cursor: pointer; font-size: 14px;
+    transition: border-color .2s, background .2s;
+    user-select: none;
+  }
+  .option:hover { border-color: var(--accent); background: #1e2235; }
+  .option.selected { border-color: var(--accent) !important; background: #222b45 !important; box-shadow: 0 0 0 1px var(--accent); }
+  .option.selected .opt-label { background: var(--accent) !important; color: #fff !important; }
+  .opt-label {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
+  .option.correct { border-color: var(--green) !important; background: #1a3a2a !important; }
+  .option.wrong   { border-color: var(--red)   !important; background: #3a1a1a !important; }
+  .option.correct .opt-label { background: var(--green); color: #fff; }
+  .option.wrong   .opt-label { background: var(--red);   color: #fff; }
+  .quiz-explain {
+    margin-top: 12px; padding: 12px 16px;
+    background: #1a1d27; border-radius: 8px;
+    font-size: 13px; color: var(--text-muted);
+    display: none; border-left: 3px solid #4ecdc4;
+  }
+  .quiz-explain.show { display: block; }
+  .quiz-actions { display: flex; gap: 10px; margin-top: 10px; }
+  .q-btn {
+    padding: 8px 18px; border-radius: 8px; border: none;
+    font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity .2s;
+  }
+  .q-btn:hover { opacity: .85; }
+  .q-btn-primary { background: var(--accent); color: #fff; }
+  .q-btn-reset   { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+
+  @media (max-width: 768px) {
+    .compare-grid { grid-template-columns: 1fr; }
+    .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+  }
+</style>
+
+<!-- 헤더 -->
+<div style="text-align:center; margin-bottom: 40px;">
+  <span class="badge badge-tag">Database · Index</span>
+  <h1 style="font-size: 2rem; font-weight: 800; margin: 14px 0 8px; background: linear-gradient(90deg, var(--accent), #4ecdc4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">B 트리 & B+ 트리 완전 이해</h1>
+  <p style="color: var(--text-muted); font-size: 14px;">디스크 I/O부터 세컨더리 인덱스까지 — DB 인덱스의 모든 것</p>
+</div>
+
+<!-- ── CH1 ── -->
+<div class="ch-label" id="ch-why">
+  <span class="ch-badge">CH 1</span>
+  <h2>왜 B 트리가 필요한가</h2>
+</div>
+
+<div class="card" id="sec-disk">
+  <div class="sec-header"><div class="sec-num">1</div><h3>디스크는 RAM보다 수만 배 느리다</h3></div>
+  <p>데이터베이스 성능의 핵심은 <span class="hi">디스크를 몇 번 읽느냐</span>다. 아무리 좋은 알고리즘도 디스크 접근이 많으면 느려진다.</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">접근 속도 비교</span>
+    </div>
+    <pre><code>RAM 접근:      ~100 나노초
+SSD 접근:   ~100,000 나노초   (RAM의 1,000배)
+HDD 접근: ~10,000,000 나노초  (RAM의 100,000배)</code></pre>
+  </div>
+  <div class="btree-callout warn">
+    <strong>핵심 원칙</strong>
+    디스크 접근 횟수를 최소화하는 것 = DB 성능 최적화의 전부
+  </div>
+</div>
+
+<div class="card" id="sec-bst-limit">
+  <div class="sec-header"><div class="sec-num">2</div><h3>이진 탐색 트리(BST)의 한계</h3></div>
+  <p>BST는 노드 하나에 키 하나만 담는다. 1억 개 데이터를 찾으려면 최대 <span class="bad">27번</span> 디스크를 읽어야 한다.</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">BST 깊이 계산</span>
+    </div>
+    <pre><code>BST (1억 개, 균형 상태):
+깊이 = log₂(100,000,000) ≈ 27
+
+→ 디스크 접근 27회 × HDD 10ms = 270ms</code></pre>
+  </div>
+  <p>더 심각한 문제는 순서대로 삽입하면 트리가 한쪽으로 쏠려 <span class="bad">O(n)</span>까지 악화된다.</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">순서 삽입 시 편향</span>
+    </div>
+    <pre><code>순서 삽입 1→2→3→4→5:
+
+[1]
+  \
+  [2]        ← 사실상 연결 리스트
+    \
+    [3]       탐색: 최악 O(n)
+      \
+      [4]
+        \
+        [5]</code></pre>
+  </div>
+</div>
+
+<div class="card" id="sec-btree-idea">
+  <div class="sec-header"><div class="sec-num">3</div><h3>B 트리의 핵심 아이디어</h3></div>
+  <p><span class="hi2">"노드 하나에 키를 수백 개 담아서, 트리를 납작하게 만들자"</span></p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">BST vs B 트리</span>
+    </div>
+    <pre><code>BST   → 노드당 키 1개   → 깊이 27 → 디스크 27번
+B트리 → 노드당 키 200개 → 깊이  4 → 디스크  4번
+
+1억 개 데이터 기준, HDD:
+BST   = 27 × 10ms = 270ms
+B트리 =  4 × 10ms =  40ms   ← 약 7배 빠름</code></pre>
+  </div>
+</div>
+
+<!-- ── CH2 ── -->
+<div class="ch-label" id="ch-log">
+  <span class="ch-badge">CH 2</span>
+  <h2>로그(log)와 빅 O 표기법</h2>
+</div>
+
+<div class="card" id="sec-log">
+  <div class="sec-header"><div class="sec-num">1</div><h3>log가 왜 등장하는가</h3></div>
+  <p>트리에서 데이터를 찾는 것은 <span class="hi">"n을 계속 절반으로 나눠 1이 될 때까지의 횟수"</span>와 같다.</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">이진 탐색과 log</span>
+    </div>
+    <pre><code>8개 데이터를 이진 탐색으로:
+8 → 4 → 2 → 1
+   ÷2   ÷2   ÷2   = 3번 = log₂(8)
+
+2^x = n  →  x = log₂(n)</code></pre>
+  </div>
+</div>
+
+<div class="card" id="sec-bigo">
+  <div class="sec-header"><div class="sec-num">2</div><h3>왜 빅 O에서는 밑(base)을 안 쓰는가</h3></div>
+  <p>log의 밑이 달라도 서로 <span class="hi">상수배 차이</span>에 불과하며, 빅 O는 상수를 버린다.</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">밑 변환</span>
+    </div>
+    <pre><code>log₂(n)  = log₁₀(n) / log₁₀(2)
+          = 3.32 × log₁₀(n)
+
+O(3.32 × log₁₀(n))
+= O(log₁₀(n))     ← 3.32는 상수, 제거
+= O(log₂(n))      ← 밑 변환도 상수배 차이뿐
+= O(log n)        ← 밑을 생략</code></pre>
+  </div>
+  <div class="btree-callout ok">
+    <strong>결론</strong>
+    log₂든 log₁₀₀이든 빅 O에서는 모두 O(log n). 단, 실제 성능은 밑이 클수록 트리가 납작해져 빠르다. B 트리가 빠른 이유가 바로 이것이다.
+  </div>
+</div>
+
+<!-- ── CH3 ── -->
+<div class="ch-label" id="ch-balance">
+  <span class="ch-badge">CH 3</span>
+  <h2>이진 트리 vs 균형 트리</h2>
+</div>
+
+<div class="card" id="sec-bintree">
+  <div class="sec-header"><div class="sec-num">1</div><h3>이진 트리 — 규칙이 적다</h3></div>
+  <p>유일한 규칙: <span class="hi">자식이 최대 2개</span>. 모양에 제한이 없어 한쪽으로 쏠려도 트리라 부른다.</p>
+  <table>
+    <thead><tr><th>항목</th><th>이진 트리</th><th>균형 트리</th></tr></thead>
+    <tbody>
+      <tr><td>자식 수</td><td>최대 2개</td><td>최대 2개 (이진 기준)</td></tr>
+      <tr><td>정렬 규칙</td><td>없음 (BST는 있음)</td><td>있음</td></tr>
+      <tr><td>균형 보장</td><td class="bad">없음</td><td class="ok">항상 유지</td></tr>
+      <tr><td>최악 탐색</td><td class="bad">O(n)</td><td class="ok">O(log n)</td></tr>
+      <tr><td>삽입 복잡도</td><td>단순</td><td>복잡 (회전 필요)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card" id="sec-rotation">
+  <div class="sec-header"><div class="sec-num">2</div><h3>균형을 맞추는 방법 — 회전(Rotation)</h3></div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">트리 회전</span>
+    </div>
+    <pre><code>불균형:           회전 후:
+
+  [1]               [2]
+    \               / \
+    [2]    →→→   [1]  [3]
+      \
+      [3]</code></pre>
+  </div>
+  <p>균형 트리의 종류: <span class="badge badge-tag">AVL 트리</span> <span class="badge badge-tag">Red-Black 트리</span> <span class="badge badge-tag">B 트리</span></p>
+</div>
+
+<!-- ── CH4 ── -->
+<div class="ch-label" id="ch-btree">
+  <span class="ch-badge">CH 4</span>
+  <h2>B 트리 구조</h2>
+</div>
+
+<div class="card" id="sec-btree-node">
+  <div class="sec-header"><div class="sec-num">1</div><h3>노드 구조와 규칙</h3></div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">B 트리 노드 구조</span>
+    </div>
+    <pre><code>차수 t 기준 노드:
+
+┌──────────────────────────────────────────────────┐
+│  p₀ | k₁,📍 | p₁ | k₂,📍 | p₂ | k₃,📍 | p₃   │
+└──────────────────────────────────────────────────┘
+  ↓              ↓              ↓
+자식노드       자식노드       자식노드
+주소           주소           주소
+
+k = 키(PK),  📍 = 실제 데이터 위치,  p = 자식 노드 주소</code></pre>
+  </div>
+  <p><span class="hi">B 트리</span>는 <span class="hi3">모든 노드</span>에 키 + 데이터 위치를 함께 저장한다.</p>
+  <table>
+    <thead><tr><th>규칙</th><th>내용</th></tr></thead>
+    <tbody>
+      <tr><td>정렬</td><td>노드 안 키는 오름차순</td></tr>
+      <tr><td>자식 범위</td><td>p₀의 모든 값 &lt; k₁ &lt; p₁의 모든 값 &lt; k₂ ...</td></tr>
+      <tr><td>균형</td><td>모든 리프 노드가 같은 깊이</td></tr>
+      <tr><td>최소 채움</td><td>루트 제외 모든 노드는 최소 t-1개 키 보유</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card" id="sec-btree-split">
+  <div class="sec-header"><div class="sec-num">2</div><h3>삽입과 노드 분할</h3></div>
+  <p>노드가 꽉 차면 <span class="hi2">중간 키가 부모로 올라가고</span> 노드가 둘로 분할된다.</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">노드 분할 예시</span>
+    </div>
+    <pre><code>삽입 전 (꽉 참):  [10 | 20 | 30]
+
+25 삽입:
+         [20]           ← 중간값이 부모로 올라감
+        /    \
+    [10]   [25|30]      ← 분할</code></pre>
+  </div>
+</div>
+
+<!-- ── CH5 ── -->
+<div class="ch-label" id="ch-bplustree">
+  <span class="ch-badge">CH 5</span>
+  <h2>B+ 트리 구조</h2>
+</div>
+
+<div class="card" id="sec-bplus-diff">
+  <div class="sec-header"><div class="sec-num">1</div><h3>B 트리와의 결정적 차이</h3></div>
+  <div class="compare-grid">
+    <div class="compare-card bad">
+      <h4>B 트리</h4>
+      <p>모든 노드(내부 + 리프)에 키 + 데이터 위치 저장</p>
+      <p>내부 노드가 무거워 노드당 키 수가 적음</p>
+      <p>범위 검색 시 트리를 위아래로 반복 탐색</p>
+    </div>
+    <div class="compare-card good">
+      <h4>B+ 트리 (실제 DB)</h4>
+      <p>내부 노드: 키만 저장 (가벼움)</p>
+      <p>리프 노드: 키 + 데이터 위치 저장</p>
+      <p>리프끼리 연결 리스트로 연결 → 범위 검색 빠름</p>
+    </div>
+  </div>
+</div>
+
+<div class="card" id="sec-bplus-diagram">
+  <div class="sec-header"><div class="sec-num">2</div><h3>B+ 트리 전체 그림</h3></div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">B+ 트리 구조도</span>
+    </div>
+    <pre><code>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  루트 (내부 노드) — 키만 있음, 데이터 위치 없음
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+              [ 30  |  70 ]
+             ↙      ↓      ↘
+         자식①    자식②    자식③
+         주소      주소      주소
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  리프 노드 — 키 + 실제 데이터 위치 저장
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ┌──────────┐    ┌──────────┐    ┌──────────┐
+  │PK=10, 📍│ →→ │PK=40, 📍│ →→ │PK=80, 📍│
+  │PK=20, 📍│    │PK=60, 📍│    │PK=90, 📍│
+  └──────────┘    └──────────┘    └──────────┘
+       ↓               ↓               ↓
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  실제 row 데이터 (디스크)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  { PK:10, name:"홍길동", age:30, email:"..." }
+  { PK:20, name:"김철수", age:25, email:"..." }
+  { PK:40, name:"이영희", age:28, email:"..." }</code></pre>
+  </div>
+  <div class="btree-callout">
+    <strong>왜 내부 노드가 가벼우면 좋은가?</strong>
+    내부 노드에 데이터 위치가 없어서 같은 공간에 키를 더 많이 넣을 수 있다.
+    키가 많을수록 트리가 더 납작해지고, 디스크 접근이 더 줄어든다.
+  </div>
+</div>
+
+<!-- ── CH6 완전 비교 ── -->
+<div class="ch-label" id="ch-compare">
+  <span class="ch-badge">CH 6</span>
+  <h2>B 트리 vs B+ 트리 완전 비교</h2>
+</div>
+
+<div class="card" id="sec-compare-struct">
+  <div class="sec-header"><div class="sec-num">1</div><h3>구조 차이 — 노드에 뭐가 들어있나</h3></div>
+  <p>가장 결정적인 차이는 <span class="hi">내부 노드에 데이터를 저장하느냐</span>다.</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">B 트리 vs B+ 트리 노드 비교</span>
+    </div>
+    <pre><code>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  B 트리 — 모든 노드에 키 + 데이터 위치 저장
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+           [20,📍 | 40,📍]           ← 내부 노드도 📍 보유
+           ↙               ↘
+  [10,📍|15,📍]    [30,📍|35,📍]    ← 리프 노드도 📍 보유
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  B+ 트리 — 내부 노드: 키만 / 리프 노드: 키 + 데이터 위치
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+           [ 20  |  40 ]             ← 내부 노드: 키만 (📍 없음)
+          ↙       ↓       ↘
+  [10,📍|15,📍] [20,📍|30,📍] [40,📍|50,📍]
+
+  ※ 내부 노드의 키 20 = 두 번째 리프의 첫 키 복사본
+
+  [10,📍|15,📍] →→ [20,📍|30,📍] →→ [40,📍|50,📍]
+                                    ← 리프끼리 연결됨</code></pre>
+  </div>
+</div>
+
+<div class="card" id="sec-compare-light">
+  <div class="sec-header"><div class="sec-num">2</div><h3>내부 노드가 가벼우면 왜 좋은가</h3></div>
+  <p>디스크는 블록 단위(보통 4KB~16KB)로 읽는다. 노드 크기 = 블록 크기로 맞춰두면 <span class="hi2">한 번 읽기에 담을 수 있는 키 수가 결정된다.</span></p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">같은 4KB 블록에서 키 수 비교</span>
+    </div>
+    <pre><code>B 트리 내부 노드 (키 + 📍 같이 저장):
+┌────────────────────────────────────────────────┐
+│ [키+📍] [키+📍] [키+📍] [키+📍] [키+📍]      │  → 키 5개
+└────────────────────────────────────────────────┘
+
+B+ 트리 내부 노드 (키만 저장):
+┌────────────────────────────────────────────────┐
+│ [키] [키] [키] [키] [키] [키] [키] [키] [키]  │  → 키 9개
+└────────────────────────────────────────────────┘
+
+→ 같은 공간에 키가 더 많음
+→ 자식 노드 수도 더 많음
+→ 트리가 더 납작해짐
+→ 디스크 접근 횟수 감소</code></pre>
+  </div>
+</div>
+
+<div class="card" id="sec-compare-point">
+  <div class="sec-header"><div class="sec-num">3</div><h3>동일한 값 탐색 비교 (PK=20 찾기)</h3></div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">단일 탐색 비교</span>
+    </div>
+    <pre><code>━━━ B 트리에서 PK=20 탐색 ━━━
+
+           [20,📍 | 40,📍]
+            ↓
+         PK=20 발견!
+         → 내부 노드에서 바로 📍 획득
+         → 실제 데이터 읽기
+         디스크 접근: 2번
+
+━━━ B+ 트리에서 PK=20 탐색 ━━━
+
+           [ 20  |  40 ]
+           ↙      ↓      ↘
+   [10|15]  [20,📍|30,📍]  [40,📍|50,📍]
+
+         내부 노드에서 20 발견
+         → 하지만 📍 없음 (경계값 복사본일 뿐)
+         → 20 이상이므로 가운데 자식으로 내려감
+         → 리프에서 PK=20 + 📍 획득
+         → 실제 데이터 읽기
+         디스크 접근: 3번 (항상 리프까지 내려감)</code></pre>
+  </div>
+  <div class="btree-callout warn">
+    <strong>B 트리가 단일 탐색은 더 빠를 수 있다</strong>
+    운이 좋으면 내부 노드에서 바로 데이터를 찾을 수 있다.
+    하지만 실제 DB에서는 이 이점보다 B+ 트리의 다른 장점들이 훨씬 크다.
+  </div>
+</div>
+
+<div class="card" id="sec-compare-range">
+  <div class="sec-header"><div class="sec-num">4</div><h3>범위 탐색 비교 (PK 20~40 찾기)</h3></div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">범위 탐색 비교</span>
+    </div>
+    <pre><code>━━━ B 트리에서 20~40 범위 탐색 ━━━
+
+              [30,📍]
+              ↙      ↘
+        [20,📍]    [40,📍]
+
+  STEP 1: 루트에서 20 찾기 → 왼쪽 자식으로
+  STEP 2: [20,📍] 발견 → 읽음
+  STEP 3: 다음 값(30)을 찾으러 다시 루트로 올라가야 함
+  STEP 4: [30,📍] 발견 → 읽음
+  STEP 5: 다음 값(40)을 찾으러 다시 루트로 올라가야 함
+  STEP 6: [40,📍] 발견 → 읽음
+  → 값 하나 읽을 때마다 루트부터 다시 탐색 = 비효율
+
+━━━ B+ 트리에서 20~40 범위 탐색 ━━━
+
+              [ 20 | 40 ]
+             ↙     ↓      ↘
+    [10|15] [20,📍|30,📍] [40,📍|50,📍]
+
+  STEP 1: 내부 노드에서 20 위치 파악 → 두 번째 리프로 이동
+  STEP 2: [20,📍] → 읽음 → 오른쪽으로 이동 (연결 리스트)
+          [30,📍] → 읽음 → 다음 리프로 이동
+          [40,📍] → 읽음 → 범위 끝, 완료
+
+  트리를 위아래로 오갈 필요 없이 리프를 옆으로 읽기만 하면 됨</code></pre>
+  </div>
+  <div class="btree-callout ok">
+    <strong>B+ 트리가 DB에서 채택된 핵심 이유</strong>
+    DB는 범위 검색(BETWEEN, >, &lt;, ORDER BY)이 매우 빈번하다.
+    리프가 연결 리스트로 이어진 B+ 트리는 범위 검색에서 압도적으로 유리하다.
+  </div>
+</div>
+
+<div class="card" id="sec-compare-table">
+  <div class="sec-header"><div class="sec-num">5</div><h3>최종 비교표</h3></div>
+  <table>
+    <thead>
+      <tr><th>항목</th><th>B 트리</th><th>B+ 트리</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>내부 노드 저장</td><td>키 + 데이터 위치(📍)</td><td>키만</td></tr>
+      <tr><td>리프 노드 저장</td><td>키 + 데이터 위치(📍)</td><td>키 + 데이터 위치(📍)</td></tr>
+      <tr><td>리프 노드 연결</td><td class="bad">없음</td><td class="ok">연결 리스트로 연결</td></tr>
+      <tr><td>단일 탐색</td><td class="ok">운 좋으면 내부 노드에서 끝</td><td>항상 리프까지 내려감</td></tr>
+      <tr><td>범위 탐색</td><td class="bad">위아래 반복 이동</td><td class="ok">리프를 옆으로 쭉 읽음</td></tr>
+      <tr><td>같은 공간에 키 수</td><td class="bad">적음 (데이터 위치도 저장)</td><td class="ok">많음 (키만 저장)</td></tr>
+      <tr><td>트리 높이</td><td class="bad">상대적으로 높음</td><td class="ok">상대적으로 낮음</td></tr>
+      <tr><td>실제 DB 사용</td><td class="bad">거의 없음</td><td class="ok">MySQL, PostgreSQL, Oracle 등</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── CH7 노드 상세 ── -->
+<div class="ch-label" id="ch-node-detail">
+  <span class="ch-badge">CH 7</span>
+  <h2>노드 상세 — 무엇이 저장되나</h2>
+</div>
+
+<div class="card" id="sec-two-addr">
+  <div class="sec-header"><div class="sec-num">1</div><h3>"위치"에는 두 종류가 있다</h3></div>
+  <p>이 부분이 가장 혼란스러운 지점이다. <span class="hi3">"위치"</span>는 두 가지 완전히 다른 개념이다.</p>
+  <table>
+    <thead><tr><th>종류</th><th>의미</th><th>저장 위치</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="hi">① 자식 노드 주소</span></td>
+        <td>다음에 읽을 트리 노드가 디스크 어디에 있는지</td>
+        <td>내부 노드 + 리프 이전까지</td>
+      </tr>
+      <tr>
+        <td><span class="hi2">② 실제 데이터 주소</span></td>
+        <td>실제 row 데이터가 디스크 어디에 있는지</td>
+        <td>리프 노드에만</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card" id="sec-node-content">
+  <div class="sec-header"><div class="sec-num">2</div><h3>내부 노드 vs 리프 노드 저장 내용</h3></div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">노드별 저장 내용</span>
+    </div>
+    <pre><code>내부 노드:
+┌──────────────────────────────────────────────────┐
+│  자식주소① | PK=30 | 자식주소② | PK=70 | 자식주소③ │
+│                                                  │
+│  ✅ 자식 노드 주소 ①  (트리 탐색용)              │
+│  ❌ 실제 데이터 주소 ② (없음)                    │
+└──────────────────────────────────────────────────┘
+
+리프 노드:
+┌──────────────────────────────────────────────────┐
+│  PK=10, 실제데이터주소②                          │
+│  PK=20, 실제데이터주소②                          │
+│                                                  │
+│  ❌ 자식 노드 주소 ① (자식이 없으니까)            │
+│  ✅ 실제 데이터 주소 ② (여기서만 row에 접근)     │
+└──────────────────────────────────────────────────┘</code></pre>
+  </div>
+  <div class="btree-callout ok">
+    <strong>결론</strong>
+    내부 노드도 "위치"를 저장한다. 단, 그것은 row 데이터 위치가 아닌 자식 노드 위치다.
+    "위치"가 두 종류였던 것이 혼란의 원인이었다.
+  </div>
+</div>
+
+<div class="card" id="sec-search-flow">
+  <div class="sec-header"><div class="sec-num">3</div><h3>PK=40 탐색 흐름</h3></div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">탐색 단계별 디스크 접근</span>
+    </div>
+    <pre><code>1단계: 루트(내부 노드) 읽기
+       40 > 30, 40 < 70
+       → 자식 노드 주소② 로 이동   (디스크 1회)
+
+2단계: 리프 노드 읽기
+       PK=40 발견 → 실제 데이터 주소② 획득   (디스크 1회)
+
+3단계: 실제 row 데이터 읽기
+       { PK:40, name:"이영희", ... }   (디스크 1회)
+
+총 디스크 접근 = 3번</code></pre>
+  </div>
+</div>
+
+<!-- ── CH8 세컨더리 인덱스 ── -->
+<div class="ch-label" id="ch-secondary">
+  <span class="ch-badge">CH 8</span>
+  <h2>세컨더리 인덱스 — PK가 아닌 컬럼으로 검색</h2>
+</div>
+
+<div class="card" id="sec-full-scan">
+  <div class="sec-header"><div class="sec-num">1</div><h3>인덱스가 없을 때 — Full Table Scan</h3></div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">인덱스 없는 name 검색</span>
+    </div>
+    <pre><code>SELECT * FROM users WHERE name = '홍길동';
+-- name에 인덱스 없음
+
+리프 노드를 처음부터 끝까지 전부 읽음
+
+[PK=1,📍] → [PK=2,📍] → [PK=3,📍] → ... → [PK=100만,📍]
+    ↓            ↓            ↓
+  row읽기      row읽기      row읽기
+  name확인     name확인     name확인
+  아니면패스   아니면패스   발견!
+
+→ 최악 100만 번 디스크 접근</code></pre>
+  </div>
+</div>
+
+<div class="card" id="sec-secondary-idx">
+  <div class="sec-header"><div class="sec-num">2</div><h3>세컨더리 인덱스 — name 전용 B+ 트리 별도 생성</h3></div>
+  <p><code>CREATE INDEX idx_name ON users(name);</code> 실행 시 <span class="hi">name 전용 B+ 트리가 따로 만들어진다.</span></p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">name 인덱스 B+ 트리</span>
+    </div>
+    <pre><code>name 인덱스 B+ 트리 (세컨더리 인덱스):
+
+           [김 | 이]
+          ↙          ↘
+   [강OO|김OO]     [이OO|홍OO]
+
+   리프 노드 (name 오름차순 정렬):
+
+   [강철수, PK=5 ]
+   [김철수, PK=2 ]   ← 실제 row 없음, PK만 저장
+   [이영희, PK=40]
+   [홍길동, PK=1 ]</code></pre>
+  </div>
+  <div class="btree-callout warn">
+    <strong>세컨더리 인덱스의 특징</strong>
+    리프 노드에 실제 데이터가 없고 PK만 있다. PK를 얻은 뒤 클러스터드 인덱스를 다시 탐색해야 한다.
+  </div>
+</div>
+
+<div class="card" id="sec-secondary-flow">
+  <div class="sec-header"><div class="sec-num">3</div><h3>전체 탐색 흐름</h3></div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">name 검색 전체 흐름</span>
+    </div>
+    <pre><code>SELECT * FROM users WHERE name = '홍길동';
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ [STEP 1]  name 인덱스 B+ 트리 탐색  (디스크 1~3회)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  루트:  [ 김 | 이 ] → 오른쪽
+  내부:  [이|홍]     → 오른쪽 리프
+  리프:  [홍길동, PK=1] ← 발견!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ [STEP 2]  PK=1 획득 → 클러스터드 인덱스 탐색
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+     세컨더리 인덱스 리프에는 실제 데이터가 없다!
+     PK=1 만 들어있으므로 다시 PK 트리로 탐색
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ [STEP 3]  PK 클러스터드 인덱스 탐색  (디스크 1~3회)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  루트: [ 30 | 70 ] → 왼쪽
+  내부: [ 10 | 20 ] → 왼쪽 리프
+  리프: [PK=1, 📍] ← 발견! → 실제 데이터 주소 획득
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ [STEP 4]  실제 데이터 읽기  (디스크 1회)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  📍 주소로 이동 →  { PK:1, name:"홍길동", age:30, ... }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  총 디스크 접근 ≈ 6~8번   (인덱스 없을 때: 100만 번)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</code></pre>
+  </div>
+  <div class="btree-callout ok">
+    <strong>PK 검색이 가장 빠른 이유</strong>
+    PK 검색은 클러스터드 인덱스 한 번만 탐색하면 끝. 세컨더리 인덱스는 두 번 탐색이 필요하다.
+  </div>
+</div>
+
+<div class="card" id="sec-index-cost">
+  <div class="sec-header"><div class="sec-num">4</div><h3>인덱스를 무분별하게 걸면 안 되는 이유</h3></div>
+  <p>인덱스를 건다는 것 = <span class="hi3">그 컬럼 전용 B+ 트리를 하나 더 만드는 것</span>이다.</p>
+  <table>
+    <thead><tr><th>영향</th><th>내용</th></tr></thead>
+    <tbody>
+      <tr><td>저장 공간</td><td>인덱스 B+ 트리만큼 디스크 추가 사용</td></tr>
+      <tr><td>삽입 속도</td><td>row 추가 시 모든 인덱스 트리에 키 삽입 필요</td></tr>
+      <tr><td>수정 속도</td><td>인덱스 컬럼 수정 시 트리 재조정 발생</td></tr>
+      <tr><td>삭제 속도</td><td>모든 인덱스 트리에서 키 삭제 필요</td></tr>
+    </tbody>
+  </table>
+  <div class="btree-callout bad">
+    <strong>결론</strong>
+    조회가 많고 수정이 적은 컬럼에만 인덱스를 건다. 남발하면 쓰기 성능이 급격히 나빠진다.
+  </div>
+</div>
+
+<!-- ── CH9 연결 리스트 ── -->
+<div class="ch-label" id="ch-linked">
+  <span class="ch-badge">CH 9</span>
+  <h2>연결 리스트 관점에서 B 트리를 쓰는 이유</h2>
+</div>
+
+<div class="card" id="sec-linked-limit">
+  <div class="sec-header"><div class="sec-num">1</div><h3>연결 리스트의 한계</h3></div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">연결 리스트 탐색</span>
+    </div>
+    <pre><code>[10] → [20] → [30] → [40] → [50] → null
+
+장점: 삽입·삭제 O(1)  (포인터만 바꾸면 됨)
+단점: 탐색 O(n)       (처음부터 하나씩 순서대로 봐야 함)
+
+정렬된 연결 리스트로 40을 찾는다:
+[10] → [20] → [30] → [40] ← 발견
+  1번      2번      3번      4번 이동
+
+→ 1억 개면 최악 1억 번 = O(n)
+→ 이진 탐색 불가 (중간 노드로 바로 이동할 방법이 없음)</code></pre>
+  </div>
+  <div class="btree-callout bad">
+    <strong>핵심 문제</strong>
+    정렬된 연결 리스트라도 원하는 값을 찾으려면 앞에서부터 하나씩 봐야 한다.
+    이진 탐색(Binary Search)이 불가능하다.
+  </div>
+</div>
+
+<div class="card" id="sec-bplus-index">
+  <div class="sec-header"><div class="sec-num">2</div><h3>B 트리 = 연결 리스트 위에 "색인"을 얹은 것</h3></div>
+  <p>B+ 트리의 발상은 간단하다. <span class="hi2">리프 노드는 정렬된 연결 리스트로 두고, 그 위에 트리 색인을 얹어 시작점을 O(log n)에 찾는다.</span></p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">B+ 트리 = 색인 + 연결 리스트</span>
+    </div>
+    <pre><code>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  트리 색인 (내부 노드) — O(log n)에 위치 탐색
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+              [ 30  |  60 ]
+             ↙      ↓      ↘
+        [15|20]  [40|50]  [70|80]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  리프 노드 (= 정렬된 연결 리스트)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[10,📍]→[15,📍]→[20,📍]→[30,📍]→[40,📍]→[50,📍]→[70,📍]→[80,📍]
+
+  단순 연결 리스트:  40 찾기 → 처음부터 4번 이동
+  B+ 트리:          40 찾기 → 트리로 리프 위치 먼저 특정 → 바로 접근</code></pre>
+  </div>
+</div>
+
+<div class="card" id="sec-range-power">
+  <div class="sec-header"><div class="sec-num">3</div><h3>범위 검색에서 연결 리스트가 빛난다</h3></div>
+  <p><code>WHERE age BETWEEN 30 AND 60</code> 같은 범위 검색에서 B+ 트리의 리프 연결 구조가 위력을 발휘한다.</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">범위 검색 흐름</span>
+    </div>
+    <pre><code>1단계: 트리로 30 위치를 O(log n)에 찾는다
+
+2단계: 리프 연결 리스트를 오른쪽으로 쭉 읽는다
+
+[30,📍] → [40,📍] → [50,📍] → [60,📍] → 끝
+  ↓            ↓           ↓          ↓
+읽기         읽기        읽기        읽기    → 완료!</code></pre>
+  </div>
+  <div class="btree-callout ok">
+    <strong>B 트리와의 차이</strong>
+    B 트리는 리프끼리 연결이 없다. 30~60 범위를 찾으면 30 발견 → 트리 위로 올라감 → 40 찾음 → 위로 올라감 → 반복.
+    B+ 트리는 리프가 연결되어 있어 한 방향으로 쭉 읽으면 끝난다.
+  </div>
+</div>
+
+<div class="card" id="sec-ds-compare">
+  <div class="sec-header"><div class="sec-num">4</div><h3>자료구조별 성능 비교</h3></div>
+  <table>
+    <thead>
+      <tr><th>자료구조</th><th>탐색</th><th>범위 검색</th><th>삽입·삭제</th><th>DB 적합성</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>연결 리스트</td>
+        <td class="bad">O(n)</td>
+        <td class="bad">O(n)</td>
+        <td class="ok">O(1)</td>
+        <td class="bad">부적합</td>
+      </tr>
+      <tr>
+        <td>이진 탐색 트리</td>
+        <td>O(log n) ~ O(n)</td>
+        <td>O(log n) ~ O(n)</td>
+        <td>O(log n) ~ O(n)</td>
+        <td class="bad">균형 보장 없음</td>
+      </tr>
+      <tr>
+        <td>B 트리</td>
+        <td class="ok">O(log n)</td>
+        <td class="bad">느림 (연결 없음)</td>
+        <td class="ok">O(log n)</td>
+        <td>부분 적합</td>
+      </tr>
+      <tr>
+        <td><strong>B+ 트리</strong></td>
+        <td class="ok">O(log n)</td>
+        <td class="ok">O(log n + k)</td>
+        <td class="ok">O(log n)</td>
+        <td class="ok"><strong>최적</strong></td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="font-size:13px;color:var(--text-muted);">k = 범위 결과 개수</p>
+</div>
+
+<!-- ── CH10 균형 유지 ── -->
+<div class="ch-label" id="ch-balance-maint">
+  <span class="ch-badge">CH 10</span>
+  <h2>B 트리 균형 유지 — 분할·병합 상세</h2>
+</div>
+
+<div class="card" id="sec-no-rotation">
+  <div class="sec-header"><div class="sec-num">1</div><h3>B 트리는 회전을 쓰지 않는다</h3></div>
+  <p>AVL 트리나 Red-Black 트리는 <span class="hi3">회전(Rotation)</span>으로 균형을 잡는다. B 트리는 회전이 아닌 <span class="hi">분할(Split)</span>과 <span class="hi2">병합(Merge)</span>으로 균형을 유지한다.</p>
+  <table>
+    <thead><tr><th>트리 종류</th><th>균형 유지 방법</th><th>언제 발생</th></tr></thead>
+    <tbody>
+      <tr><td>AVL 트리</td><td>회전 (Rotation)</td><td>삽입·삭제 시 높이 차 1 초과</td></tr>
+      <tr><td>Red-Black 트리</td><td>회전 + 색 변경</td><td>삽입·삭제 시 규칙 위반</td></tr>
+      <tr><td><strong>B 트리</strong></td><td><strong>분할 + 병합·재분배</strong></td><td>노드가 꽉 참 / 너무 빔</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card" id="sec-split">
+  <div class="sec-header"><div class="sec-num">2</div><h3>삽입 — 노드 분할(Split)</h3></div>
+  <p>차수 t=2 기준 (노드당 최대 3개 키). 노드가 꽉 차면 <span class="hi">중간 키가 부모로 올라가고</span> 노드가 둘로 쪼개진다.</p>
+  <div class="sub-title">예시: 빈 트리에 1, 2, 3, 4, 5, 6 순서로 삽입</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">노드 분할 단계</span>
+    </div>
+    <pre><code>Step 1 — 1, 2, 3 삽입 (노드가 꽉 참):
+[ 1 | 2 | 3 ]   ← 최대치 도달
+
+Step 2 — 4 삽입 시 분할 발생:
+꽉 찬 상태에서 4를 넣으려 하면:
+[ 1 | 2 | 3 | 4 ]  ← 오버플로!
+
+중간값 2가 부모로 올라감:
+
+        [2]           ← 중간값 부모로 상승
+       /   \
+    [1]   [3|4]       ← 양쪽으로 분할
+
+Step 3 — 5 삽입:
+        [2]
+       /   \
+    [1]   [3|4|5]     ← 5 삽입, 아직 공간 있음
+
+Step 4 — 6 삽입 시 오른쪽 노드 분할:
+오른쪽 노드 [3|4|5|6] 오버플로
+중간값 4가 부모로 올라감:
+
+        [2 | 4]        ← 4가 루트로 상승
+       /   |   \
+    [1]  [3]  [5|6]   ← 분할 완료</code></pre>
+  </div>
+  <div class="btree-callout ok">
+    <strong>분할의 핵심 규칙</strong>
+    중간값(median)이 부모로 올라가므로 트리의 정렬 속성이 항상 유지된다.
+    루트가 분할되면 트리 높이가 1 증가하고, 이때만 높이가 변한다.
+  </div>
+</div>
+
+<div class="card" id="sec-merge">
+  <div class="sec-header"><div class="sec-num">3</div><h3>삭제 — 병합(Merge)과 재분배(Redistribute)</h3></div>
+  <p>삭제 후 노드의 키가 최솟값(t-1개) 미만이 되면 두 가지 방법으로 복구한다.</p>
+  <div class="sub-title">방법 A — 재분배 (형제 노드에서 빌리기)</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">재분배</span>
+    </div>
+    <pre><code>삭제 전:
+        [20]
+       /    \
+  [10|15]   [30]     ← 30 삭제
+
+30 삭제 후 오른쪽이 빔:
+        [20]
+       /    \
+  [10|15]   []       ← 최솟값 미만!
+
+형제([10|15])에서 15를 빌림:
+        [15]          ← 부모 20이 내려오고, 15가 부모 자리로 올라감
+       /    \
+    [10]   [20]      ← 재분배 완료</code></pre>
+  </div>
+  <div class="sub-title">방법 B — 병합 (형제와 합치기)</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">병합</span>
+    </div>
+    <pre><code>삭제 전:
+        [20]
+       /    \
+    [10]   [30]      ← 형제도 최솟값(키 1개)이라 빌려줄 수 없음
+
+30 삭제 후:
+        [20]
+       /    \
+    [10]    []       ← 최솟값 미만!
+
+형제 병합 — 부모(20)가 내려와서 합침:
+
+    [10 | 20]        ← 루트가 사라지고 높이 1 감소
+    (단일 노드)</code></pre>
+  </div>
+  <div class="btree-callout warn">
+    <strong>병합과 재분배 선택 기준</strong>
+    형제 노드가 키를 빌려줄 수 있으면 → 재분배 (트리 높이 유지)<br>
+    형제 노드도 최솟값이면 → 병합 (트리 높이 감소 가능)
+  </div>
+</div>
+
+<div class="card" id="sec-balance-summary">
+  <div class="sec-header"><div class="sec-num">4</div><h3>균형 유지 흐름 요약</h3></div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">삽입·삭제 시 균형 처리</span>
+    </div>
+    <pre><code>삽입 시:
+  노드 공간 있음   → 그냥 삽입 후 정렬
+  노드 꽉 참       → 분할(Split): 중간값을 부모로, 둘로 쪼갬
+  루트까지 꽉 참   → 루트 분할, 트리 높이 +1
+
+삭제 시:
+  삭제 후 여유 있음    → 그냥 삭제
+  최솟값 미만 발생     →  형제가 여유 있음  → 재분배(Redistribute)
+                           형제도 최솟값    → 병합(Merge), 높이 -1 가능
+
+모든 경우에 리프 노드 깊이는 동일 → 항상 균형 유지</code></pre>
+  </div>
+</div>
+
+<!-- ── CH11 핵심 요약 ── -->
+<div class="ch-label" id="ch-summary">
+  <span class="ch-badge">CH 11</span>
+  <h2>핵심 요약</h2>
+</div>
+
+<div class="btree-summary">
+  <h3>전체 흐름 한눈에</h3>
+  <ul>
+    <li>DB는 디스크를 쓰므로 접근 횟수 최소화가 핵심이다</li>
+    <li>BST는 노드당 키 1개 → 깊이 크고 디스크 접근 많음</li>
+    <li>B 트리는 노드당 키 수백 개 → 트리 납작 → 접근 줄어듦</li>
+    <li>B+ 트리는 내부 노드에 키만 저장해 더 많은 키를 담는다</li>
+    <li>리프 노드만 실제 데이터 주소를 가지며 연결 리스트로 연결된다</li>
+    <li>세컨더리 인덱스 = 해당 컬럼 전용 B+ 트리를 별도로 생성</li>
+    <li>세컨더리 인덱스는 PK를 얻은 뒤 클러스터드 인덱스를 다시 탐색한다</li>
+    <li>인덱스는 조회 성능을 높이지만 쓰기 성능을 낮추므로 신중히 건다</li>
+  </ul>
+</div>
+
+<table>
+  <thead><tr><th>항목</th><th>B 트리</th><th>B+ 트리</th></tr></thead>
+  <tbody>
+    <tr><td>내부 노드 저장</td><td>키 + 데이터 위치</td><td>키만</td></tr>
+    <tr><td>리프 노드 저장</td><td>키 + 데이터 위치</td><td>키 + 데이터 위치</td></tr>
+    <tr><td>리프 연결</td><td class="bad">없음</td><td class="ok">연결 리스트</td></tr>
+    <tr><td>범위 검색</td><td class="bad">느림</td><td class="ok">빠름</td></tr>
+    <tr><td>실제 DB 사용</td><td class="bad">거의 없음</td><td class="ok">MySQL, PostgreSQL 등</td></tr>
+  </tbody>
+</table>
+
+<!-- ── CH12 퀴즈 ── -->
+<div class="ch-label" id="ch-quiz">
+  <span class="ch-badge">CH 12</span>
+  <h2>퀴즈</h2>
+</div>
+
+<div class="quiz-item" data-answer="B">
+  <div class="quiz-q"><span class="qnum">Q1.</span> B+ 트리의 내부 노드에 저장되는 것은?</div>
+  <div class="options">
+    <div class="option" onclick="btreeSelectOption(this)"><div class="opt-label">A</div> 키 + 실제 데이터 위치</div>
+    <div class="option" onclick="btreeSelectOption(this)"><div class="opt-label">B</div> 키 + 자식 노드 주소</div>
+    <div class="option" onclick="btreeSelectOption(this)"><div class="opt-label">C</div> 실제 데이터만</div>
+    <div class="option" onclick="btreeSelectOption(this)"><div class="opt-label">D</div> 아무것도 저장 안 함</div>
+  </div>
+  <div class="quiz-actions">
+    <button class="q-btn q-btn-primary" onclick="btreeCheckAnswer(this)">채점</button>
+    <button class="q-btn q-btn-reset" onclick="btreeResetQuiz(this)">초기화</button>
+  </div>
+  <div class="quiz-explain">내부 노드는 키와 자식 노드 주소(①)만 저장한다. 실제 row 데이터 위치(②)는 리프 노드에만 있다.</div>
+</div>
+
+<div class="quiz-item" data-answer="C">
+  <div class="quiz-q"><span class="qnum">Q2.</span> 세컨더리 인덱스(name 인덱스)의 리프 노드에 저장되는 것은?</div>
+  <div class="options">
+    <div class="option" onclick="btreeSelectOption(this)"><div class="opt-label">A</div> name 값 + 실제 row 전체</div>
+    <div class="option" onclick="btreeSelectOption(this)"><div class="opt-label">B</div> name 값만</div>
+    <div class="option" onclick="btreeSelectOption(this)"><div class="opt-label">C</div> name 값 + PK</div>
+    <div class="option" onclick="btreeSelectOption(this)"><div class="opt-label">D</div> PK만</div>
+  </div>
+  <div class="quiz-actions">
+    <button class="q-btn q-btn-primary" onclick="btreeCheckAnswer(this)">채점</button>
+    <button class="q-btn q-btn-reset" onclick="btreeResetQuiz(this)">초기화</button>
+  </div>
+  <div class="quiz-explain">세컨더리 인덱스 리프에는 인덱스 컬럼 값(name)과 PK가 저장된다. 실제 row는 없고, PK로 클러스터드 인덱스를 다시 탐색해야 한다.</div>
+</div>
+
+<div class="quiz-item" data-answer="A">
+  <div class="quiz-q"><span class="qnum">Q3.</span> 다음 중 B+ 트리가 B 트리보다 유리한 이유로 옳은 것은?</div>
+  <div class="options">
+    <div class="option" onclick="btreeSelectOption(this)"><div class="opt-label">A</div> 내부 노드가 가벼워 같은 공간에 키를 더 많이 담을 수 있다</div>
+    <div class="option" onclick="btreeSelectOption(this)"><div class="opt-label">B</div> 모든 노드에 데이터가 있어 탐색이 빠르다</div>
+    <div class="option" onclick="btreeSelectOption(this)"><div class="opt-label">C</div> 트리 높이가 항상 1이다</div>
+    <div class="option" onclick="btreeSelectOption(this)"><div class="opt-label">D</div> 리프 노드가 없다</div>
+  </div>
+  <div class="quiz-actions">
+    <button class="q-btn q-btn-primary" onclick="btreeCheckAnswer(this)">채점</button>
+    <button class="q-btn q-btn-reset" onclick="btreeResetQuiz(this)">초기화</button>
+  </div>
+  <div class="quiz-explain">B+ 트리 내부 노드는 키만 저장해 가볍다. 같은 노드 크기(= 디스크 블록)에 더 많은 키를 담을 수 있어 트리가 더 납작해지고 디스크 접근이 줄어든다.</div>
+</div>
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#ch-why"    onclick="toggleTOC()">1. 왜 B 트리가 필요한가</a></li>
+    <li><a href="#ch-log"    onclick="toggleTOC()">2. 로그와 빅 O</a></li>
+    <li><a href="#ch-balance" onclick="toggleTOC()">3. 이진 트리 vs 균형 트리</a></li>
+    <li><a href="#ch-btree"  onclick="toggleTOC()">4. B 트리 구조</a></li>
+    <li><a href="#ch-bplustree" onclick="toggleTOC()">5. B+ 트리 구조</a></li>
+    <li><a href="#ch-compare" onclick="toggleTOC()">6. B 트리 vs B+ 트리 완전 비교</a></li>
+    <li><a href="#ch-node-detail" onclick="toggleTOC()">7. 노드 상세</a></li>
+    <li><a href="#ch-secondary" onclick="toggleTOC()">8. 세컨더리 인덱스</a></li>
+    <li><a href="#ch-linked" onclick="toggleTOC()">9. 연결 리스트 vs B 트리</a></li>
+    <li><a href="#ch-balance-maint" onclick="toggleTOC()">10. 균형 유지 (분할·병합)</a></li>
+    <li><a href="#ch-summary" onclick="toggleTOC()">11. 핵심 요약</a></li>
+    <li><a href="#ch-quiz"   onclick="toggleTOC()">12. 퀴즈</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>
+
+<script>
+  function btreeSelectOption(el) {
+    const options = el.closest('.options').querySelectorAll('.option');
+    options.forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  function btreeCheckAnswer(btn) {
+    const item = btn.closest('.quiz-item');
+    const correct = item.dataset.answer;
+    const options = item.querySelectorAll('.option');
+    const selected = item.querySelector('.option.selected');
+    const explain = item.querySelector('.quiz-explain');
+    if (!selected) return;
+    const labels = ['A','B','C','D'];
+    options.forEach((o, i) => {
+      if (labels[i] === correct) o.classList.add('correct');
+      else if (o === selected && labels[i] !== correct) o.classList.add('wrong');
+    });
+    explain.classList.add('show');
+    item.querySelectorAll('.option').forEach(o => o.style.pointerEvents = 'none');
+  }
+
+  function btreeResetQuiz(btn) {
+    const item = btn.closest('.quiz-item');
+    item.querySelectorAll('.option').forEach(o => {
+      o.classList.remove('selected','correct','wrong');
+      o.style.pointerEvents = '';
+    });
+    item.querySelector('.quiz-explain').classList.remove('show');
+  }
+</script>
