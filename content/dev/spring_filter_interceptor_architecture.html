@@ -1,0 +1,1378 @@
+<style>
+/* ── 코드 구문 강조 ── */
+.kw  { color: #c792ea; }
+.cls { color: #82aaff; }
+.fn  { color: #82aaff; }
+.str { color: #c3e88d; }
+.cmt { color: #546e7a; font-style: italic; }
+.ann { color: #f78c6c; }
+.num { color: #f78c6c; }
+.ok2 { color: var(--green); font-weight: 700; }
+.bad2{ color: var(--red);  font-weight: 700; }
+.hi  { color: var(--accent); font-weight: 700; }
+.hi2 { color: #4ecdc4; font-weight: 700; }
+.hi3 { color: var(--yellow); font-weight: 700; }
+.dim { color: var(--text-muted); }
+
+/* ── 다이어그램 pre ── */
+pre.diagram {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin: 18px 0;
+  font-family: 'Consolas', 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 2;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* ── 섹션 헤더 (번호 + 제목) ── */
+.sec-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.sec-num {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  color: var(--accent);
+  font-size: 12px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.sec-header h3 { font-size: 1rem; font-weight: 700; color: #fff; margin: 0; }
+
+/* ── 챕터 레이블 ── */
+.ch-label {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 48px 0 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border);
+}
+.ch-label:first-of-type { margin-top: 0; }
+.ch-badge-lbl {
+  display: inline-flex; align-items: center;
+  background: var(--accent); color: #fff;
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 6px;
+}
+.ch-label h2 { font-size: 1.05rem; font-weight: 800; color: #fff; margin: 0; }
+
+/* ── 비교 카드 그리드 ── */
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 18px 0;
+}
+.compare-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+}
+.compare-card.filter-c { border-color: var(--yellow); }
+.compare-card.intercept-c { border-color: var(--accent); }
+.compare-card h4 { font-size: 13px; font-weight: 800; margin-bottom: 8px; }
+.compare-card.filter-c h4 { color: var(--yellow); }
+.compare-card.intercept-c h4 { color: var(--accent); }
+.compare-card p { font-size: 13px; color: var(--text-muted); margin-bottom: 5px; line-height: 1.6; }
+.compare-card p:last-child { margin-bottom: 0; }
+@media (max-width: 600px) { .compare-grid { grid-template-columns: 1fr; } }
+
+/* ── 태그 ── */
+.t-blue   { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-right: 4px; background: #1e2e6e; color: var(--accent); }
+.t-orange { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-right: 4px; background: #3a2e10; color: var(--yellow); }
+.t-red    { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-right: 4px; background: #3a1a1a; color: var(--red); }
+
+/* ── 하이라이트 박스 ── */
+.hi-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin: 14px 0;
+}
+.hi-box.filter-bg { border-color: var(--yellow); background: #2a2410; }
+.hi-box.intercept-bg { border-color: var(--accent); background: #151a35; }
+.hi-box p { margin-bottom: 5px; font-size: 13px; }
+.hi-box p:last-child { margin-bottom: 0; }
+
+/* ── 서브 타이틀 ── */
+.sub-t {
+  font-size: .9rem; font-weight: 700;
+  color: #4ecdc4;
+  margin: 20px 0 8px;
+  padding-left: 10px;
+  border-left: 3px solid #4ecdc4;
+}
+
+/* ── 퀴즈 ── */
+.quiz-list { display: flex; flex-direction: column; gap: 12px; margin: 14px 0; }
+.quiz-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+}
+.quiz-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.q-badge {
+  font-size: 10px; font-weight: 800;
+  padding: 2px 9px; border-radius: 4px;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.q-badge.ox     { background: #3a2e10; color: var(--yellow); }
+.q-badge.easy   { background: #1a3a2a; color: var(--green); }
+.q-badge.mid    { background: #1a2040; color: var(--accent); }
+.quiz-item p.q-text { font-size: 14px; color: var(--text); margin: 0; line-height: 1.7; }
+details.ans { margin-top: 10px; }
+details.ans > summary {
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  padding: 4px 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; list-style: none; user-select: none;
+}
+details.ans > summary::-webkit-details-marker { display: none; }
+details.ans > summary::before { content: "▶  정답 보기"; }
+details.ans[open] > summary::before { content: "▼  정답 닫기"; }
+.ans-body {
+  margin-top: 8px; padding: 12px 16px;
+  border-radius: 0 8px 8px 8px;
+  font-size: 13px; line-height: 1.8;
+}
+.ans-body.ok-ans  { background: #122a1e; border-left: 3px solid var(--green); }
+.ans-body.bad-ans { background: #2a1212; border-left: 3px solid var(--red); }
+.ans-body.info-ans { background: #151a35; border-left: 3px solid var(--accent); }
+.ans-body .ans-label { font-size: 13px; font-weight: 800; display: block; margin-bottom: 6px; }
+.ans-body.ok-ans .ans-label  { color: var(--green); }
+.ans-body.bad-ans .ans-label { color: var(--red); }
+.ans-body.info-ans .ans-label{ color: var(--accent); }
+.ans-body p { color: var(--text); margin-bottom: 5px; }
+.ans-body p:last-child { margin-bottom: 0; }
+.ans-body code { color: #4ecdc4; background: #0e1020; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+
+/* ── TOC ── */
+.report-toc {
+  position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+  background: var(--surface); border-left: 1px solid var(--border);
+  padding: 40px 25px; z-index: 1001;
+  transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+}
+.report-toc.active { right: 0; }
+.report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.report-toc ul { list-style: none; padding: 0; margin: 0; }
+.report-toc li { margin-bottom: 10px; line-height: 1.4; }
+.report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.85rem; transition: 0.2s; display: block; padding: 4px 0; }
+.report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+.toc-backdrop {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+  z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+}
+.toc-backdrop.active { display: block; opacity: 1; }
+.toc-toggle-btn {
+  position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+  background: var(--accent); color: #fff; border: none; border-radius: 50%;
+  font-size: 1.5rem; cursor: pointer; z-index: 1002;
+  box-shadow: 0 4px 15px rgba(94,129,244,0.4);
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+}
+.toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); }
+@media (max-width: 768px) {
+  .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+}
+</style>
+
+<!-- 헤더 -->
+<div style="margin-bottom: 32px;">
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom: 14px;">
+    <span class="badge badge-tag">Spring Boot</span>
+    <span class="badge badge-tag">Filter</span>
+    <span class="badge badge-tag">Interceptor</span>
+    <span class="badge badge-tag">Security</span>
+    <span class="badge badge-date">2026-05-18</span>
+  </div>
+  <h1 style="font-size:1.8rem; font-weight:800; color:#fff; margin-bottom:10px;">
+    Filter · Interceptor · Container · Security
+  </h1>
+  <p style="color:var(--text-muted); font-size:14px;">
+    Spring Container 구조부터 Security Filter Chain까지 — 계층별 처리 흐름 완전 이해
+  </p>
+</div>
+
+<!-- CH 1 -->
+<div class="ch-label" id="ch1">
+  <span class="ch-badge-lbl">CH 01</span>
+  <h2>Client → Controller : 전체 흐름 로드맵</h2>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">1</div>
+    <h3>요청의 여정 — 전체 계층 개요</h3>
+  </div>
+  <p>HTTP 요청 하나가 실제 비즈니스 로직(Service)에 도달하기까지 여러 계층을 통과합니다. 각 계층은 서로 다른 기술 스택에서 동작하며, 역할의 경계가 명확합니다.</p>
+  <pre class="diagram">
+[Client]
+    |
+    |  HTTP Request (GET /api/orders)
+    v
++------------------------------+
+|  Network / Load Balancer     |  <span class="dim">(Nginx, AWS ALB ...)    [외부 인프라]</span>
++------------------------------+
+    |
+    v
++==============================================================+
+|  <span class="ok2">[Spring Boot Application]</span>                                    |
+|  +-------------------------------------------------+         |
+|  | Spring Container (ApplicationContext)           |         |
+|  | DI / AOP / Transaction / Bean Lifecycle 관리   |         |
+|  +-------------------------------------------------+         |
+|                                                              |
+|  +----------------------------+                             |
+|  |   Embedded Tomcat (WAS)    |  <span class="dim">내장 서블릿 컨테이너</span>           |
+|  +----------------------------+                             |
+|      |                                                      |
+|      v                                                      |
+|  +============================+  &lt;--- <span class="hi3">Filter Chain (Servlet 레이어)</span>   |
+|  |  CharacterEncodingFilter   |                             |
+|  |  +---------------------+   |  &lt;--- <span class="bad2">Spring Security</span>       |
+|  |  | SecurityFilterChain |   |       (DelegatingFilterProxy)|
+|  |  |  JwtAuthFilter      |   |                             |
+|  |  |  ExceptionTranslation|  |                             |
+|  |  |  AuthorizationFilter|   |                             |
+|  |  +---------------------+   |                             |
+|  |  CorsFilter / 기타 Filter  |                             |
+|  +============================+                             |
+|      |                                                      |
+|      v                                                      |
+|  +----------------------------+                             |
+|  |   DispatcherServlet        |  <span class="hi">Spring MVC Front Controller</span>    |
+|  +----------------------------+                             |
+|      |                                                      |
+|      v                                                      |
+|  +============================+  &lt;--- <span class="hi">Interceptor Chain (Spring MVC 레이어)</span>|
+|  |  Interceptor.preHandle()   |                             |
+|  +============================+                             |
+|      |                                                      |
+|      v                                                      |
+|  +----------------------------+                             |
+|  |   HandlerMapping           |  <span class="dim">URL → Controller Method 매핑</span>   |
+|  +----------------------------+                             |
+|      |                                                      |
+|      v                                                      |
+|  |  @Controller / @RestController  (Handler Method)        |
+|      |                                                      |
+|      v                                                      |
+|  |   @Service                 |  <span class="dim">비즈니스 로직 (@PreAuthorize 적용 가능)</span>|
+|      |                                                      |
+|      v                                                      |
+|  |   @Repository / JPA        |  <span class="dim">데이터 접근</span>                   |
++==============================================================+
+    |
+    v
+[Database]  <span class="dim">[외부]</span></pre>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">2</div>
+    <h3>응답 흐름 — 반환 경로</h3>
+  </div>
+  <p>응답은 요청과 정반대 방향으로 거슬러 올라옵니다. Interceptor는 <strong>postHandle / afterCompletion</strong> 두 단계에서 추가로 개입합니다.</p>
+  <pre class="diagram">
+[Database]
+    |
+    v
+@Repository → @Service → @Controller
+    |
+    v  (ModelAndView or ResponseBody)
++============================+
+| Interceptor.postHandle()   |  <span class="hi">View 렌더링 직전 (응답 가공 가능)</span>
++============================+
+    |
+    v
+|  View Resolver / JSON 직렬화
+    |
+    v
++============================+
+| Interceptor.afterCompletion|  <span class="hi2">항상 실행 (예외 포함)</span>
++============================+
+    |
+    v
++============================+
+|  Filter.doFilter() 복귀    |  <span class="hi3">chain.doFilter() 이후 코드 실행</span>
++============================+
+    |
+    v
+[Client] ← HTTP Response</pre>
+
+  <blockquote>
+    <strong>핵심 포인트</strong><br>
+    Filter는 요청/응답을 감싸는 <strong>가장 바깥 레이어</strong>, Interceptor는 DispatcherServlet 안쪽 <strong>Spring MVC 레이어</strong>에서 동작합니다.
+    두 개는 동일한 역할이 아니라 <strong>위치와 접근 가능한 컨텍스트가 다릅니다.</strong>
+  </blockquote>
+</div>
+
+<!-- CH 2 -->
+<div class="ch-label" id="ch2">
+  <span class="ch-badge-lbl">CH 02</span>
+  <h2>Filter — Servlet 레이어의 문지기</h2>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">1</div>
+    <h3>Filter란 무엇인가</h3>
+  </div>
+  <p>Filter는 <strong>Java EE (Jakarta EE) 표준 Servlet API</strong>에 정의된 인터페이스입니다. Spring과는 독립적으로, <strong>Tomcat 같은 서블릿 컨테이너가 관리</strong>합니다. DispatcherServlet이 요청을 받기 <em>이전</em>과 응답을 보내기 <em>이후</em>에 동작합니다.</p>
+
+  <div class="hi-box filter-bg">
+    <p><span class="t-orange">위치</span> Tomcat (WAS) 내부 — DispatcherServlet 앞</p>
+    <p><span class="t-orange">인터페이스</span> <code>jakarta.servlet.Filter</code></p>
+    <p><span class="t-orange">등록 방법</span> <code>@Component</code> 또는 <code>FilterRegistrationBean</code></p>
+    <p><span class="t-orange">접근 범위</span> <strong>모든 요청</strong> (정적 리소스 포함)</p>
+  </div>
+
+  <div class="sub-t">Filter의 3가지 메서드</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">jakarta.servlet.Filter</span>
+    </div>
+    <pre><code><span class="kw">public interface</span> <span class="cls">Filter</span> {
+
+    <span class="cmt">// 필터 초기화 (애플리케이션 시작 시 1회 실행)</span>
+    <span class="kw">default void</span> <span class="fn">init</span>(FilterConfig filterConfig) {}
+
+    <span class="cmt">// 요청마다 실행 — 핵심 메서드</span>
+    <span class="kw">void</span> <span class="fn">doFilter</span>(ServletRequest request,
+                  ServletResponse response,
+                  FilterChain chain) <span class="kw">throws</span> IOException, ServletException;
+
+    <span class="cmt">// 필터 소멸 (애플리케이션 종료 시 1회 실행)</span>
+    <span class="kw">default void</span> <span class="fn">destroy</span>() {}
+}</code></pre>
+  </div>
+
+  <div class="sub-t">doFilter의 실행 구조</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">doFilter 패턴</span>
+    </div>
+    <pre><code><span class="kw">public void</span> <span class="fn">doFilter</span>(ServletRequest req, ServletResponse res, FilterChain chain) {
+
+    <span class="cmt">// [A] 요청 처리 전 코드 (DispatcherServlet 도달 이전)</span>
+    log.info(<span class="str">"요청 전처리"</span>);
+
+    chain.<span class="fn">doFilter</span>(req, res);  <span class="cmt">// 다음 Filter 또는 DispatcherServlet으로 전달</span>
+
+    <span class="cmt">// [B] 응답 처리 후 코드 (DispatcherServlet 처리 완료 후 복귀)</span>
+    log.info(<span class="str">"응답 후처리"</span>);
+}</code></pre>
+  </div>
+
+  <div class="badge badge-warning" style="display:inline-block; margin-bottom:8px;">주의</div>
+  <p><code>chain.doFilter()</code>를 호출하지 않으면 요청이 그 자리에서 차단됩니다. JWT 검증 실패 시 여기서 401 응답을 바로 내려보내는 패턴이 이것입니다.</p>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">2</div>
+    <h3>Filter가 잘 맞는 상황</h3>
+  </div>
+  <table style="width:100%; border-collapse:collapse; font-size:14px;">
+    <thead>
+      <tr style="background:var(--surface2);">
+        <th style="text-align:left; padding:10px 14px; color:var(--accent); border-bottom:2px solid var(--border);">사용 사례</th>
+        <th style="text-align:left; padding:10px 14px; color:var(--accent); border-bottom:2px solid var(--border);">이유</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="padding:9px 14px; border-bottom:1px solid var(--border);"><span class="t-orange">인코딩 처리</span> CharacterEncodingFilter</td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">모든 요청에 적용, Spring 컨텍스트 불필요</td></tr>
+      <tr><td style="padding:9px 14px; border-bottom:1px solid var(--border);"><span class="t-orange">CORS 처리</span> CorsFilter</td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">DispatcherServlet 이전에 CORS 헤더를 붙여야 OPTIONS 사전 요청도 처리 가능</td></tr>
+      <tr><td style="padding:9px 14px; border-bottom:1px solid var(--border);"><span class="t-orange">JWT 파싱 / 토큰 검증</span></td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">Spring Security와 연계, Security Filter Chain에서 처리</td></tr>
+      <tr><td style="padding:9px 14px; border-bottom:1px solid var(--border);"><span class="t-orange">요청/응답 로깅 (raw body)</span></td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">HttpServletRequest body를 읽으려면 Filter 레벨이 적합</td></tr>
+      <tr><td style="padding:9px 14px; border-bottom:1px solid var(--border);"><span class="t-orange">Rate Limiting / IP 차단</span></td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">Spring 관계없이 가장 빠르게 차단 가능</td></tr>
+      <tr><td style="padding:9px 14px;"><span class="t-orange">정적 리소스 처리</span></td><td style="padding:9px 14px; color:var(--text-muted);">Filter는 /static/** 같은 경로에도 개입 가능</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- CH 3 -->
+<div class="ch-label" id="ch3">
+  <span class="ch-badge-lbl">CH 03</span>
+  <h2>Interceptor — Spring MVC 레이어의 관문</h2>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">1</div>
+    <h3>Interceptor란 무엇인가</h3>
+  </div>
+  <p>Interceptor는 <strong>Spring MVC가 제공하는 인터페이스</strong>입니다. DispatcherServlet이 요청을 받은 <em>이후</em>, Controller(Handler)에 전달하기 <em>이전</em>에 동작합니다. Spring의 ApplicationContext를 완전히 활용할 수 있어 <strong>Bean 주입, AOP, 트랜잭션 컨텍스트</strong> 모두 접근 가능합니다.</p>
+
+  <div class="hi-box intercept-bg">
+    <p><span class="t-blue">위치</span> DispatcherServlet 내부 — Controller 직전</p>
+    <p><span class="t-blue">인터페이스</span> <code>org.springframework.web.servlet.HandlerInterceptor</code></p>
+    <p><span class="t-blue">등록 방법</span> <code>WebMvcConfigurer.addInterceptors()</code></p>
+    <p><span class="t-blue">접근 범위</span> DispatcherServlet이 처리하는 요청만 (정적 리소스 제외 가능)</p>
+  </div>
+
+  <div class="sub-t">HandlerInterceptor의 3가지 메서드</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">HandlerInterceptor</span>
+    </div>
+    <pre><code><span class="kw">public interface</span> <span class="cls">HandlerInterceptor</span> {
+
+    <span class="cmt">// [1] Controller 실행 직전</span>
+    <span class="cmt">//     false 반환 → Controller 호출 안 함, 처리 중단</span>
+    <span class="kw">default boolean</span> <span class="fn">preHandle</span>(HttpServletRequest req,
+                               HttpServletResponse res,
+                               Object handler) <span class="kw">throws</span> Exception {
+        <span class="kw">return true</span>;
+    }
+
+    <span class="cmt">// [2] Controller 실행 후, View 렌더링 직전</span>
+    <span class="cmt">//     @RestController 환경에서는 거의 사용하지 않음</span>
+    <span class="kw">default void</span> <span class="fn">postHandle</span>(HttpServletRequest req,
+                             HttpServletResponse res,
+                             Object handler,
+                             ModelAndView modelAndView) <span class="kw">throws</span> Exception {}
+
+    <span class="cmt">// [3] View 렌더링 완료 후 (예외 발생 시에도 항상 호출)</span>
+    <span class="cmt">//     리소스 정리, 처리 시간 측정에 사용</span>
+    <span class="kw">default void</span> <span class="fn">afterCompletion</span>(HttpServletRequest req,
+                                  HttpServletResponse res,
+                                  Object handler,
+                                  Exception ex) <span class="kw">throws</span> Exception {}
+}</code></pre>
+  </div>
+
+  <blockquote>
+    <strong>handler 파라미터란?</strong><br>
+    <code>preHandle</code>의 <code>Object handler</code>를 <code>HandlerMethod</code>로 캐스팅하면 실행될 Controller의 클래스, 메서드, <code>@RequestMapping</code>, <code>@LoginRequired</code> 같은 커스텀 어노테이션까지 모두 꺼낼 수 있습니다. Filter에서는 절대 불가능한 기능입니다.
+  </blockquote>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">2</div>
+    <h3>Interceptor가 잘 맞는 상황</h3>
+  </div>
+  <table style="width:100%; border-collapse:collapse; font-size:14px;">
+    <thead>
+      <tr style="background:var(--surface2);">
+        <th style="text-align:left; padding:10px 14px; color:var(--accent); border-bottom:2px solid var(--border);">사용 사례</th>
+        <th style="text-align:left; padding:10px 14px; color:var(--accent); border-bottom:2px solid var(--border);">이유</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="padding:9px 14px; border-bottom:1px solid var(--border);"><span class="t-blue">로그인 세션 체크</span></td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">HttpSession, Spring Bean에 접근 가능, Controller 메서드 어노테이션 확인 가능</td></tr>
+      <tr><td style="padding:9px 14px; border-bottom:1px solid var(--border);"><span class="t-blue">권한/역할 체크 (@LoginRequired)</span></td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">HandlerMethod로 커스텀 어노테이션을 읽어 특정 API만 선택적으로 제어</td></tr>
+      <tr><td style="padding:9px 14px; border-bottom:1px solid var(--border);"><span class="t-blue">API 실행 시간 측정</span></td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">preHandle에서 시작, afterCompletion에서 종료 — MDC / 로그에 기록</td></tr>
+      <tr><td style="padding:9px 14px; border-bottom:1px solid var(--border);"><span class="t-blue">공통 Model 데이터 주입</span></td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">postHandle에서 ModelAndView에 공통 사용자 정보, 메뉴 등을 주입 (MVC 템플릿 방식)</td></tr>
+      <tr><td style="padding:9px 14px; border-bottom:1px solid var(--border);"><span class="t-blue">감사(Audit) 로깅</span></td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">Spring Security 컨텍스트로 현재 사용자 특정 가능, 비즈니스 맥락 포함 가능</td></tr>
+      <tr><td style="padding:9px 14px;"><span class="t-blue">다국어 처리 (Locale)</span></td><td style="padding:9px 14px; color:var(--text-muted);">LocaleChangeInterceptor — Spring 표준 제공</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- CH 4 -->
+<div class="ch-label" id="ch4">
+  <span class="ch-badge-lbl">CH 04</span>
+  <h2>Filter vs Interceptor — 핵심 차이 완전 비교</h2>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">1</div>
+    <h3>한눈에 보는 비교표</h3>
+  </div>
+  <table style="width:100%; border-collapse:collapse; font-size:14px;">
+    <thead>
+      <tr style="background:var(--surface2);">
+        <th style="text-align:left; padding:10px 14px; color:var(--accent); border-bottom:2px solid var(--border);">항목</th>
+        <th style="text-align:left; padding:10px 14px; color:var(--yellow); border-bottom:2px solid var(--border);">Filter</th>
+        <th style="text-align:left; padding:10px 14px; color:var(--accent); border-bottom:2px solid var(--border);">Interceptor</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="padding:9px 14px; border-bottom:1px solid var(--border);">기술 표준</td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">Java EE (Servlet API)</td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">Spring MVC</td></tr>
+      <tr><td style="padding:9px 14px; border-bottom:1px solid var(--border);">관리 주체</td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">Tomcat (Servlet Container)</td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">Spring ApplicationContext</td></tr>
+      <tr><td style="padding:9px 14px; border-bottom:1px solid var(--border);">동작 위치</td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">DispatcherServlet <strong>이전</strong></td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">DispatcherServlet <strong>이후</strong>, Controller 이전</td></tr>
+      <tr><td style="padding:9px 14px; border-bottom:1px solid var(--border);">Spring Bean 주입</td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">가능 (단, 주의 필요)</td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">완전 가능 (@Autowired)</td></tr>
+      <tr><td style="padding:9px 14px; border-bottom:1px solid var(--border);">Controller 정보 접근</td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--red);">불가</td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--green);">HandlerMethod로 접근 가능</td></tr>
+      <tr><td style="padding:9px 14px; border-bottom:1px solid var(--border);">적용 범위</td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">모든 요청 (정적 리소스 포함)</td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">DispatcherServlet 처리 요청만</td></tr>
+      <tr><td style="padding:9px 14px; border-bottom:1px solid var(--border);">예외 처리</td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">try-catch 직접 처리</td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">@ControllerAdvice와 연동 가능</td></tr>
+      <tr><td style="padding:9px 14px; border-bottom:1px solid var(--border);">Request Body 읽기</td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">직접 가능 (stream)</td><td style="padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text-muted);">Jackson 처리 이후 접근 (제한적)</td></tr>
+      <tr><td style="padding:9px 14px;">실행 순서</td><td style="padding:9px 14px; color:var(--text-muted);">Filter → Interceptor 순</td><td style="padding:9px 14px; color:var(--text-muted);">Filter 이후 실행</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">2</div>
+    <h3>처리 흐름 — 실행 순서 타임라인</h3>
+  </div>
+  <pre class="diagram">
+요청  Filter.doFilter() [전처리]
+  |        |
+  |        +-- chain.doFilter()
+  |                  |
+  |        DispatcherServlet
+  |                  |
+  |        Interceptor.preHandle()    -- <span class="hi">false 반환 시 이후 중단</span>
+  |                  |
+  |        HandlerMapping
+  |                  |
+  |        ArgumentResolver
+  |                  |
+  |        @Controller.method()
+  |                  |
+  |        Interceptor.postHandle()   -- <span class="hi">정상 응답 시만 실행</span>
+  |                  |
+  |        View Resolver
+  |                  |
+  |        Interceptor.afterCompletion() -- <span class="hi2">예외 발생해도 항상 실행</span>
+  |                  |
+응답  Filter.doFilter() [후처리]</pre>
+
+  <div class="compare-grid">
+    <div class="compare-card filter-c">
+      <h4>Filter 예외 처리</h4>
+      <p>DispatcherServlet 바깥이므로 @ControllerAdvice가 잡지 못합니다.</p>
+      <p>직접 <code>response.sendError()</code> 또는 ObjectMapper로 JSON 응답을 직접 써야 합니다.</p>
+    </div>
+    <div class="compare-card intercept-c">
+      <h4>Interceptor 예외 처리</h4>
+      <p>preHandle에서 예외를 throw하면 DispatcherServlet이 잡아 @ControllerAdvice로 전달합니다.</p>
+      <p>일관된 에러 포맷 적용이 쉽습니다.</p>
+    </div>
+  </div>
+</div>
+
+<!-- CH 5 -->
+<div class="ch-label" id="ch5">
+  <span class="ch-badge-lbl">CH 05</span>
+  <h2>코드 구현 예제</h2>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">1</div>
+    <h3>JWT 인증 Filter 구현</h3>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">JwtAuthFilter.java</span>
+    </div>
+    <pre><code><span class="ann">@Component</span>
+<span class="kw">public class</span> <span class="cls">JwtAuthFilter</span> <span class="kw">implements</span> <span class="cls">Filter</span> {
+
+    <span class="ann">@Autowired</span>
+    <span class="kw">private</span> <span class="cls">JwtProvider</span> jwtProvider;
+
+    <span class="ann">@Override</span>
+    <span class="kw">public void</span> <span class="fn">doFilter</span>(ServletRequest request, ServletResponse response,
+                          FilterChain chain) <span class="kw">throws</span> IOException, ServletException {
+
+        <span class="cls">HttpServletRequest</span>  req = (<span class="cls">HttpServletRequest</span>) request;
+        <span class="cls">HttpServletResponse</span> res = (<span class="cls">HttpServletResponse</span>) response;
+
+        <span class="cls">String</span> token = req.<span class="fn">getHeader</span>(<span class="str">"Authorization"</span>);
+
+        <span class="kw">if</span> (token == <span class="kw">null</span> || !jwtProvider.<span class="fn">validate</span>(token)) {
+            res.<span class="fn">setStatus</span>(HttpServletResponse.SC_UNAUTHORIZED);
+            res.<span class="fn">getWriter</span>().<span class="fn">write</span>(<span class="str">"{\"error\":\"Unauthorized\"}"</span>);
+            <span class="kw">return</span>;  <span class="cmt">// chain 호출하지 않아 요청 차단</span>
+        }
+
+        chain.<span class="fn">doFilter</span>(request, response);  <span class="cmt">// 정상 진행</span>
+    }
+}</code></pre>
+  </div>
+
+  <div class="sub-t">FilterRegistrationBean으로 등록 (순서 제어)</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">FilterConfig.java</span>
+    </div>
+    <pre><code><span class="ann">@Configuration</span>
+<span class="kw">public class</span> <span class="cls">FilterConfig</span> {
+
+    <span class="ann">@Bean</span>
+    <span class="kw">public</span> <span class="cls">FilterRegistrationBean</span>&lt;<span class="cls">JwtAuthFilter</span>&gt; <span class="fn">jwtFilter</span>() {
+        <span class="cls">FilterRegistrationBean</span>&lt;<span class="cls">JwtAuthFilter</span>&gt; bean = <span class="kw">new</span> <span class="cls">FilterRegistrationBean</span>&lt;&gt;();
+        bean.<span class="fn">setFilter</span>(<span class="kw">new</span> <span class="cls">JwtAuthFilter</span>());
+        bean.<span class="fn">addUrlPatterns</span>(<span class="str">"/api/*"</span>);
+        bean.<span class="fn">setOrder</span>(<span class="num">1</span>);  <span class="cmt">// 낮을수록 먼저 실행</span>
+        <span class="kw">return</span> bean;
+    }
+}</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">2</div>
+    <h3>로그인 체크 Interceptor 구현</h3>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">LoginCheckInterceptor.java</span>
+    </div>
+    <pre><code><span class="ann">@Component</span>
+<span class="kw">public class</span> <span class="cls">LoginCheckInterceptor</span> <span class="kw">implements</span> <span class="cls">HandlerInterceptor</span> {
+
+    <span class="ann">@Override</span>
+    <span class="kw">public boolean</span> <span class="fn">preHandle</span>(HttpServletRequest req, HttpServletResponse res,
+                               Object handler) <span class="kw">throws</span> Exception {
+
+        <span class="cmt">// 정적 리소스 요청 스킵</span>
+        <span class="kw">if</span> (!(handler <span class="kw">instanceof</span> HandlerMethod method)) {
+            <span class="kw">return true</span>;
+        }
+
+        <span class="cmt">// 커스텀 어노테이션 확인 — Filter에서는 불가능한 기능</span>
+        <span class="kw">if</span> (method.<span class="fn">hasMethodAnnotation</span>(<span class="cls">NoLoginRequired</span>.<span class="kw">class</span>)) {
+            <span class="kw">return true</span>;
+        }
+
+        <span class="cls">HttpSession</span> session = req.<span class="fn">getSession</span>(<span class="kw">false</span>);
+        <span class="kw">if</span> (session == <span class="kw">null</span> || session.<span class="fn">getAttribute</span>(<span class="str">"USER"</span>) == <span class="kw">null</span>) {
+            <span class="kw">throw new</span> <span class="cls">UnauthorizedException</span>(<span class="str">"로그인 필요"</span>);  <span class="cmt">// @ControllerAdvice가 처리</span>
+        }
+        <span class="kw">return true</span>;
+    }
+
+    <span class="ann">@Override</span>
+    <span class="kw">public void</span> <span class="fn">afterCompletion</span>(HttpServletRequest req, HttpServletResponse res,
+                                  Object handler, Exception ex) {
+        MDC.<span class="fn">clear</span>();  <span class="cmt">// 처리 완료 후 리소스 정리</span>
+    }
+}</code></pre>
+  </div>
+
+  <div class="sub-t">WebMvcConfigurer로 등록</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">WebConfig.java</span>
+    </div>
+    <pre><code><span class="ann">@Configuration</span>
+<span class="kw">public class</span> <span class="cls">WebConfig</span> <span class="kw">implements</span> <span class="cls">WebMvcConfigurer</span> {
+
+    <span class="ann">@Autowired</span>
+    <span class="kw">private</span> <span class="cls">LoginCheckInterceptor</span> loginCheckInterceptor;
+
+    <span class="ann">@Override</span>
+    <span class="kw">public void</span> <span class="fn">addInterceptors</span>(InterceptorRegistry registry) {
+        registry.<span class="fn">addInterceptor</span>(loginCheckInterceptor)
+                .<span class="fn">addPathPatterns</span>(<span class="str">"/api/**"</span>)
+                .<span class="fn">excludePathPatterns</span>(<span class="str">"/api/login"</span>, <span class="str">"/api/signup"</span>);
+    }
+}</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">3</div>
+    <h3>API 응답 시간 측정 Interceptor</h3>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">ExecutionTimeInterceptor.java</span>
+    </div>
+    <pre><code><span class="ann">@Slf4j</span>
+<span class="ann">@Component</span>
+<span class="kw">public class</span> <span class="cls">ExecutionTimeInterceptor</span> <span class="kw">implements</span> <span class="cls">HandlerInterceptor</span> {
+
+    <span class="kw">private static final</span> <span class="cls">String</span> START_TIME = <span class="str">"_startTime"</span>;
+
+    <span class="ann">@Override</span>
+    <span class="kw">public boolean</span> <span class="fn">preHandle</span>(HttpServletRequest req, HttpServletResponse res,
+                               Object handler) {
+        req.<span class="fn">setAttribute</span>(START_TIME, System.<span class="fn">currentTimeMillis</span>());
+        <span class="kw">return true</span>;
+    }
+
+    <span class="ann">@Override</span>
+    <span class="kw">public void</span> <span class="fn">afterCompletion</span>(HttpServletRequest req, HttpServletResponse res,
+                                  Object handler, Exception ex) {
+        <span class="kw">long</span> elapsed = System.<span class="fn">currentTimeMillis</span>()
+                        - (<span class="kw">long</span>) req.<span class="fn">getAttribute</span>(START_TIME);
+        log.<span class="fn">info</span>(<span class="str">"[{}] {} {}ms"</span>,
+            req.<span class="fn">getMethod</span>(), req.<span class="fn">getRequestURI</span>(), elapsed);
+    }
+}</code></pre>
+  </div>
+</div>
+
+<!-- CH 6 -->
+<div class="ch-label" id="ch6">
+  <span class="ch-badge-lbl">CH 06</span>
+  <h2>언제 무엇을 쓸까 — 판단 기준</h2>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">1</div>
+    <h3>의사결정 흐름도</h3>
+  </div>
+  <pre class="diagram">
+요구사항 발생
+    |
+    +-- Spring Bean / @Service 주입이 필요한가?
+    |        YES → Interceptor 검토
+    |        NO  → 계속 ↓
+    |
+    +-- Controller의 어노테이션을 읽어야 하는가?
+    |        YES → Interceptor
+    |        NO  → 계속 ↓
+    |
+    +-- 정적 리소스(.js/.css)에도 적용해야 하는가?
+    |        YES → Filter
+    |        NO  → 계속 ↓
+    |
+    +-- Request Body를 직접 읽어야 하는가?
+    |        YES → Filter (ContentCachingRequestWrapper 활용)
+    |        NO  → 계속 ↓
+    |
+    +-- Spring Security와 통합이 필요한가?
+             YES → Filter (Security Filter Chain)
+             NO  → Interceptor가 일반적으로 더 편리</pre>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">2</div>
+    <h3>실무 선택 가이드</h3>
+  </div>
+  <div class="compare-grid">
+    <div class="compare-card filter-c">
+      <h4>Filter 선택</h4>
+      <p>JWT / OAuth2 토큰 파싱 및 검증</p>
+      <p>CORS 헤더 추가</p>
+      <p>전체 요청 인코딩 통일</p>
+      <p>Request/Response Body 로깅 (raw)</p>
+      <p>IP 기반 접근 제한</p>
+      <p>Spring Security 커스터마이징</p>
+    </div>
+    <div class="compare-card intercept-c">
+      <h4>Interceptor 선택</h4>
+      <p>세션 기반 로그인 체크</p>
+      <p>@LoginRequired 같은 커스텀 어노테이션 기반 권한</p>
+      <p>API 처리 시간 측정 / 감사 로그</p>
+      <p>공통 Model 데이터 주입 (Thymeleaf 등)</p>
+      <p>다국어(Locale) 처리</p>
+      <p>트랜잭션 컨텍스트 정보 수집</p>
+    </div>
+  </div>
+  <blockquote>
+    <strong>함께 쓰는 것이 일반적</strong><br>
+    실무에서는 Filter와 Interceptor를 모두 사용합니다. 예: Spring Security Filter(JWT 파싱) + LoginCheckInterceptor(세션/권한) 조합. 역할이 겹치지 않도록 각각의 책임을 명확히 나누는 것이 핵심입니다.
+  </blockquote>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">3</div>
+    <h3>AOP는 언제?</h3>
+  </div>
+  <p>Filter, Interceptor 외에도 <strong>AOP (Aspect Oriented Programming)</strong>라는 방법이 있습니다. AOP는 Service / Repository 계층까지 개입할 수 있어 계층이 더 깊습니다.</p>
+  <pre class="diagram">
+[Filter]          → <span class="hi3">Servlet 레이어</span>  (HTTP 레벨)
+      ↓
+[Interceptor]     → <span class="hi">Spring MVC 레이어</span>  (Controller 직전)
+      ↓
+[AOP / @Around]   → <span class="hi2">Spring Bean 레이어</span>  (모든 Spring Bean)
+      ↓
+[Controller]
+      ↓
+[Service]         ← AOP Pointcut 지정 가능
+      ↓
+[Repository]      ← AOP Pointcut 지정 가능</pre>
+
+  <table style="width:100%; border-collapse:collapse; font-size:13px; margin-top:14px;">
+    <thead>
+      <tr style="background:var(--surface2);">
+        <th style="text-align:left; padding:9px 12px; color:var(--accent); border-bottom:2px solid var(--border);">관점</th>
+        <th style="text-align:left; padding:9px 12px; color:var(--yellow); border-bottom:2px solid var(--border);">Filter</th>
+        <th style="text-align:left; padding:9px 12px; color:var(--accent); border-bottom:2px solid var(--border);">Interceptor</th>
+        <th style="text-align:left; padding:9px 12px; color:#4ecdc4; border-bottom:2px solid var(--border);">AOP</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="padding:8px 12px; border-bottom:1px solid var(--border);">적용 위치</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">Servlet 앞</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">Controller 앞/뒤</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">모든 Spring Bean</td></tr>
+      <tr><td style="padding:8px 12px; border-bottom:1px solid var(--border);">HTTP 정보 접근</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">직접 가능</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">가능</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">불편 (RequestContextHolder 필요)</td></tr>
+      <tr><td style="padding:8px 12px; border-bottom:1px solid var(--border);">메서드 파라미터 접근</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--red);">불가</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">제한적</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--green);">JoinPoint로 완전 접근</td></tr>
+      <tr><td style="padding:8px 12px;">주 사용처</td><td style="padding:8px 12px; color:var(--text-muted);">보안/인코딩</td><td style="padding:8px 12px; color:var(--text-muted);">인증/로깅</td><td style="padding:8px 12px; color:var(--text-muted);">트랜잭션, 캐싱, 공통 서비스 로직</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- CH 7 -->
+<div class="ch-label" id="ch7">
+  <span class="ch-badge-lbl">CH 07</span>
+  <h2>Spring Container — IoC / DI 컨테이너</h2>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">1</div>
+    <h3>Spring Container란 무엇인가</h3>
+  </div>
+  <p>Spring Container(ApplicationContext)는 애플리케이션의 <strong>Bean 생성, 의존성 주입, 생명주기 관리</strong>를 담당하는 핵심 인프라입니다. <strong>IoC(Inversion of Control)</strong> 원칙에 따라 객체가 스스로 의존성을 찾는 것이 아니라 Container가 필요한 Bean을 주입해 줍니다.</p>
+
+  <div class="compare-grid">
+    <div class="compare-card intercept-c">
+      <h4>IoC (제어의 역전)</h4>
+      <p>객체 생성 및 라이프사이클 제어권을 개발자가 아닌 Container가 담당.</p>
+      <p><code>new</code>로 직접 생성하지 않고, Container가 제공하는 Bean을 사용.</p>
+    </div>
+    <div class="compare-card filter-c">
+      <h4>DI (의존성 주입)</h4>
+      <p>IoC를 구현하는 구체적인 방법.</p>
+      <p>@Autowired, 생성자 주입으로 필요한 Bean을 Container가 자동 연결.</p>
+    </div>
+  </div>
+
+  <div class="sub-t">BeanFactory vs ApplicationContext</div>
+  <table style="width:100%; border-collapse:collapse; font-size:13px;">
+    <thead>
+      <tr style="background:var(--surface2);">
+        <th style="text-align:left; padding:9px 12px; color:var(--accent); border-bottom:2px solid var(--border);">항목</th>
+        <th style="text-align:left; padding:9px 12px; color:var(--accent); border-bottom:2px solid var(--border);">BeanFactory</th>
+        <th style="text-align:left; padding:9px 12px; color:var(--accent); border-bottom:2px solid var(--border);">ApplicationContext</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="padding:8px 12px; border-bottom:1px solid var(--border);">Bean 생성 시점</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">Lazy (요청 시점)</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--green);">Eager (앱 시작 시점, 기본값)</td></tr>
+      <tr><td style="padding:8px 12px; border-bottom:1px solid var(--border);">AOP 지원</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">제한적</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--green);">완전 지원</td></tr>
+      <tr><td style="padding:8px 12px; border-bottom:1px solid var(--border);">이벤트 발행</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--red);">미지원</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--green);">ApplicationEvent 지원</td></tr>
+      <tr><td style="padding:8px 12px; border-bottom:1px solid var(--border);">메시지 소스 (i18n)</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--red);">미지원</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--green);">MessageSource 지원</td></tr>
+      <tr><td style="padding:8px 12px;">실무 사용</td><td style="padding:8px 12px; color:var(--red);">거의 사용 안 함</td><td style="padding:8px 12px; color:var(--green);">항상 ApplicationContext 사용</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">2</div>
+    <h3>Bean 생명주기 (Lifecycle)</h3>
+  </div>
+  <pre class="diagram">
+[1] @ComponentScan 탐색
+    |  @Component / @Service / @Repository / @Controller / @Configuration 수집
+    ↓
+[2] BeanDefinition 생성 (설계도)
+    |  클래스 정보, 스코프(Singleton/Prototype), 의존성 목록 등 메타데이터
+    ↓
+[3] Bean 인스턴스 생성 (new)
+    |  기본 Singleton — 앱 전체에서 단 1개만 생성
+    ↓
+[4] 의존성 주입 (@Autowired / 생성자 주입)
+    |  필요한 Bean을 Container가 자동 연결
+    ↓
+[5] @PostConstruct 실행
+    |  초기화 로직 (DB 연결 확인, 캐시 워밍업 등)
+    ↓
+[6] Bean 사용 가능 (애플리케이션 실행 중)
+    |  HTTP 요청마다 재사용
+    ↓
+[7] 애플리케이션 종료 신호
+    ↓
+[8] @PreDestroy 실행
+    |  정리 로직 (커넥션 반납, 리소스 해제 등)
+    ↓
+[9] Bean 소멸</pre>
+
+  <blockquote>
+    <strong>생성자 주입을 권장하는 이유</strong><br>
+    @Autowired 필드 주입은 Container 없이 테스트할 때 의존성을 주입할 수 없습니다. 생성자 주입은 <code>final</code> 필드 보장(불변) + 테스트 용이성을 동시에 얻습니다. Spring 공식 권장 방식입니다.
+  </blockquote>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">생성자 주입 예시</span>
+    </div>
+    <pre><code><span class="ann">@Service</span>
+<span class="kw">public class</span> <span class="cls">OrderService</span> {
+
+    <span class="kw">private final</span> <span class="cls">OrderRepository</span> orderRepository;
+    <span class="kw">private final</span> <span class="cls">PaymentService</span>  paymentService;
+
+    <span class="cmt">// 생성자가 1개일 때 @Autowired 생략 가능</span>
+    <span class="kw">public</span> <span class="cls">OrderService</span>(<span class="cls">OrderRepository</span> orderRepository,
+                         <span class="cls">PaymentService</span> paymentService) {
+        <span class="kw">this</span>.orderRepository = orderRepository;
+        <span class="kw">this</span>.paymentService  = paymentService;
+    }
+
+    <span class="ann">@PostConstruct</span>
+    <span class="kw">public void</span> <span class="fn">init</span>() { <span class="cmt">/* 초기화 로직 */</span> }
+
+    <span class="ann">@PreDestroy</span>
+    <span class="kw">public void</span> <span class="fn">destroy</span>() { <span class="cmt">/* 정리 로직 */</span> }
+}</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">3</div>
+    <h3>DelegatingFilterProxy — Filter와 Spring Container 연결</h3>
+  </div>
+  <p>Filter는 Tomcat이 관리하므로 원래 Spring Container의 Bean을 주입받을 수 없습니다. <strong>DelegatingFilterProxy</strong>가 그 연결 다리 역할을 합니다. Spring Security가 이 방식으로 동작합니다.</p>
+  <pre class="diagram">
+Tomcat (Servlet Container)
+  |
+  +-- DelegatingFilterProxy        ← Servlet Filter로 등록
+           |  실제 로직 위임
+           ↓
+      Spring Container (ApplicationContext)
+           |
+           +-- FilterChainProxy    ← Spring Bean (springSecurityFilterChain)
+                  |
+                  +-- SecurityFilter1 (JwtAuthFilter)
+                  +-- SecurityFilter2 (ExceptionTranslationFilter)
+                  +-- SecurityFilter3 (AuthorizationFilter)
+                  +-- ...</pre>
+
+  <blockquote>
+    DelegatingFilterProxy는 <strong>첫 요청이 들어올 때까지 Spring Bean 조회를 지연</strong>시킵니다.
+    Tomcat은 앱 시작 전에 Filter 목록을 확정하므로, 이 시점에는 Spring Context가 아직 초기화되지 않았을 수 있기 때문입니다.
+  </blockquote>
+</div>
+
+<!-- CH 8 -->
+<div class="ch-label" id="ch8">
+  <span class="ch-badge-lbl">CH 08</span>
+  <h2>Spring Security — 인증과 인가</h2>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">1</div>
+    <h3>Spring Security 전체 구조</h3>
+  </div>
+  <p>Spring Security는 <strong>Filter 기반 보안 프레임워크</strong>입니다. <code>DelegatingFilterProxy</code>로 Servlet Container와 Spring Container를 연결하고, 내부의 <code>FilterChainProxy</code>가 보안 필터들을 순서대로 실행합니다.</p>
+  <pre class="diagram">
+[Tomcat]
+    |
+    +-- DelegatingFilterProxy      Servlet Filter (Spring 연결 다리)
+              | 위임
+              ↓
+    FilterChainProxy               Spring Bean (springSecurityFilterChain)
+              |
+              +-- SecurityFilterChain  (URL 패턴별로 다른 체인 적용 가능)
+                       |
+                       ↓
+              (1) SecurityContextHolderFilter   SecurityContext 로드/저장
+              (2) UsernamePasswordAuthFilter     폼 로그인 처리
+              (3) BasicAuthenticationFilter      HTTP Basic 처리
+              (4) JwtAuthenticationFilter        커스텀 JWT 처리
+              (5) ExceptionTranslationFilter     인증/인가 예외 → 401/403 변환
+              (6) AuthorizationFilter            최종 인가 결정
+                       |
+                       ↓
+              [DispatcherServlet]</pre>
+
+  <blockquote>
+    <strong>SecurityFilterChain이 일반 Filter와 다른 점</strong><br>
+    일반 Filter는 모든 URL에 적용됩니다. SecurityFilterChain은 <strong>URL 패턴별로 다른 체인을 적용</strong>할 수 있습니다. 예: /api/** 는 JWT 체인, /admin/** 은 세션+권한 체인.
+  </blockquote>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">2</div>
+    <h3>Authentication vs Authorization</h3>
+  </div>
+  <div class="compare-grid">
+    <div class="compare-card intercept-c">
+      <h4>Authentication (인증) — 누구인가?</h4>
+      <p>신원을 확인하는 과정 (로그인).</p>
+      <p>성공 시 Authentication 객체가 SecurityContextHolder에 저장됨.</p>
+      <p>구현체: UsernamePasswordAuthenticationToken, JwtAuthToken 등.</p>
+    </div>
+    <div class="compare-card filter-c">
+      <h4>Authorization (인가) — 무엇을 할 수 있는가?</h4>
+      <p>인증된 사용자가 해당 리소스에 접근 권한이 있는지 확인.</p>
+      <p>ROLE_USER, ROLE_ADMIN 같은 GrantedAuthority 기반.</p>
+      <p>URL 레벨: SecurityFilterChain, 메서드 레벨: @PreAuthorize.</p>
+    </div>
+  </div>
+
+  <div class="sub-t">SecurityContext 구조</div>
+  <pre class="diagram">
+ThreadLocal
+  |
+  +-- SecurityContextHolder
+            |
+            +-- SecurityContext
+                      |
+                      +-- Authentication
+                                |
+                                +-- Principal    (UserDetails — 사용자 정보)
+                                +-- Credentials  (비밀번호, 인증 후 null 처리)
+                                +-- Authorities  ([ROLE_USER], [ROLE_ADMIN] ...)</pre>
+
+  <div class="badge badge-warning" style="display:inline-block; margin-bottom:8px;">주의</div>
+  <p>SecurityContextHolder는 <strong>ThreadLocal 기반</strong>으로 요청 스레드에 바인딩됩니다. <code>@Async</code> 비동기 환경에서는 SecurityContext가 자식 스레드로 전파되지 않으므로 <code>DelegatingSecurityContextExecutor</code> 또는 <code>MODE_INHERITABLETHREADLOCAL</code> 설정이 필요합니다.</p>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">3</div>
+    <h3>JWT + Spring Security 통합 구현</h3>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">SecurityConfig.java</span>
+    </div>
+    <pre><code><span class="ann">@Configuration</span>
+<span class="ann">@EnableWebSecurity</span>
+<span class="kw">public class</span> <span class="cls">SecurityConfig</span> {
+
+    <span class="ann">@Autowired</span>
+    <span class="kw">private</span> <span class="cls">JwtAuthenticationFilter</span> jwtAuthFilter;
+
+    <span class="ann">@Bean</span>
+    <span class="kw">public</span> <span class="cls">SecurityFilterChain</span> <span class="fn">filterChain</span>(<span class="cls">HttpSecurity</span> http) <span class="kw">throws</span> Exception {
+        http
+            .csrf(csrf -&gt; csrf.<span class="fn">disable</span>())
+            .sessionManagement(s -&gt; s.<span class="fn">sessionCreationPolicy</span>(STATELESS))
+            .authorizeHttpRequests(auth -&gt; auth
+                .<span class="fn">requestMatchers</span>(<span class="str">"/api/auth/**"</span>).<span class="fn">permitAll</span>()
+                .<span class="fn">requestMatchers</span>(<span class="str">"/api/admin/**"</span>).<span class="fn">hasRole</span>(<span class="str">"ADMIN"</span>)
+                .<span class="fn">anyRequest</span>().<span class="fn">authenticated</span>()
+            )
+            .<span class="fn">addFilterBefore</span>(jwtAuthFilter,
+                             UsernamePasswordAuthenticationFilter.<span class="kw">class</span>);
+        <span class="kw">return</span> http.<span class="fn">build</span>();
+    }
+}</code></pre>
+  </div>
+
+  <div class="sub-t">JwtAuthenticationFilter — OncePerRequestFilter</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">JwtAuthenticationFilter.java</span>
+    </div>
+    <pre><code><span class="ann">@Component</span>
+<span class="kw">public class</span> <span class="cls">JwtAuthenticationFilter</span> <span class="kw">extends</span> <span class="cls">OncePerRequestFilter</span> {
+
+    <span class="ann">@Autowired</span> <span class="kw">private</span> <span class="cls">JwtProvider</span>       jwtProvider;
+    <span class="ann">@Autowired</span> <span class="kw">private</span> <span class="cls">UserDetailsService</span> userDetailsService;
+
+    <span class="ann">@Override</span>
+    <span class="kw">protected void</span> <span class="fn">doFilterInternal</span>(<span class="cls">HttpServletRequest</span>  req,
+                                       <span class="cls">HttpServletResponse</span> res,
+                                       <span class="cls">FilterChain</span> chain) <span class="kw">throws</span> Exception {
+
+        <span class="cls">String</span> token = req.<span class="fn">getHeader</span>(<span class="str">"Authorization"</span>);
+
+        <span class="kw">if</span> (token != <span class="kw">null</span> &amp;&amp; jwtProvider.<span class="fn">validate</span>(token)) {
+            <span class="cls">String</span>      username = jwtProvider.<span class="fn">getUsername</span>(token);
+            <span class="cls">UserDetails</span> user     = userDetailsService.<span class="fn">loadUserByUsername</span>(username);
+
+            <span class="cmt">// SecurityContext에 Authentication 저장 — 이후 @PreAuthorize에서 사용</span>
+            <span class="cls">UsernamePasswordAuthenticationToken</span> auth =
+                <span class="kw">new</span> <span class="cls">UsernamePasswordAuthenticationToken</span>(
+                    user, <span class="kw">null</span>, user.<span class="fn">getAuthorities</span>());
+            <span class="cls">SecurityContextHolder</span>.<span class="fn">getContext</span>().<span class="fn">setAuthentication</span>(auth);
+        }
+
+        chain.<span class="fn">doFilter</span>(req, res);
+    }
+}</code></pre>
+  </div>
+  <blockquote>
+    <strong>OncePerRequestFilter를 쓰는 이유</strong><br>
+    일반 Filter는 Forward, Include 등에서 한 요청에 여러 번 실행될 수 있습니다. <code>OncePerRequestFilter</code>는 요청당 정확히 1회만 실행되도록 보장합니다. JWT 검증 필터, 로깅 필터에 반드시 사용합니다.
+  </blockquote>
+</div>
+
+<!-- CH 9 -->
+<div class="ch-label" id="ch9">
+  <span class="ch-badge-lbl">CH 09</span>
+  <h2>관계 정리 — Container · Security ↔ Filter · Interceptor</h2>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">1</div>
+    <h3>Security Filter + Interceptor 협력 흐름</h3>
+  </div>
+  <p>Spring Security(Filter)와 Interceptor는 <strong>경쟁 관계가 아닌 협력 관계</strong>입니다. Security가 Filter에서 인증을 완료하면, Interceptor는 그 결과를 이어받아 비즈니스 맥락의 추가 처리를 담당합니다.</p>
+  <pre class="diagram">
+[요청]
+    ↓
+[SecurityFilterChain]
+    |  JwtAuthFilter: 토큰 검증 → SecurityContextHolder에 Authentication 저장
+    |  AuthorizationFilter: URL 레벨 인가 판단 (permitAll / hasRole)
+    ↓
+[DispatcherServlet]
+    ↓
+[Interceptor.preHandle()]
+    |  SecurityContextHolder.getContext().getAuthentication() 으로 현재 사용자 조회 가능
+    |  HandlerMethod 어노테이션 기반 추가 비즈니스 권한 체크
+    |  감사(Audit) 로그 — 누가, 언제, 어떤 API 호출했는지 기록
+    ↓
+[@Controller → @Service]
+    |  @PreAuthorize: AOP Proxy가 Authentication의 Authorities 확인
+    ↓
+[응답]</pre>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">2</div>
+    <h3>역할 분담 — 무엇을 어디서</h3>
+  </div>
+  <table style="width:100%; border-collapse:collapse; font-size:13px;">
+    <thead>
+      <tr style="background:var(--surface2);">
+        <th style="text-align:left; padding:9px 12px; color:var(--accent); border-bottom:2px solid var(--border);">처리 내용</th>
+        <th style="text-align:left; padding:9px 12px; color:var(--red); border-bottom:2px solid var(--border);">Security Filter</th>
+        <th style="text-align:left; padding:9px 12px; color:var(--accent); border-bottom:2px solid var(--border);">Interceptor</th>
+        <th style="text-align:left; padding:9px 12px; color:#4ecdc4; border-bottom:2px solid var(--border);">AOP (@PreAuthorize)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="padding:8px 12px; border-bottom:1px solid var(--border);">JWT 토큰 검증</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--green);">담당</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">—</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">—</td></tr>
+      <tr><td style="padding:8px 12px; border-bottom:1px solid var(--border);">URL 레벨 인가 (ROLE)</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--green);">담당</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">—</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">—</td></tr>
+      <tr><td style="padding:8px 12px; border-bottom:1px solid var(--border);">커스텀 어노테이션 기반 제어</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">—</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--green);">담당 (HandlerMethod)</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">—</td></tr>
+      <tr><td style="padding:8px 12px; border-bottom:1px solid var(--border);">API 실행 시간 / 감사 로그</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">—</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--green);">담당</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">—</td></tr>
+      <tr><td style="padding:8px 12px; border-bottom:1px solid var(--border);">메서드 단위 비즈니스 인가</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">—</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-muted);">가능 (보통 미사용)</td><td style="padding:8px 12px; border-bottom:1px solid var(--border); color:var(--green);">담당</td></tr>
+      <tr><td style="padding:8px 12px;">현재 사용자 정보 조회</td><td style="padding:8px 12px; color:var(--text-muted);">저장 주체</td><td style="padding:8px 12px; color:var(--green);">SecurityContextHolder로 읽기</td><td style="padding:8px 12px; color:var(--green);">authentication 파라미터</td></tr>
+    </tbody>
+  </table>
+
+  <div class="badge badge-warning" style="display:inline-block; margin-top:14px; margin-bottom:8px;">중요</div>
+  <p><code>@PreAuthorize</code>는 Spring Container가 Service Bean에 씌운 <strong>AOP Proxy</strong>가 처리합니다. Interceptor를 통하지 않으므로, URL 매핑이 없는 내부 서비스 직접 호출에도 인가가 적용됩니다. Interceptor에서 인가 로직을 짜면 내부 호출에서 우회될 수 있으니 주의가 필요합니다.</p>
+</div>
+
+<!-- CH 10 -->
+<div class="ch-label" id="ch10">
+  <span class="ch-badge-lbl">CH 10</span>
+  <h2>연습 문제</h2>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">1</div>
+    <h3>O / X 퀴즈</h3>
+  </div>
+  <div class="quiz-list">
+
+    <div class="quiz-item">
+      <div class="quiz-meta"><span class="q-badge ox">O/X</span></div>
+      <p class="q-text">Q1. Filter는 DispatcherServlet보다 먼저 실행된다.</p>
+      <details class="ans"><summary></summary>
+        <div class="ans-body ok-ans">
+          <span class="ans-label">O — 정답</span>
+          <p>Filter는 Tomcat(Servlet Container) 레이어에서 동작하며, DispatcherServlet 진입 이전에 실행됩니다. 실행 순서: Filter Chain → DispatcherServlet → Interceptor → Controller</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-meta"><span class="q-badge ox">O/X</span></div>
+      <p class="q-text">Q2. <code>Interceptor.preHandle()</code>이 <code>false</code>를 반환하면 <code>postHandle()</code>도 실행된다.</p>
+      <details class="ans"><summary></summary>
+        <div class="ans-body bad-ans">
+          <span class="ans-label">X — 오답</span>
+          <p><code>preHandle()</code>이 false를 반환하면 Controller 호출이 중단되고, <code>postHandle()</code>도 실행되지 않습니다.</p>
+          <p><code>afterCompletion()</code> 또한 preHandle이 true를 반환한 인터셉터에 한해서만 호출됩니다.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-meta"><span class="q-badge ox">O/X</span></div>
+      <p class="q-text">Q3. Filter 안에서 발생한 예외는 <code>@ControllerAdvice</code>가 처리한다.</p>
+      <details class="ans"><summary></summary>
+        <div class="ans-body bad-ans">
+          <span class="ans-label">X — 오답</span>
+          <p>@ControllerAdvice는 DispatcherServlet 내부에서만 동작합니다. Filter는 DispatcherServlet 외부(앞)이므로 예외가 전파되지 않습니다.</p>
+          <p>Filter에서 예외 처리 시 <code>response.setStatus()</code> + <code>ObjectMapper</code>로 직접 JSON 응답을 작성해야 합니다.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-meta"><span class="q-badge ox">O/X</span></div>
+      <p class="q-text">Q4. <code>afterCompletion()</code>은 Controller에서 예외가 발생해도 항상 실행된다.</p>
+      <details class="ans"><summary></summary>
+        <div class="ans-body ok-ans">
+          <span class="ans-label">O — 정답</span>
+          <p>afterCompletion은 예외 발생 여부와 관계없이 항상 호출됩니다. 예외 정보는 4번째 파라미터 <code>Exception ex</code>로 전달됩니다 (정상이면 null).</p>
+          <p>MDC 클리어, 리소스 반납 같은 정리 로직에 적합합니다.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-meta"><span class="q-badge ox">O/X</span></div>
+      <p class="q-text">Q5. Spring Security는 Interceptor를 기반으로 인증 처리를 한다.</p>
+      <details class="ans"><summary></summary>
+        <div class="ans-body bad-ans">
+          <span class="ans-label">X — 오답</span>
+          <p>Spring Security는 <strong>Filter 기반</strong> 보안 프레임워크입니다.</p>
+          <p>DelegatingFilterProxy → FilterChainProxy → SecurityFilterChain 구조로, DispatcherServlet 이전 Filter 레이어에서 인증을 처리합니다.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-meta"><span class="q-badge ox">O/X</span></div>
+      <p class="q-text">Q6. <code>@Component</code>만 붙인 Filter는 Spring Boot가 자동으로 모든 URL(<code>/*</code>)에 등록한다.</p>
+      <details class="ans"><summary></summary>
+        <div class="ans-body ok-ans">
+          <span class="ans-label">O — 정답</span>
+          <p>Spring Boot Auto-Configuration이 <code>@Component</code> Filter를 발견하면 자동으로 <code>FilterRegistrationBean</code>을 생성하고 <code>/*</code> 패턴으로 Tomcat에 등록합니다.</p>
+          <p>특정 URL에만 적용하려면 <code>FilterRegistrationBean.addUrlPatterns()</code>로 명시 등록해야 합니다.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-meta"><span class="q-badge ox">O/X</span></div>
+      <p class="q-text">Q7. Interceptor는 <code>HandlerMethod</code>를 통해 Controller 메서드의 어노테이션을 읽을 수 있다.</p>
+      <details class="ans"><summary></summary>
+        <div class="ans-body ok-ans">
+          <span class="ans-label">O — 정답</span>
+          <p><code>preHandle</code>의 <code>Object handler</code>를 <code>HandlerMethod</code>로 캐스팅하면 실행될 Controller의 클래스, 메서드, 어노테이션 정보를 모두 읽을 수 있습니다.</p>
+          <p>이것이 Filter와의 결정적 차이이며, <code>@LoginRequired</code> 같은 커스텀 어노테이션 기반 제어에 활용합니다.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-meta"><span class="q-badge ox">O/X</span></div>
+      <p class="q-text">Q8. <code>@PreAuthorize</code>는 Interceptor가 호출한다.</p>
+      <details class="ans"><summary></summary>
+        <div class="ans-body bad-ans">
+          <span class="ans-label">X — 오답</span>
+          <p>@PreAuthorize는 Spring Container가 Service Bean에 씌운 <strong>AOP Proxy</strong>가 처리합니다.</p>
+          <p>Interceptor와는 완전히 별개이며, URL 매핑 없는 내부 서비스 직접 호출에도 인가가 적용됩니다. Interceptor는 URL 기반이므로 내부 호출에서는 우회될 수 있습니다.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-meta"><span class="q-badge ox">O/X</span></div>
+      <p class="q-text">Q9. <code>DelegatingFilterProxy</code>가 JWT 검증 등 보안 로직을 직접 처리한다.</p>
+      <details class="ans"><summary></summary>
+        <div class="ans-body bad-ans">
+          <span class="ans-label">X — 오답</span>
+          <p>DelegatingFilterProxy는 이름 그대로 <strong>위임(Delegate)만</strong> 하는 Proxy입니다.</p>
+          <p>실제 로직은 Spring Container에서 관리하는 <code>FilterChainProxy</code> Bean이 처리합니다. DelegatingFilterProxy는 Tomcat과 Spring Container 사이의 연결 다리 역할만 합니다.</p>
+        </div>
+      </details>
+    </div>
+
+  </div>
+</div>
+
+<div class="card">
+  <div class="sec-header">
+    <div class="sec-num">2</div>
+    <h3>단답형</h3>
+  </div>
+  <div class="quiz-list">
+
+    <div class="quiz-item">
+      <div class="quiz-meta"><span class="q-badge easy">단답</span></div>
+      <p class="q-text">Q1. Filter의 <code>doFilter()</code> 안에서 다음 Filter 또는 DispatcherServlet으로 요청을 전달하기 위해 호출하는 코드는?</p>
+      <details class="ans"><summary></summary>
+        <div class="ans-body info-ans">
+          <span class="ans-label">정답</span>
+          <p><code>chain.doFilter(request, response)</code></p>
+          <p>이 호출을 생략하면 요청이 그 자리에서 차단됩니다. JWT 검증 실패 시 의도적으로 생략해 401을 반환하는 패턴에 사용합니다.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-meta"><span class="q-badge easy">단답</span></div>
+      <p class="q-text">Q2. Interceptor를 DispatcherServlet에 등록할 때 오버라이드하는 인터페이스와 메서드는?</p>
+      <details class="ans"><summary></summary>
+        <div class="ans-body info-ans">
+          <span class="ans-label">정답</span>
+          <p><code>WebMvcConfigurer</code> 인터페이스의 <code>addInterceptors(InterceptorRegistry registry)</code> 메서드</p>
+          <p><code>registry.addInterceptor(interceptor).addPathPatterns("/api/**")</code> 형태로 URL 패턴도 지정합니다.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-meta"><span class="q-badge easy">단답</span></div>
+      <p class="q-text">Q3. Spring Container에서 Bean의 기본 스코프(Scope)는 무엇인가? 그리고 이것이 의미하는 바는?</p>
+      <details class="ans"><summary></summary>
+        <div class="ans-body info-ans">
+          <span class="ans-label">정답</span>
+          <p><strong>Singleton</strong> — 애플리케이션 전체에서 Bean 인스턴스가 딱 1개만 생성됩니다.</p>
+          <p>모든 HTTP 요청이 동일한 Bean 인스턴스를 공유하므로, Bean에 상태(인스턴스 변수)를 저장하면 동시성 문제가 발생할 수 있습니다.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-meta"><span class="q-badge mid">단답</span></div>
+      <p class="q-text">Q4. Interceptor에서 현재 로그인한 사용자의 인증 정보(Authentication)를 가져오는 코드를 작성하라.</p>
+      <details class="ans"><summary></summary>
+        <div class="ans-body info-ans">
+          <span class="ans-label">정답</span>
+          <p><code>SecurityContextHolder.getContext().getAuthentication()</code></p>
+          <p>Spring Security가 Filter 레이어에서 SecurityContextHolder에 Authentication을 저장해 두었기 때문에, 이후 단계인 Interceptor에서 이렇게 읽을 수 있습니다.</p>
+        </div>
+      </details>
+    </div>
+
+  </div>
+</div>
+
+<!-- TOC -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+<nav id="report-toc" class="report-toc">
+  <h3>목차</h3>
+  <ul>
+    <li><a href="#ch1" onclick="toggleTOC()">CH 01. 전체 흐름 로드맵</a></li>
+    <li><a href="#ch2" onclick="toggleTOC()">CH 02. Filter — Servlet 레이어</a></li>
+    <li><a href="#ch3" onclick="toggleTOC()">CH 03. Interceptor — Spring MVC</a></li>
+    <li><a href="#ch4" onclick="toggleTOC()">CH 04. Filter vs Interceptor 비교</a></li>
+    <li><a href="#ch5" onclick="toggleTOC()">CH 05. 코드 구현 예제</a></li>
+    <li><a href="#ch6" onclick="toggleTOC()">CH 06. 언제 무엇을 쓸까</a></li>
+    <li><a href="#ch7" onclick="toggleTOC()">CH 07. Spring Container</a></li>
+    <li><a href="#ch8" onclick="toggleTOC()">CH 08. Spring Security</a></li>
+    <li><a href="#ch9" onclick="toggleTOC()">CH 09. 관계 정리</a></li>
+    <li><a href="#ch10" onclick="toggleTOC()">CH 10. 연습 문제</a></li>
+  </ul>
+</nav>
+<button class="toc-toggle-btn" onclick="toggleTOC()">☰</button>
