@@ -1,0 +1,1211 @@
+<!-- [2026-05-20] JPA N+1 문제와 영속성 컨텍스트 -->
+<style>
+/* ── TOC ── */
+.report-toc {
+  position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+  background: var(--surface); border-left: 1px solid var(--border);
+  padding: 40px 25px; z-index: 1001;
+  transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+}
+.report-toc.active { right: 0; }
+.report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.report-toc ul { list-style: none; padding: 0; margin: 0; }
+.report-toc li { margin-bottom: 12px; line-height: 1.4; }
+.report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+.report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+.toc-backdrop {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+  z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+}
+.toc-backdrop.active { display: block; opacity: 1; }
+.toc-toggle-btn {
+  position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+  background: var(--accent); color: #fff; border: none; border-radius: 50%;
+  font-size: 1.5rem; cursor: pointer; z-index: 1002;
+  box-shadow: 0 4px 15px var(--accent-glow);
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+}
+.toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); }
+@media (max-width: 768px) {
+  .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+}
+
+/* ── Scoped Styles ── */
+.jpa-ch-label {
+  display: flex; align-items: center; gap: 14px;
+  margin: 36px 0 16px; padding-bottom: 12px; border-bottom: 2px solid var(--border);
+}
+.jpa-ch-badge {
+  display: inline-flex; align-items: center;
+  background: var(--accent); color: #fff;
+  font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 6px; flex-shrink: 0;
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+.jpa-ch-label h2 { font-size: 1.1rem; font-weight: 800; color: #fff; }
+
+.jpa-callout {
+  border-left: 4px solid var(--accent);
+  background: rgba(94,129,244,0.05);
+  border-radius: 0 10px 10px 0;
+  padding: 14px 18px; margin: 16px 0; font-size: 14px;
+  white-space: pre-line;
+}
+.jpa-callout.warn  { border-color: var(--yellow); background: rgba(245,158,11,0.05); }
+.jpa-callout.ok    { border-color: var(--green);  background: rgba(47,179,68,0.05); }
+.jpa-callout.bad   { border-color: var(--red);    background: rgba(214,57,57,0.05); }
+.jpa-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+.jpa-sub { font-size: 0.95rem; font-weight: 700; color: #4ecdc4; margin: 24px 0 10px; padding-left: 10px; border-left: 3px solid #4ecdc4; }
+
+.jpa-summary {
+  background: linear-gradient(135deg, rgba(94,129,244,0.08), rgba(78,205,196,0.08));
+  border: 1px solid rgba(94,129,244,0.25);
+  border-radius: 12px; padding: 24px 28px; margin-bottom: 20px;
+}
+.jpa-summary h3 { color: #4ecdc4; font-size: 0.85rem; font-weight: 700; margin-bottom: 14px; letter-spacing: 1px; text-transform: uppercase; }
+.jpa-summary ul { padding-left: 0; list-style: none; }
+.jpa-summary ul li { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text); }
+.jpa-summary ul li:last-child { border-bottom: none; }
+.jpa-summary ul li::before { content: "→ "; color: #4ecdc4; font-weight: 700; }
+
+.jpa-compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+@media (max-width: 640px) { .jpa-compare-grid { grid-template-columns: 1fr; } }
+.jpa-compare-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.jpa-compare-card.bad  { border-color: var(--red); }
+.jpa-compare-card.ok   { border-color: var(--green); }
+.jpa-compare-card h4 { font-size: 14px; font-weight: 800; margin-bottom: 10px; }
+.jpa-compare-card.bad  h4 { color: var(--red); }
+.jpa-compare-card.ok   h4 { color: var(--green); }
+.jpa-compare-card p { font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+.jpa-compare-card p:last-child { margin-bottom: 0; }
+
+.jpa-box-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 20px 0; }
+@media (max-width: 700px) { .jpa-box-grid { grid-template-columns: 1fr 1fr; } }
+.jpa-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+.jpa-box h4 { font-size: 13px; font-weight: 800; margin-bottom: 10px; color: var(--accent); }
+.jpa-box.yellow h4 { color: var(--yellow); }
+.jpa-box.green  h4 { color: var(--green); }
+.jpa-box.red    h4 { color: var(--red); }
+.jpa-box p { font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+.jpa-box p:last-child { margin-bottom: 0; }
+
+.jpa-section-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-size: 13px; font-weight: 800; flex-shrink: 0;
+  box-shadow: 0 0 8px var(--accent-glow); margin-right: 10px;
+}
+
+/* Quiz */
+.jpa-quiz-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 14px; }
+.jpa-quiz-q { font-weight: 700; color: #fff; margin-bottom: 14px; font-size: 15px; }
+.jpa-qnum { color: var(--accent); margin-right: 8px; }
+.jpa-options { display: flex; flex-direction: column; gap: 8px; }
+.jpa-option {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; cursor: pointer; font-size: 14px;
+  transition: border-color .2s, background .2s; user-select: none;
+}
+.jpa-option:hover { border-color: var(--accent); background: rgba(94,129,244,0.08); }
+.jpa-option.jpa-selected { border-color: var(--accent) !important; background: rgba(94,129,244,0.18) !important; }
+.jpa-option.jpa-selected .jpa-opt-label { background: var(--accent) !important; color: #fff !important; }
+.jpa-opt-label {
+  width: 22px; height: 22px; border-radius: 50%; background: var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; flex-shrink: 0; transition: background .2s;
+}
+.jpa-option.jpa-correct { border-color: var(--green) !important; background: rgba(47,179,68,0.12) !important; }
+.jpa-option.jpa-wrong   { border-color: var(--red)   !important; background: rgba(214,57,57,0.12) !important; }
+.jpa-option.jpa-correct .jpa-opt-label { background: var(--green) !important; color: #fff !important; }
+.jpa-option.jpa-wrong   .jpa-opt-label { background: var(--red)   !important; color: #fff !important; }
+.jpa-quiz-explain {
+  margin-top: 12px; padding: 10px 14px; background: var(--surface); border-radius: 8px;
+  font-size: 13px; color: var(--text-muted); display: none; border-left: 3px solid var(--accent);
+}
+.jpa-quiz-explain.show { display: block; }
+.jpa-quiz-actions { display: flex; gap: 10px; margin-top: 10px; }
+.jpa-btn { padding: 7px 16px; border-radius: 8px; border: none; font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity .2s; }
+.jpa-btn:hover { opacity: .85; }
+.jpa-btn-primary { background: var(--accent); color: #fff; }
+.jpa-btn-reset   { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+.jpa-quiz-score { text-align: center; padding: 20px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; margin-top: 16px; display: none; }
+.jpa-score-num { font-size: 2.6rem; font-weight: 900; background: linear-gradient(90deg, var(--accent), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.jpa-quiz-score p { color: var(--text-muted); margin-top: 8px; font-size: 14px; }
+
+/* Syntax coloring */
+.jpa-kw  { color: #c792ea; }
+.jpa-cls { color: #82aaff; }
+.jpa-fn  { color: #82aaff; }
+.jpa-str { color: #c3e88d; }
+.jpa-cmt { color: #546e7a; font-style: italic; }
+.jpa-ann { color: #f78c6c; }
+.jpa-num { color: #f78c6c; }
+.jpa-ok  { color: var(--green); font-weight: 700; }
+.jpa-bad { color: var(--red);   font-weight: 700; }
+.jpa-hi  { color: var(--accent); font-weight: 700; }
+.jpa-hi2 { color: #4ecdc4; font-weight: 700; }
+.jpa-dim { color: var(--text-muted); }
+</style>
+
+
+<h1>JPA — N+1 문제와 영속성 컨텍스트</h1>
+
+<!-- 헤더 배지 -->
+<div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:24px;">
+  <span class="badge badge-tag">JPA</span>
+  <span class="badge badge-tag">N+1</span>
+  <span class="badge badge-tag">영속성 컨텍스트</span>
+  <span class="badge badge-date">2026-05-20</span>
+</div>
+
+<!-- 핵심 정리 -->
+<div class="card" id="sec-overview">
+  <div class="jpa-summary">
+    <h3>핵심 정리</h3>
+    <ul>
+      <li>N+1은 버그가 아닌 LAZY 로딩이 만들어내는 <strong>성능 안티패턴</strong>이다</li>
+      <li>자바 코드처럼 보이는 연관 객체 호출이 실제로는 <strong>DB 쿼리</strong>다</li>
+      <li>영속성 컨텍스트는 <strong>트랜잭션 단위</strong>로 생성되고 소멸한다</li>
+      <li>1차 캐시는 같은 트랜잭션 안에서만 유효하다 — 요청 간 공유되지 않는다</li>
+      <li>Dirty Checking은 커밋 시점에 스냅샷과 비교해 변경분을 자동 UPDATE한다</li>
+    </ul>
+  </div>
+</div>
+
+
+<!-- CH01 N+1 정의 -->
+<div class="jpa-ch-label" id="sec-n1-what">
+  <span class="jpa-ch-badge">CH 01</span>
+  <h2>N+1 — 정의</h2>
+</div>
+
+<div class="card">
+  <div class="jpa-callout ok">
+    <strong>한 줄 정의</strong>
+N+1은 JPA의 LAZY 로딩으로 인해 N번 추가 쿼리가 발생하는 성능 문제다.
+기능은 정상 동작하지만 쿼리 횟수가 폭발적으로 늘어나 운영 환경에서 장애로 이어질 수 있다.
+  </div>
+  <p style="color:var(--text-muted); font-size:15px; line-height:1.8; margin:16px 0;">
+    N+1은 버그가 아니다. <strong>JPA가 LAZY 로딩 규칙대로 동작하다 보니 자연스럽게 발생하는 구조적 함정</strong>이다.
+    사용자 입장에서는 전혀 모른다. 순수하게 성능 문제다.
+  </p>
+  <div class="jpa-callout">
+    <strong>본질</strong>
+자바 코드처럼 보이는 연관 객체 호출이 실제로는 DB 쿼리다. 이걸 N번 하면 N+1이다.
+  </div>
+</div>
+
+
+<!-- CH02 왜 발생하나 -->
+<div class="jpa-ch-label" id="sec-n1-why">
+  <span class="jpa-ch-badge">CH 02</span>
+  <h2>왜 발생하나 — ORM의 구조적 함정</h2>
+</div>
+
+<div class="card">
+  <p style="color:var(--text-muted); font-size:15px; line-height:1.8; margin-bottom:16px;">
+    JPA는 ORM이다. 객체 호출이 곧 DB 쿼리다. 개발자가 쿼리가 나가는 걸 눈으로 못 보기 때문에
+    무심결에 N번 호출하게 된다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">N+1 발생 예시</span>
+    </div>
+    <pre><code><span class="jpa-ann">@OneToMany</span>(mappedBy = <span class="jpa-str">"user"</span>, fetch = <span class="jpa-cls">FetchType</span>.LAZY)  <span class="jpa-cmt">// 기본값</span>
+<span class="jpa-cls">List</span>&lt;<span class="jpa-cls">Order</span>&gt; orders;
+
+<span class="jpa-cmt">// N+1 발생</span>
+<span class="jpa-cls">List</span>&lt;<span class="jpa-cls">User</span>&gt; users = userRepository.<span class="jpa-fn">findAll</span>();  <span class="jpa-cmt">// 쿼리 1번</span>
+
+users.<span class="jpa-fn">stream</span>()
+    .<span class="jpa-fn">map</span>(user -&gt; user.<span class="jpa-fn">getOrders</span>())  <span class="jpa-cmt">// 호출할 때마다 쿼리 1번씩 추가</span>
+    .<span class="jpa-fn">toList</span>();</code></pre>
+  </div>
+
+  <div class="jpa-sub">실제 나가는 SQL</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">SQL — 총 N+1번</span>
+    </div>
+    <pre><code><span class="jpa-cmt">-- 1번: 유저 전체 조회</span>
+SELECT * FROM user;
+
+<span class="jpa-cmt">-- N번: 각 유저의 주문 조회</span>
+SELECT * FROM orders WHERE user_id = 1;
+SELECT * FROM orders WHERE user_id = 2;
+<span class="jpa-dim">-- ... N번</span></code></pre>
+  </div>
+
+  <div class="jpa-callout warn">
+    <strong>반복문만의 문제가 아니다</strong>
+반복문이든 스트림이든 연관 객체를 N번 호출하는 상황이면 모두 발생한다.
+단 1건 조회 후 연관 객체 1번 호출해도 1+1 = 2번의 쿼리가 나간다.
+  </div>
+</div>
+
+
+<!-- CH03 EAGER -->
+<div class="jpa-ch-label" id="sec-n1-eager">
+  <span class="jpa-ch-badge">CH 03</span>
+  <h2>EAGER로 바꾸면 해결되나?</h2>
+</div>
+
+<div class="card">
+  <div class="jpa-compare-grid">
+    <div class="jpa-compare-card bad">
+      <h4>LAZY (기본값)</h4>
+      <p>연관 객체를 실제로 사용할 때 쿼리를 날린다</p>
+      <p>N개 엔티티에서 N번 호출 → N+1 발생</p>
+      <p>쓰지 않으면 쿼리 안 나감</p>
+    </div>
+    <div class="jpa-compare-card bad">
+      <h4>EAGER</h4>
+      <p>findAll() 시점에 무조건 JOIN해서 가져온다</p>
+      <p>안 쓰는 데이터도 항상 조회 → 메모리 낭비</p>
+      <p>N+1 발생 시점이 앞당겨질 뿐, 쿼리 수는 동일</p>
+    </div>
+  </div>
+
+  <div class="jpa-callout bad">
+    <strong>결론</strong>
+EAGER는 해결책이 아니다. N+1이 findAll() 시점으로 앞당겨질 뿐이다.
+유저 10,000명 조회 시 EAGER면 쓰지도 않을 주문 10,000건을 무조건 JOIN해서 가져온다.
+  </div>
+</div>
+
+
+<!-- CH04 해결책 -->
+<div class="jpa-ch-label" id="sec-n1-fix">
+  <span class="jpa-ch-badge">CH 04</span>
+  <h2>N+1 해결책</h2>
+</div>
+
+<div class="card">
+  <div class="jpa-sub">방법 1 — JPQL Fetch Join</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">JPQL Fetch Join</span>
+    </div>
+    <pre><code><span class="jpa-ann">@Query</span>(<span class="jpa-str">"SELECT DISTINCT u FROM User u JOIN FETCH u.orders"</span>)
+<span class="jpa-cls">List</span>&lt;<span class="jpa-cls">User</span>&gt; <span class="jpa-fn">findAllWithOrders</span>();</code></pre>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">SQL — 1번으로 끝</span>
+    </div>
+    <pre><code>SELECT DISTINCT u.*, o.*
+FROM user u
+LEFT JOIN orders o ON o.user_id = u.id;</code></pre>
+  </div>
+
+  <div class="jpa-sub">방법 2 — @EntityGraph</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">@EntityGraph</span>
+    </div>
+    <pre><code><span class="jpa-ann">@EntityGraph</span>(attributePaths = {<span class="jpa-str">"orders"</span>})
+<span class="jpa-cls">List</span>&lt;<span class="jpa-cls">User</span>&gt; <span class="jpa-fn">findAll</span>();</code></pre>
+  </div>
+
+  <div class="jpa-sub">방법 3 — QueryDSL Fetch Join</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">QueryDSL — 동적 조건 포함</span>
+    </div>
+    <pre><code><span class="jpa-ann">@RequiredArgsConstructor</span>
+<span class="jpa-ann">@Repository</span>
+<span class="jpa-kw">public class</span> <span class="jpa-cls">UserQueryRepository</span> {
+
+    <span class="jpa-kw">private final</span> <span class="jpa-cls">JPAQueryFactory</span> queryFactory;
+
+    <span class="jpa-kw">public</span> <span class="jpa-cls">List</span>&lt;<span class="jpa-cls">User</span>&gt; <span class="jpa-fn">findAllWithOrders</span>() {
+        <span class="jpa-kw">return</span> queryFactory
+            .<span class="jpa-fn">selectFrom</span>(user)
+            .<span class="jpa-fn">leftJoin</span>(user.orders, order).<span class="jpa-fn">fetchJoin</span>()  <span class="jpa-cmt">// fetchJoin() 핵심</span>
+            .<span class="jpa-fn">distinct</span>()
+            .<span class="jpa-fn">fetch</span>();
+    }
+
+    <span class="jpa-cmt">// 동적 조건 추가</span>
+    <span class="jpa-kw">public</span> <span class="jpa-cls">List</span>&lt;<span class="jpa-cls">User</span>&gt; <span class="jpa-fn">findWithOrders</span>(<span class="jpa-cls">String</span> name, <span class="jpa-cls">LocalDate</span> from) {
+        <span class="jpa-cls">BooleanBuilder</span> builder = <span class="jpa-kw">new</span> <span class="jpa-cls">BooleanBuilder</span>();
+
+        <span class="jpa-kw">if</span> (name != <span class="jpa-kw">null</span>) builder.<span class="jpa-fn">and</span>(user.name.<span class="jpa-fn">eq</span>(name));
+        <span class="jpa-kw">if</span> (from != <span class="jpa-kw">null</span>) builder.<span class="jpa-fn">and</span>(order.createdAt.<span class="jpa-fn">goe</span>(from));
+
+        <span class="jpa-kw">return</span> queryFactory
+            .<span class="jpa-fn">selectFrom</span>(user)
+            .<span class="jpa-fn">leftJoin</span>(user.orders, order).<span class="jpa-fn">fetchJoin</span>()
+            .<span class="jpa-fn">where</span>(builder)
+            .<span class="jpa-fn">distinct</span>()
+            .<span class="jpa-fn">fetch</span>();
+    }
+}</code></pre>
+  </div>
+
+  <div class="jpa-sub">방법 4 — @BatchSize + QueryDSL (페이징 포함 시)</div>
+  <p style="color:var(--text-muted); font-size:14px; margin-bottom:12px;">
+    Fetch Join은 페이징과 함께 쓰면 메모리 문제가 발생한다. 페이징이 필요하면 <code>@BatchSize</code>를 쓴다.
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">@BatchSize + 페이징</span>
+    </div>
+    <pre><code><span class="jpa-cmt">// Entity에 선언</span>
+<span class="jpa-ann">@OneToMany</span>(mappedBy = <span class="jpa-str">"user"</span>)
+<span class="jpa-ann">@BatchSize</span>(size = <span class="jpa-num">100</span>)
+<span class="jpa-cls">List</span>&lt;<span class="jpa-cls">Order</span>&gt; orders;
+
+<span class="jpa-cmt">// QueryDSL — Fetch Join 없이 페이징</span>
+<span class="jpa-kw">public</span> <span class="jpa-cls">Page</span>&lt;<span class="jpa-cls">User</span>&gt; <span class="jpa-fn">findUsers</span>(<span class="jpa-cls">Pageable</span> pageable) {
+    <span class="jpa-cls">List</span>&lt;<span class="jpa-cls">User</span>&gt; content = queryFactory
+        .<span class="jpa-fn">selectFrom</span>(user)
+        .<span class="jpa-fn">offset</span>(pageable.<span class="jpa-fn">getOffset</span>())
+        .<span class="jpa-fn">limit</span>(pageable.<span class="jpa-fn">getPageSize</span>())
+        .<span class="jpa-fn">fetch</span>();
+
+    <span class="jpa-kw">long</span> total = queryFactory
+        .<span class="jpa-fn">select</span>(user.<span class="jpa-fn">count</span>())
+        .<span class="jpa-fn">from</span>(user)
+        .<span class="jpa-fn">fetchOne</span>();
+
+    <span class="jpa-kw">return new</span> <span class="jpa-cls">PageImpl</span>&lt;&gt;(content, pageable, total);
+}</code></pre>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">SQL — 총 3번으로 끝</span>
+    </div>
+    <pre><code>SELECT * FROM user LIMIT 20 OFFSET 0;
+SELECT * FROM orders WHERE user_id IN (1, 2, 3, ..., 20);
+SELECT COUNT(*) FROM user;</code></pre>
+  </div>
+
+  <div class="jpa-sub">방법 비교</div>
+  <table>
+    <thead>
+      <tr><th>방법</th><th>페이징 가능</th><th>동적 조건</th><th>추천 상황</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>JPQL Fetch Join</td><td><span class="jpa-bad">위험</span></td><td>불편</td><td>단순 고정 조회</td></tr>
+      <tr><td>@EntityGraph</td><td><span class="jpa-bad">위험</span></td><td>불가</td><td>리포지토리 메서드 단순할 때</td></tr>
+      <tr><td>QueryDSL Fetch Join</td><td><span class="jpa-bad">위험</span></td><td><span class="jpa-ok">가능</span></td><td>복잡한 조건, 페이징 없을 때</td></tr>
+      <tr><td>@BatchSize + QueryDSL</td><td><span class="jpa-ok">안전</span></td><td><span class="jpa-ok">가능</span></td><td>페이징 + 연관 데이터 같이 필요할 때</td></tr>
+    </tbody>
+  </table>
+</div>
+
+
+<!-- CH05 영속성 컨텍스트 -->
+<div class="jpa-ch-label" id="sec-pc-what">
+  <span class="jpa-ch-badge">CH 05</span>
+  <h2>영속성 컨텍스트 — 정의</h2>
+</div>
+
+<div class="card">
+  <p style="color:var(--text-muted); font-size:15px; line-height:1.8; margin-bottom:16px;">
+    영속성 컨텍스트는 <strong>애플리케이션과 DB 사이의 버퍼</strong>다.
+    내부에 1차 캐시를 가지고 있으며 트랜잭션 단위로 생성되고 소멸한다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">영속성 컨텍스트 내부 구조</span>
+    </div>
+    <pre><code>+----------------------------------------------+
+|  1차 캐시 (Map)                               |
+|  key      엔티티          스냅샷              |
+|  user:1 -> User(name=철수) | User(name=철수) |
+|  user:2 -> User(name=영희) | User(name=영희) |
++----------------------------------------------+</code></pre>
+  </div>
+
+  <div class="jpa-sub">엔티티 상태 4가지</div>
+  <div class="jpa-box-grid">
+    <div class="jpa-box">
+      <h4>비영속 (Transient)</h4>
+      <p>new로 생성만 함</p>
+      <p>영속성 컨텍스트와 무관</p>
+    </div>
+    <div class="jpa-box green">
+      <h4>영속 (Managed)</h4>
+      <p>영속성 컨텍스트에 저장됨</p>
+      <p>Dirty Checking 대상</p>
+    </div>
+    <div class="jpa-box yellow">
+      <h4>준영속 (Detached)</h4>
+      <p>컨텍스트에서 분리됨</p>
+      <p>Dirty Checking 안 함</p>
+    </div>
+    <div class="jpa-box red">
+      <h4>삭제 (Removed)</h4>
+      <p>삭제 예약됨</p>
+      <p>커밋 시 DELETE 실행</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- CH06 1차 캐시 -->
+<div class="jpa-ch-label" id="sec-pc-cache">
+  <span class="jpa-ch-badge">CH 06</span>
+  <h2>1차 캐시 — 동작 방식</h2>
+</div>
+
+<div class="card">
+  <p style="color:var(--text-muted); font-size:15px; line-height:1.8; margin-bottom:16px;">
+    같은 트랜잭션 안에서 같은 엔티티를 두 번 조회하면 DB를 안 간다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">1차 캐시 동작</span>
+    </div>
+    <pre><code><span class="jpa-ann">@Transactional</span>
+<span class="jpa-kw">public void</span> <span class="jpa-fn">example</span>() {
+    <span class="jpa-cls">User</span> user1 = userRepository.<span class="jpa-fn">findById</span>(1L);  <span class="jpa-cmt">// DB 조회 -> 캐시 저장</span>
+    <span class="jpa-cls">User</span> user2 = userRepository.<span class="jpa-fn">findById</span>(1L);  <span class="jpa-cmt">// 캐시에서 반환 (DB 안 감)</span>
+
+    System.out.<span class="jpa-fn">println</span>(user1 == user2);  <span class="jpa-cmt">// true (같은 객체)</span>
+}
+
+<span class="jpa-cmt">-- 쿼리 1번만 나감</span>
+SELECT * FROM user WHERE id = 1;</code></pre>
+  </div>
+
+  <div class="jpa-callout warn">
+    <strong>1차 캐시의 진짜 역할</strong>
+DB 부하를 줄여주는 캐시라기보다 같은 트랜잭션 안에서 동일성을 보장해주는 장치에 가깝다.
+트랜잭션이 다르면 각자 별도의 영속성 컨텍스트에서 따로 조회한다.
+  </div>
+</div>
+
+
+<!-- CH07 Dirty Checking -->
+<div class="jpa-ch-label" id="sec-pc-dirty">
+  <span class="jpa-ch-badge">CH 07</span>
+  <h2>Dirty Checking — 변경 감지</h2>
+</div>
+
+<div class="card">
+  <p style="color:var(--text-muted); font-size:15px; line-height:1.8; margin-bottom:16px;">
+    1차 캐시에 저장할 때 <strong>스냅샷</strong>을 같이 찍어둔다.
+    트랜잭션 커밋 시점에 엔티티와 스냅샷을 비교해서 변경된 게 있으면 UPDATE를 자동 실행한다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Dirty Checking — save() 없이 UPDATE</span>
+    </div>
+    <pre><code><span class="jpa-ann">@Transactional</span>
+<span class="jpa-kw">public void</span> <span class="jpa-fn">update</span>() {
+    <span class="jpa-cls">User</span> user = userRepository.<span class="jpa-fn">findById</span>(1L);
+    <span class="jpa-cmt">// 캐시: User(name=철수) | 스냅샷: User(name=철수)</span>
+
+    user.<span class="jpa-fn">setName</span>(<span class="jpa-str">"영희"</span>);
+    <span class="jpa-cmt">// 캐시: User(name=영희) | 스냅샷: User(name=철수)</span>
+
+    <span class="jpa-cmt">// 트랜잭션 커밋 시점</span>
+    <span class="jpa-cmt">// 엔티티(영희) vs 스냅샷(철수) -> 다름 -> UPDATE 자동 실행</span>
+}
+<span class="jpa-cmt">// save() 호출 안 했는데 UPDATE 나감</span>
+
+<span class="jpa-cmt">-- 자동으로 실행됨</span>
+UPDATE user SET name = '영희' WHERE id = 1;</code></pre>
+  </div>
+
+  <div class="jpa-callout ok">
+    <strong>비교 시점</strong>
+메서드가 종료될 때가 아니라 트랜잭션이 커밋될 때 비교한다.
+메서드가 끝나도 트랜잭션이 살아있으면 Dirty Checking 안 한다.
+  </div>
+</div>
+
+
+<!-- CH08 생명주기와 범위 -->
+<div class="jpa-ch-label" id="sec-pc-scope">
+  <span class="jpa-ch-badge">CH 08</span>
+  <h2>생명주기와 범위 — 트랜잭션 단위</h2>
+</div>
+
+<div class="card">
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">요청별 별도 영속성 컨텍스트</span>
+    </div>
+    <pre><code><span class="jpa-cmt">// 요청 A</span>
+<span class="jpa-ann">@Transactional</span>
+<span class="jpa-kw">public void</span> <span class="jpa-fn">requestA</span>() {
+    <span class="jpa-cls">Member</span> tom = memberRepository.<span class="jpa-fn">findById</span>(1L);
+    <span class="jpa-cmt">// 영속성 컨텍스트 A에 Tom 저장</span>
+}
+<span class="jpa-cmt">// 트랜잭션 끝 -> 영속성 컨텍스트 A 소멸 -> 캐시 사라짐</span>
+
+<span class="jpa-cmt">// 요청 B (동시에 들어온 다른 요청)</span>
+<span class="jpa-ann">@Transactional</span>
+<span class="jpa-kw">public void</span> <span class="jpa-fn">requestB</span>() {
+    <span class="jpa-cls">Member</span> tom = memberRepository.<span class="jpa-fn">findById</span>(1L);
+    <span class="jpa-cmt">// 영속성 컨텍스트 B에 Tom 따로 저장</span>
+    <span class="jpa-cmt">// A의 캐시와 전혀 관계없음 -> DB에서 다시 조회</span>
+}</code></pre>
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">영속성 컨텍스트 생명주기</span>
+    </div>
+    <pre><code>트랜잭션 시작    -> 영속성 컨텍스트 생성
+엔티티 조회      -> 1차 캐시에 저장 (스냅샷 포함)
+재조회           -> 캐시에서 반환 (DB 안 감)
+트랜잭션 커밋    -> Dirty Checking -> 변경분 UPDATE
+영속성 컨텍스트  -> 소멸 -> 1차 캐시 사라짐</code></pre>
+  </div>
+
+  <div class="jpa-callout">
+    <strong>1차 캐시 공유 범위</strong>
+하나의 트랜잭션 안에서만 유효하다.
+트랜잭션이 다르면 영속성 컨텍스트도 다르고 캐시도 다르다.
+여러 요청이 동시에 와도 각자 자기 영속성 컨텍스트에서 따로 조회한다.
+  </div>
+</div>
+
+
+<!-- CH09 트랜잭션 격리 수준 -->
+<div class="jpa-ch-label" id="sec-isolation">
+  <span class="jpa-ch-badge">CH 09</span>
+  <h2>트랜잭션 격리 수준</h2>
+</div>
+
+<div class="card">
+  <p style="color:var(--text-muted); font-size:15px; line-height:1.8; margin-bottom:16px;">
+    영속성 컨텍스트가 커밋된 내용을 읽느냐는 <strong>트랜잭션 격리 수준(Isolation Level)</strong> 설정에 따라 다르다.
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>격리 수준</th><th>커밋 안 된 것</th><th>커밋된 것</th><th>실무 사용</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>READ UNCOMMITTED</td><td><span class="jpa-bad">읽음</span></td><td>읽음</td><td>거의 안 씀</td></tr>
+      <tr><td>READ COMMITTED</td><td>안 읽음</td><td><span class="jpa-ok">읽음</span></td><td>Oracle, PostgreSQL 기본값</td></tr>
+      <tr><td>REPEATABLE READ</td><td>안 읽음</td><td>시작 시점 기준</td><td>MySQL 기본값</td></tr>
+      <tr><td>SERIALIZABLE</td><td>안 읽음</td><td>완전 순차 처리</td><td>거의 안 씀</td></tr>
+    </tbody>
+  </table>
+
+  <div class="jpa-sub">READ COMMITTED vs REPEATABLE READ</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">격리 수준 비교 시나리오</span>
+    </div>
+    <pre><code><span class="jpa-cmt">// 시나리오</span>
+트랜잭션 A 시작
+    -> 트랜잭션 B: Tom -> "Tommy" 변경 후 커밋
+    -> 트랜잭션 A에서 Tom 재조회
+
+READ COMMITTED  -> Tommy <span class="jpa-cmt">(커밋된 거 읽음)</span>
+REPEATABLE READ -> Tom   <span class="jpa-cmt">(트랜잭션 시작 시점 기준)</span>
+
+<span class="jpa-cmt">// JPA에서 설정</span>
+<span class="jpa-ann">@Transactional</span>(isolation = <span class="jpa-cls">Isolation</span>.READ_COMMITTED)
+<span class="jpa-kw">public void</span> <span class="jpa-fn">example</span>() { ... }</code></pre>
+  </div>
+</div>
+
+
+<!-- CH10 OSIV -->
+<div class="jpa-ch-label" id="sec-osiv">
+  <span class="jpa-ch-badge">CH 10</span>
+  <h2>OSIV — Open Session In View</h2>
+</div>
+
+<div class="card">
+  <div style="display:flex; align-items:center; margin-bottom:16px;">
+    <span class="jpa-section-num">1</span>
+    <strong>문제 상황 — 트랜잭션 밖에서 LAZY 로딩</strong>
+  </div>
+  <p style="color:var(--text-muted); font-size:15px; line-height:1.8; margin-bottom:16px;">
+    영속성 컨텍스트는 트랜잭션이 끝나면 소멸한다. 트랜잭션 밖에서 LAZY 로딩을 시도하면 예외가 터진다.
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">LazyInitializationException 발생</span>
+    </div>
+    <pre><code><span class="jpa-cmt">// Controller에서 LAZY 로딩 시도</span>
+<span class="jpa-kw">public</span> <span class="jpa-cls">UserResponse</span> <span class="jpa-fn">getUser</span>(<span class="jpa-cls">Long</span> id) {
+    <span class="jpa-cls">User</span> user = userService.<span class="jpa-fn">findUser</span>(id);  <span class="jpa-cmt">// 트랜잭션 종료</span>
+    user.<span class="jpa-fn">getOrders</span>();  <span class="jpa-cmt">// LazyInitializationException 터짐</span>
+}
+
+<span class="jpa-cmt">// 왜 터지냐</span>
+트랜잭션 종료 -> 영속성 컨텍스트 소멸
+-> LAZY 로딩 불가 -> 예외 발생</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex; align-items:center; margin-bottom:16px;">
+    <span class="jpa-section-num">2</span>
+    <strong>OSIV가 하는 일</strong>
+  </div>
+  <p style="color:var(--text-muted); font-size:15px; line-height:1.8; margin-bottom:16px;">
+    영속성 컨텍스트를 <strong>HTTP 요청이 끝날 때까지</strong> 열어둔다. Spring Boot 기본값은 ON이다.
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">OSIV ON / OFF 흐름 비교</span>
+    </div>
+    <pre><code><span class="jpa-cmt">// OSIV OFF</span>
+HTTP 요청 -> [트랜잭션 + 영속성 컨텍스트] -> 종료 -> Controller -> 응답
+
+<span class="jpa-cmt">// OSIV ON</span>
+HTTP 요청 -> [영속성 컨텍스트 시작] -> 트랜잭션 -> 종료
+         -> Controller까지 컨텍스트 유지 -> 응답 -> 컨텍스트 소멸</code></pre>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">application.properties</span>
+    </div>
+    <pre><code>spring.jpa.open-in-view=<span class="jpa-ok">true</span>  <span class="jpa-cmt"># Spring Boot 기본값</span></code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex; align-items:center; margin-bottom:16px;">
+    <span class="jpa-section-num">3</span>
+    <strong>OSIV ON vs OFF 트레이드오프</strong>
+  </div>
+  <table>
+    <thead>
+      <tr><th>구분</th><th>OSIV ON</th><th>OSIV OFF</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>LAZY 로딩</td><td><span class="jpa-ok">Controller까지 가능</span></td><td>트랜잭션 안에서만 가능</td></tr>
+      <tr><td>DB 커넥션</td><td><span class="jpa-bad">요청 내내 점유</span></td><td><span class="jpa-ok">트랜잭션 끝나면 반납</span></td></tr>
+      <tr><td>트래픽 많을 때</td><td><span class="jpa-bad">커넥션 부족 위험</span></td><td><span class="jpa-ok">안전</span></td></tr>
+      <tr><td>코드 복잡도</td><td>단순</td><td>서비스 계층에서 다 해결해야 함</td></tr>
+    </tbody>
+  </table>
+
+  <div class="jpa-callout bad">
+    <strong>OSIV ON의 위험</strong>
+트래픽이 많은 서비스에서 OSIV ON이면 커넥션 풀이 고갈된다.
+요청 하나가 DB 커넥션을 응답 시점까지 계속 점유하기 때문이다.
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex; align-items:center; margin-bottom:16px;">
+    <span class="jpa-section-num">4</span>
+    <strong>OSIV OFF 시 해결 패턴</strong>
+  </div>
+  <p style="color:var(--text-muted); font-size:15px; line-height:1.8; margin-bottom:16px;">
+    <code>@Transactional</code> 안에서 LAZY 로딩을 전부 처리하고, Controller에는 완성된 DTO만 넘긴다.
+  </p>
+
+  <div class="jpa-sub">잘못된 방식 — 엔티티를 Controller까지 넘김</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Bad — LazyInitializationException 발생</span>
+    </div>
+    <pre><code><span class="jpa-ann">@Service</span>
+<span class="jpa-kw">public class</span> <span class="jpa-cls">UserService</span> {
+    <span class="jpa-ann">@Transactional</span>
+    <span class="jpa-kw">public</span> <span class="jpa-cls">User</span> <span class="jpa-fn">findUser</span>(<span class="jpa-cls">Long</span> id) {
+        <span class="jpa-kw">return</span> userRepository.<span class="jpa-fn">findById</span>(id);  <span class="jpa-cmt">// 엔티티 그대로 반환</span>
+    }
+}
+
+<span class="jpa-ann">@Controller</span>
+<span class="jpa-kw">public class</span> <span class="jpa-cls">UserController</span> {
+    <span class="jpa-kw">public</span> <span class="jpa-cls">UserResponse</span> <span class="jpa-fn">getUser</span>(<span class="jpa-cls">Long</span> id) {
+        <span class="jpa-cls">User</span> user = userService.<span class="jpa-fn">findUser</span>(id);
+        user.<span class="jpa-fn">getOrders</span>();  <span class="jpa-cmt">// 트랜잭션 끝났으니 LazyInitializationException</span>
+    }
+}</code></pre>
+  </div>
+
+  <div class="jpa-sub">올바른 방식 — 서비스 계층에서 다 해결</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Good — 서비스에서 DTO 변환 후 반환</span>
+    </div>
+    <pre><code><span class="jpa-ann">@Service</span>
+<span class="jpa-kw">public class</span> <span class="jpa-cls">UserService</span> {
+    <span class="jpa-ann">@Transactional</span>
+    <span class="jpa-kw">public</span> <span class="jpa-cls">UserResponse</span> <span class="jpa-fn">findUser</span>(<span class="jpa-cls">Long</span> id) {
+        <span class="jpa-cls">User</span> user = userRepository.<span class="jpa-fn">findById</span>(id);
+        <span class="jpa-cls">List</span>&lt;<span class="jpa-cls">Order</span>&gt; orders = user.<span class="jpa-fn">getOrders</span>();  <span class="jpa-cmt">// 트랜잭션 안이니까 가능</span>
+        <span class="jpa-kw">return new</span> <span class="jpa-cls">UserResponse</span>(user, orders);   <span class="jpa-cmt">// DTO로 변환해서 반환</span>
+    }
+}
+
+<span class="jpa-ann">@Controller</span>
+<span class="jpa-kw">public class</span> <span class="jpa-cls">UserController</span> {
+    <span class="jpa-kw">public</span> <span class="jpa-cls">UserResponse</span> <span class="jpa-fn">getUser</span>(<span class="jpa-cls">Long</span> id) {
+        <span class="jpa-kw">return</span> userService.<span class="jpa-fn">findUser</span>(id);  <span class="jpa-cmt">// 이미 완성된 DTO만 받음</span>
+    }
+}</code></pre>
+  </div>
+
+  <div class="jpa-callout ok">
+    <strong>OSIV OFF 핵심 원칙</strong>
+LAZY 로딩이 필요한 건 전부 @Transactional 안에서 처리한다.
+Controller에는 이미 완성된 DTO만 넘긴다.
+엔티티를 Controller까지 넘기지 않는다.
+  </div>
+
+  <table style="margin-top:20px;">
+    <thead><tr><th>상황</th><th>선택</th></tr></thead>
+    <tbody>
+      <tr><td>소규모 / 트래픽 적음</td><td>OSIV ON 그냥 써도 됨</td></tr>
+      <tr><td>대규모 / 트래픽 많음</td><td>OSIV OFF + 서비스 계층에서 LAZY 로딩 해결</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <div style="display:flex; align-items:center; margin-bottom:16px;">
+    <span class="jpa-section-num">5</span>
+    <strong>OSIV 테스트 방법</strong>
+  </div>
+  <p style="color:var(--text-muted); font-size:15px; line-height:1.8; margin-bottom:16px;">
+    HTTP 요청 생명주기가 없는 테스트 환경에서는 OSIV가 동작하지 않는다.
+    <code>OpenEntityManagerInViewInterceptor</code>가 HTTP 요청을 가로채야 하는데 테스트에는 그 과정이 없다.
+  </p>
+
+  <div class="jpa-sub">방법 1 — @Transactional (가장 많이 씀)</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">@Transactional 테스트</span>
+    </div>
+    <pre><code><span class="jpa-ann">@SpringBootTest</span>
+<span class="jpa-kw">class</span> <span class="jpa-cls">UserServiceTest</span> {
+
+    <span class="jpa-ann">@Autowired</span> <span class="jpa-cls">UserRepository</span> userRepository;
+
+    <span class="jpa-ann">@Test</span>
+    <span class="jpa-ann">@Transactional</span>  <span class="jpa-cmt">// 테스트 끝날 때까지 영속성 컨텍스트 유지</span>
+    <span class="jpa-kw">void</span> <span class="jpa-fn">lazyLoadingTest</span>() {
+        <span class="jpa-cls">User</span> user = userRepository.<span class="jpa-fn">findById</span>(1L).<span class="jpa-fn">orElseThrow</span>();
+        <span class="jpa-cls">List</span>&lt;<span class="jpa-cls">Order</span>&gt; orders = user.<span class="jpa-fn">getOrders</span>();  <span class="jpa-cmt">// 트랜잭션 안이니까 가능</span>
+        <span class="jpa-fn">assertThat</span>(orders).<span class="jpa-fn">isNotEmpty</span>();
+    }
+
+    <span class="jpa-ann">@Test</span>
+    <span class="jpa-ann">@Transactional</span>
+    <span class="jpa-ann">@Commit</span>  <span class="jpa-cmt">// 롤백 안 하고 실제 커밋하고 싶을 때</span>
+    <span class="jpa-kw">void</span> <span class="jpa-fn">saveTest</span>() { ... }
+}</code></pre>
+  </div>
+
+  <div class="jpa-callout ok">
+    <strong>@Transactional 테스트의 자동 롤백</strong>
+@Transactional이 붙은 테스트는 끝나면 자동으로 롤백된다.
+다음 테스트에 영향을 주지 않아 테스트 격리가 보장된다.
+  </div>
+
+  <div class="jpa-sub">방법 2 — @DataJpaTest (JPA만 테스트할 때)</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">@DataJpaTest</span>
+    </div>
+    <pre><code><span class="jpa-ann">@DataJpaTest</span>  <span class="jpa-cmt">// JPA 관련만 로드, 자동으로 @Transactional 적용</span>
+<span class="jpa-kw">class</span> <span class="jpa-cls">UserRepositoryTest</span> {
+
+    <span class="jpa-ann">@Autowired</span> <span class="jpa-cls">UserRepository</span> userRepository;
+
+    <span class="jpa-ann">@Test</span>
+    <span class="jpa-kw">void</span> <span class="jpa-fn">findByIdTest</span>() {
+        <span class="jpa-cls">User</span> user = userRepository.<span class="jpa-fn">findById</span>(1L).<span class="jpa-fn">orElseThrow</span>();
+        <span class="jpa-cls">List</span>&lt;<span class="jpa-cls">Order</span>&gt; orders = user.<span class="jpa-fn">getOrders</span>();  <span class="jpa-cmt">// 자동으로 트랜잭션 안에서 실행</span>
+        <span class="jpa-fn">assertThat</span>(orders).<span class="jpa-fn">isNotEmpty</span>();
+    }
+}</code></pre>
+  </div>
+
+  <table>
+    <thead><tr><th>구분</th><th>@SpringBootTest</th><th>@DataJpaTest</th></tr></thead>
+    <tbody>
+      <tr><td>로드 범위</td><td>전체 ApplicationContext</td><td>JPA 관련만</td></tr>
+      <tr><td>속도</td><td><span class="jpa-bad">느림</span></td><td><span class="jpa-ok">빠름</span></td></tr>
+      <tr><td>DB</td><td>실제 DB 또는 설정 따름</td><td>기본 H2 인메모리</td></tr>
+      <tr><td>트랜잭션</td><td>직접 붙여야 함</td><td><span class="jpa-ok">자동 적용</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="jpa-sub">방법 3 — LazyInitializationException 직접 재현</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">EntityManager.detach()로 예외 재현</span>
+    </div>
+    <pre><code><span class="jpa-ann">@SpringBootTest</span>
+<span class="jpa-kw">class</span> <span class="jpa-cls">LazyLoadingTest</span> {
+
+    <span class="jpa-ann">@Autowired</span> <span class="jpa-cls">UserRepository</span> userRepository;
+    <span class="jpa-ann">@Autowired</span> <span class="jpa-cls">EntityManager</span> em;
+
+    <span class="jpa-ann">@Test</span>
+    <span class="jpa-kw">void</span> <span class="jpa-fn">lazy_로딩_예외_재현</span>() {
+        <span class="jpa-cls">User</span> user = <span class="jpa-fn">findUserInTransaction</span>();
+
+        <span class="jpa-cmt">// 트랜잭션 밖에서 LAZY 로딩 시도 -> 예외 발생 확인</span>
+        <span class="jpa-fn">assertThatThrownBy</span>(() -&gt; user.<span class="jpa-fn">getOrders</span>().<span class="jpa-fn">size</span>())
+            .<span class="jpa-fn">isInstanceOf</span>(<span class="jpa-cls">LazyInitializationException</span>.<span class="jpa-kw">class</span>);
+    }
+
+    <span class="jpa-ann">@Transactional</span>
+    <span class="jpa-cls">User</span> <span class="jpa-fn">findUserInTransaction</span>() {
+        <span class="jpa-cls">User</span> user = userRepository.<span class="jpa-fn">findById</span>(1L).<span class="jpa-fn">orElseThrow</span>();
+        em.<span class="jpa-fn">detach</span>(user);  <span class="jpa-cmt">// 명시적으로 detach -> 영속성 컨텍스트에서 분리</span>
+        <span class="jpa-kw">return</span> user;
+    }
+}</code></pre>
+  </div>
+
+  <div class="jpa-sub">방법 4 — MockMvc로 실제 HTTP 요청 시뮬레이션</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">MockMvc + @TestPropertySource</span>
+    </div>
+    <pre><code><span class="jpa-cmt">// OSIV ON 상태 검증</span>
+<span class="jpa-ann">@SpringBootTest</span>
+<span class="jpa-ann">@AutoConfigureMockMvc</span>
+<span class="jpa-kw">class</span> <span class="jpa-cls">OsivIntegrationTest</span> {
+
+    <span class="jpa-ann">@Autowired</span> <span class="jpa-cls">MockMvc</span> mockMvc;
+
+    <span class="jpa-ann">@Test</span>
+    <span class="jpa-kw">void</span> <span class="jpa-fn">osivOn_lazy로딩_성공</span>() <span class="jpa-kw">throws</span> <span class="jpa-cls">Exception</span> {
+        mockMvc.<span class="jpa-fn">perform</span>(<span class="jpa-fn">get</span>(<span class="jpa-str">"/users/1"</span>))
+            .<span class="jpa-fn">andExpect</span>(<span class="jpa-fn">status</span>().<span class="jpa-fn">isOk</span>());
+    }
+}
+
+<span class="jpa-cmt">// OSIV OFF 동작 검증</span>
+<span class="jpa-ann">@SpringBootTest</span>
+<span class="jpa-ann">@AutoConfigureMockMvc</span>
+<span class="jpa-ann">@TestPropertySource</span>(properties = <span class="jpa-str">"spring.jpa.open-in-view=false"</span>)
+<span class="jpa-kw">class</span> <span class="jpa-cls">OsivOffTest</span> {
+
+    <span class="jpa-ann">@Autowired</span> <span class="jpa-cls">MockMvc</span> mockMvc;
+
+    <span class="jpa-ann">@Test</span>
+    <span class="jpa-kw">void</span> <span class="jpa-fn">osivOff_컨트롤러에서_lazy로딩_예외</span>() <span class="jpa-kw">throws</span> <span class="jpa-cls">Exception</span> {
+        mockMvc.<span class="jpa-fn">perform</span>(<span class="jpa-fn">get</span>(<span class="jpa-str">"/users/1/with-lazy"</span>))
+            .<span class="jpa-fn">andExpect</span>(<span class="jpa-fn">status</span>().<span class="jpa-fn">is5xxServerError</span>());  <span class="jpa-cmt">// LazyInitializationException</span>
+        mockMvc.<span class="jpa-fn">perform</span>(<span class="jpa-fn">get</span>(<span class="jpa-str">"/users/1"</span>))
+            .<span class="jpa-fn">andExpect</span>(<span class="jpa-fn">status</span>().<span class="jpa-fn">isOk</span>());  <span class="jpa-cmt">// DTO 변환하면 정상</span>
+    }
+}</code></pre>
+  </div>
+
+  <div class="jpa-sub">흔한 실수 — @Transactional 테스트의 함정</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">테스트 트랜잭션 합류 문제</span>
+    </div>
+    <pre><code><span class="jpa-ann">@Test</span>
+<span class="jpa-ann">@Transactional</span>  <span class="jpa-cmt">// 테스트 트랜잭션</span>
+<span class="jpa-kw">void</span> <span class="jpa-fn">함정</span>() {
+    userService.<span class="jpa-fn">createUser</span>(<span class="jpa-str">"철수"</span>);
+    <span class="jpa-cmt">// 서비스의 @Transactional이 테스트 트랜잭션에 합류 (REQUIRED)</span>
+    <span class="jpa-cmt">// 실제 서비스는 트랜잭션 커밋 후 동작하는데</span>
+    <span class="jpa-cmt">// 테스트에서는 커밋이 안 된 상태로 검증하게 됨</span>
+    <span class="jpa-cmt">// -> @TransactionalEventListener 등이 실제 환경과 다르게 동작</span>
+}
+<span class="jpa-cmt">// -> 이런 경우엔 @Transactional 없이 MockMvc로 테스트하는 게 더 정확하다</span></code></pre>
+  </div>
+
+  <div class="jpa-callout warn">
+    <strong>테스트 방법 선택 기준</strong>
+LAZY 로딩 단순 검증 → @Transactional 또는 @DataJpaTest
+LazyInitializationException 재현 → EntityManager.detach() 활용
+OSIV ON/OFF 동작 검증 → MockMvc + @TestPropertySource
+이벤트, 커밋 후 동작 검증 → @Transactional 없이 MockMvc 사용
+  </div>
+</div>
+
+
+<!-- 최종 정리 -->
+<div class="jpa-ch-label" id="sec-summary">
+  <span class="jpa-ch-badge">정리</span>
+  <h2>최종 정리</h2>
+</div>
+
+<div class="card">
+  <div class="jpa-sub">N+1</div>
+  <table>
+    <thead><tr><th>항목</th><th>내용</th></tr></thead>
+    <tbody>
+      <tr><td>원인</td><td>JPA LAZY 로딩 → 연관 객체 호출 시마다 쿼리 발생</td></tr>
+      <tr><td>문제</td><td>기능은 정상이지만 N개 엔티티 조회 시 N번 추가 쿼리</td></tr>
+      <tr><td>EAGER는?</td><td>해결책 아님. 발생 시점이 앞당겨질 뿐</td></tr>
+      <tr><td>해결 (단순 조회)</td><td>Fetch Join (JPQL / QueryDSL)</td></tr>
+      <tr><td>해결 (페이징 포함)</td><td>@BatchSize + QueryDSL</td></tr>
+    </tbody>
+  </table>
+
+  <div class="jpa-sub">영속성 컨텍스트</div>
+  <table>
+    <thead><tr><th>항목</th><th>내용</th></tr></thead>
+    <tbody>
+      <tr><td>범위</td><td>트랜잭션 단위 (요청마다 별도 생성)</td></tr>
+      <tr><td>1차 캐시</td><td>같은 트랜잭션 안에서 동일 엔티티 재조회 시 DB 안 감</td></tr>
+      <tr><td>스냅샷</td><td>조회 시점 원본 상태 보관 → Dirty Checking 기반</td></tr>
+      <tr><td>Dirty Checking</td><td>커밋 시점에 스냅샷과 비교 → 변경분 자동 UPDATE</td></tr>
+      <tr><td>detached</td><td>컨텍스트 분리 → Dirty Checking 없음</td></tr>
+      <tr><td>요청 간 공유</td><td>불가 (트랜잭션이 다르면 별도 컨텍스트)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="jpa-sub">OSIV</div>
+  <table>
+    <thead><tr><th>항목</th><th>내용</th></tr></thead>
+    <tbody>
+      <tr><td>정의</td><td>영속성 컨텍스트를 HTTP 요청 끝날 때까지 열어두는 것</td></tr>
+      <tr><td>기본값</td><td>ON (<code>spring.jpa.open-in-view=true</code>)</td></tr>
+      <tr><td>ON 장점</td><td>Controller까지 LAZY 로딩 가능, 코드 단순</td></tr>
+      <tr><td>ON 단점</td><td>커넥션을 요청 내내 점유 → 트래픽 많으면 커넥션 풀 고갈</td></tr>
+      <tr><td>OFF 원칙</td><td>@Transactional 안에서 LAZY 로딩 처리 + Controller에는 DTO만 넘김</td></tr>
+      <tr><td>실무 기준</td><td>소규모 ON 가능 / 대규모 트래픽 OFF 권장</td></tr>
+      <tr><td>테스트 방법</td><td>@Transactional / @DataJpaTest / MockMvc + @TestPropertySource</td></tr>
+    </tbody>
+  </table>
+</div>
+
+
+<!-- 퀴즈 -->
+<div class="jpa-ch-label" id="sec-quiz">
+  <span class="jpa-ch-badge">Quiz</span>
+  <h2>퀴즈 — 직접 확인해보자</h2>
+</div>
+
+<div class="card">
+
+  <!-- Q1 -->
+  <div class="jpa-quiz-item" data-answer="c">
+    <div class="jpa-quiz-q"><span class="jpa-qnum">Q1.</span> FetchType.EAGER로 바꾸면 N+1 문제가 해결되는가?</div>
+    <div class="jpa-options">
+      <div class="jpa-option" onclick="jpaChoose(this,'a')"><span class="jpa-opt-label">A</span> 해결된다. JOIN을 미리 해서 가져오므로 추가 쿼리가 없다</div>
+      <div class="jpa-option" onclick="jpaChoose(this,'b')"><span class="jpa-opt-label">B</span> LAZY보다 낫다. 반복문에서는 N+1이 발생하지 않는다</div>
+      <div class="jpa-option" onclick="jpaChoose(this,'c')"><span class="jpa-opt-label">C</span> 해결되지 않는다. 발생 시점이 findAll() 호출 시점으로 앞당겨질 뿐이다</div>
+      <div class="jpa-option" onclick="jpaChoose(this,'d')"><span class="jpa-opt-label">D</span> 단건 조회일 때만 해결된다</div>
+    </div>
+    <div class="jpa-quiz-explain">
+      <strong style="color:var(--green)">정답: C</strong><br>
+      EAGER는 findAll() 시점에 연관 엔티티를 즉시 가져오지만, 내부적으로는 여전히 N번 추가 쿼리가 발생한다. 유저 10,000명이면 쓰지도 않을 주문 10,000건을 무조건 JOIN해서 가져온다. 근본 해결책은 Fetch Join 또는 @BatchSize다.
+    </div>
+    <div class="jpa-quiz-actions">
+      <button class="jpa-btn jpa-btn-primary" onclick="jpaSubmit(this)">확인</button>
+      <button class="jpa-btn jpa-btn-reset"   onclick="jpaReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <!-- Q2 -->
+  <div class="jpa-quiz-item" data-answer="b">
+    <div class="jpa-quiz-q"><span class="jpa-qnum">Q2.</span> Fetch Join을 페이징과 함께 사용하면 어떤 문제가 발생하는가?</div>
+    <div class="jpa-options">
+      <div class="jpa-option" onclick="jpaChoose(this,'a')"><span class="jpa-opt-label">A</span> SQL 문법 오류가 발생한다</div>
+      <div class="jpa-option" onclick="jpaChoose(this,'b')"><span class="jpa-opt-label">B</span> 전체 데이터를 메모리에 올린 뒤 애플리케이션에서 페이징 처리해 OOM 위험이 있다</div>
+      <div class="jpa-option" onclick="jpaChoose(this,'c')"><span class="jpa-opt-label">C</span> DISTINCT가 동작하지 않아 중복 결과가 나온다</div>
+      <div class="jpa-option" onclick="jpaChoose(this,'d')"><span class="jpa-opt-label">D</span> 문제없이 정상 동작한다</div>
+    </div>
+    <div class="jpa-quiz-explain">
+      <strong style="color:var(--green)">정답: B</strong><br>
+      Fetch Join + 페이징 조합은 JPA가 DB에 LIMIT/OFFSET을 적용하지 못하고 전체 결과를 메모리로 가져온 뒤 페이징을 처리한다. 데이터가 많으면 OOM이 발생한다. 페이징이 필요할 땐 <code>@BatchSize</code> + QueryDSL 조합을 써야 한다.
+    </div>
+    <div class="jpa-quiz-actions">
+      <button class="jpa-btn jpa-btn-primary" onclick="jpaSubmit(this)">확인</button>
+      <button class="jpa-btn jpa-btn-reset"   onclick="jpaReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <!-- Q3 -->
+  <div class="jpa-quiz-item" data-answer="a">
+    <div class="jpa-quiz-q"><span class="jpa-qnum">Q3.</span> 다음 코드에서 UPDATE 쿼리가 실행되는가?</div>
+    <div class="terminal-window" style="margin-bottom:14px;">
+      <div class="terminal-header">
+        <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+        <span class="terminal-title">UserService.java</span>
+      </div>
+      <pre><code><span class="jpa-ann">@Transactional</span>
+<span class="jpa-kw">public void</span> <span class="jpa-fn">update</span>() {
+    <span class="jpa-cls">User</span> user = userRepository.<span class="jpa-fn">findById</span>(1L);
+    user.<span class="jpa-fn">setName</span>(<span class="jpa-str">"영희"</span>);
+    <span class="jpa-cmt">// save() 호출 없음</span>
+}</code></pre>
+    </div>
+    <div class="jpa-options">
+      <div class="jpa-option" onclick="jpaChoose(this,'a')"><span class="jpa-opt-label">A</span> 실행된다. 트랜잭션 커밋 시 Dirty Checking이 스냅샷과 비교해 자동 UPDATE한다</div>
+      <div class="jpa-option" onclick="jpaChoose(this,'b')"><span class="jpa-opt-label">B</span> 실행되지 않는다. save()를 호출해야만 UPDATE가 나간다</div>
+      <div class="jpa-option" onclick="jpaChoose(this,'c')"><span class="jpa-opt-label">C</span> 실행되지 않는다. flush()를 명시적으로 호출해야 한다</div>
+      <div class="jpa-option" onclick="jpaChoose(this,'d')"><span class="jpa-opt-label">D</span> 실행되지 않는다. detach() 후 merge()를 해야 한다</div>
+    </div>
+    <div class="jpa-quiz-explain">
+      <strong style="color:var(--green)">정답: A</strong><br>
+      영속 상태(Managed)의 엔티티는 조회 시 스냅샷이 찍힌다. 트랜잭션 커밋 직전에 현재 상태와 스냅샷을 비교(Dirty Checking)해 변경이 감지되면 UPDATE를 자동 실행한다. save() 없이도 DB에 반영된다.
+    </div>
+    <div class="jpa-quiz-actions">
+      <button class="jpa-btn jpa-btn-primary" onclick="jpaSubmit(this)">확인</button>
+      <button class="jpa-btn jpa-btn-reset"   onclick="jpaReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <!-- Q4 -->
+  <div class="jpa-quiz-item" data-answer="d">
+    <div class="jpa-quiz-q"><span class="jpa-qnum">Q4.</span> 동시에 들어온 두 HTTP 요청 A, B가 같은 userId=1을 조회한다. 1차 캐시는 공유되는가?</div>
+    <div class="jpa-options">
+      <div class="jpa-option" onclick="jpaChoose(this,'a')"><span class="jpa-opt-label">A</span> 공유된다. 1차 캐시는 JVM 전체에서 동일하게 유지된다</div>
+      <div class="jpa-option" onclick="jpaChoose(this,'b')"><span class="jpa-opt-label">B</span> 공유된다. 같은 userId를 조회하면 같은 캐시 항목을 반환한다</div>
+      <div class="jpa-option" onclick="jpaChoose(this,'c')"><span class="jpa-opt-label">C</span> @Cacheable을 붙였을 때만 공유된다</div>
+      <div class="jpa-option" onclick="jpaChoose(this,'d')"><span class="jpa-opt-label">D</span> 공유되지 않는다. 트랜잭션마다 별도의 영속성 컨텍스트가 생성된다</div>
+    </div>
+    <div class="jpa-quiz-explain">
+      <strong style="color:var(--green)">정답: D</strong><br>
+      1차 캐시는 트랜잭션 단위로 생성·소멸한다. 요청 A와 B는 각자 별도의 영속성 컨텍스트를 가지므로 캐시도 분리된다. 요청 간 공유되는 것은 2차 캐시(ehcache 등 별도 설정 필요)다.
+    </div>
+    <div class="jpa-quiz-actions">
+      <button class="jpa-btn jpa-btn-primary" onclick="jpaSubmit(this)">확인</button>
+      <button class="jpa-btn jpa-btn-reset"   onclick="jpaReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <!-- Q5 -->
+  <div class="jpa-quiz-item" data-answer="c">
+    <div class="jpa-quiz-q"><span class="jpa-qnum">Q5.</span> OSIV를 OFF로 설정했을 때 Controller에서 user.getOrders()를 호출하면?</div>
+    <div class="jpa-options">
+      <div class="jpa-option" onclick="jpaChoose(this,'a')"><span class="jpa-opt-label">A</span> OSIV OFF여도 Controller에서 LAZY 로딩은 허용된다</div>
+      <div class="jpa-option" onclick="jpaChoose(this,'b')"><span class="jpa-opt-label">B</span> 경고 로그만 출력되고 빈 리스트를 반환한다</div>
+      <div class="jpa-option" onclick="jpaChoose(this,'c')"><span class="jpa-opt-label">C</span> LazyInitializationException이 발생한다. 트랜잭션 종료와 함께 영속성 컨텍스트가 소멸했기 때문이다</div>
+      <div class="jpa-option" onclick="jpaChoose(this,'d')"><span class="jpa-opt-label">D</span> DB 커넥션을 새로 열어서 조회한다</div>
+    </div>
+    <div class="jpa-quiz-explain">
+      <strong style="color:var(--green)">정답: C</strong><br>
+      OSIV OFF 상태에서는 트랜잭션이 끝나면 영속성 컨텍스트도 함께 소멸한다. 컨텍스트가 없는 상태에서 LAZY 로딩을 시도하면 <code>LazyInitializationException</code>이 발생한다. 해결책은 <code>@Transactional</code> 안에서 LAZY 로딩을 마치고 DTO로 변환해 Controller에 넘기는 것이다.
+    </div>
+    <div class="jpa-quiz-actions">
+      <button class="jpa-btn jpa-btn-primary" onclick="jpaSubmit(this)">확인</button>
+      <button class="jpa-btn jpa-btn-reset"   onclick="jpaReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <div class="jpa-quiz-score" id="jpaScoreBoard">
+    <div class="jpa-score-num" id="jpaScoreNum">0 / 5</div>
+    <p id="jpaScoreMsg"></p>
+  </div>
+</div>
+
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#sec-overview" onclick="toggleTOC()">개요 — 핵심 정리</a></li>
+    <li><a href="#sec-n1-what" onclick="toggleTOC()">CH 01. N+1 정의</a></li>
+    <li><a href="#sec-n1-why" onclick="toggleTOC()">CH 02. 왜 발생하나</a></li>
+    <li><a href="#sec-n1-eager" onclick="toggleTOC()">CH 03. EAGER는 해결책인가</a></li>
+    <li><a href="#sec-n1-fix" onclick="toggleTOC()">CH 04. N+1 해결책</a></li>
+    <li><a href="#sec-pc-what" onclick="toggleTOC()">CH 05. 영속성 컨텍스트</a></li>
+    <li><a href="#sec-pc-cache" onclick="toggleTOC()">CH 06. 1차 캐시</a></li>
+    <li><a href="#sec-pc-dirty" onclick="toggleTOC()">CH 07. Dirty Checking</a></li>
+    <li><a href="#sec-pc-scope" onclick="toggleTOC()">CH 08. 생명주기와 범위</a></li>
+    <li><a href="#sec-isolation" onclick="toggleTOC()">CH 09. 트랜잭션 격리 수준</a></li>
+    <li><a href="#sec-osiv" onclick="toggleTOC()">CH 10. OSIV</a></li>
+    <li><a href="#sec-summary" onclick="toggleTOC()">최종 정리</a></li>
+    <li><a href="#sec-quiz" onclick="toggleTOC()">퀴즈</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>
+
+<script>
+  function jpaChoose(el, val) {
+    const item = el.closest('.jpa-quiz-item');
+    if (item.dataset.done) return;
+    item.querySelectorAll('.jpa-option').forEach(o => o.classList.remove('jpa-selected'));
+    el.classList.add('jpa-selected');
+    item.dataset.selected = val;
+  }
+
+  function jpaSubmit(btn) {
+    const item = btn.closest('.jpa-quiz-item');
+    if (item.dataset.done) return;
+    const selected = item.dataset.selected;
+    if (!selected) { alert('선택지를 골라주세요.'); return; }
+    const answer = item.dataset.answer;
+    item.dataset.done = '1';
+
+    item.querySelectorAll('.jpa-option').forEach(o => {
+      const v = o.getAttribute('onclick').match(/'(\w)'/)[1];
+      o.classList.remove('jpa-selected');
+      if (v === answer)                   o.classList.add('jpa-correct');
+      if (v === selected && v !== answer) o.classList.add('jpa-wrong');
+    });
+    item.querySelector('.jpa-quiz-explain').classList.add('show');
+    jpaCheckAllDone();
+  }
+
+  function jpaReset(btn) {
+    const item = btn.closest('.jpa-quiz-item');
+    delete item.dataset.done;
+    delete item.dataset.selected;
+    item.querySelectorAll('.jpa-option').forEach(o => {
+      o.classList.remove('jpa-correct', 'jpa-wrong', 'jpa-selected');
+    });
+    item.querySelector('.jpa-quiz-explain').classList.remove('show');
+    document.getElementById('jpaScoreBoard').style.display = 'none';
+  }
+
+  function jpaCheckAllDone() {
+    const items = document.querySelectorAll('.jpa-quiz-item');
+    const done  = [...items].filter(i => i.dataset.done);
+    if (done.length < items.length) return;
+
+    let score = 0;
+    items.forEach(item => {
+      if (item.dataset.selected === item.dataset.answer) score++;
+    });
+
+    const board = document.getElementById('jpaScoreBoard');
+    document.getElementById('jpaScoreNum').textContent = score + ' / ' + items.length;
+    const msgs = ['다시 한번 읽어보자!', '조금 더 읽어보자.', '반은 왔다!', '거의 다 왔다!', '완벽하다!', '완벽하다!'];
+    document.getElementById('jpaScoreMsg').textContent = msgs[score] || '';
+    board.style.display = 'block';
+    board.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+</script>

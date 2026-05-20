@@ -1,5 +1,10 @@
 [
   {
+    "date": "2026-05-20",
+    "title": "JPA — N+1 문제와 영속성 컨텍스트 완전 이해",
+    "file": "dev/spring_jpa_n1_persistence_context"
+  },
+  {
     "date": "2026-05-19",
     "title": "Spring Bean vs Proxy Bean — 초기화 시 무엇이 차이를 만드는가",
     "file": "dev/spring_bean_vs_proxy"
