@@ -1,0 +1,973 @@
+<!-- [2026-05-19] Spring Bean vs Proxy Bean — 초기화 시 무엇이 다른가 -->
+<style>
+  .report-toc {
+    position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+    background: var(--surface); border-left: 1px solid var(--border);
+    padding: 40px 25px; z-index: 1001;
+    transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+  }
+  .report-toc.active { right: 0; }
+  .report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .report-toc ul { list-style: none; padding: 0; margin: 0; }
+  .report-toc li { margin-bottom: 12px; line-height: 1.4; }
+  .report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+  .report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+  .toc-backdrop {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+    z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+  }
+  .toc-backdrop.active { display: block; opacity: 1; }
+  .toc-toggle-btn {
+    position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+    background: var(--accent); color: #fff; border: none; border-radius: 50%;
+    font-size: 1.5rem; cursor: pointer; z-index: 1002;
+    box-shadow: 0 4px 15px var(--accent-glow);
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+  }
+  .toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); }
+  @media (max-width: 768px) {
+    .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+  }
+
+  /* ── Fragment Scoped Styles ── */
+  .bvp-section-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 20px;
+  }
+  .bvp-section-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .bvp-callout {
+    border-left: 4px solid var(--accent);
+    background: rgba(94, 129, 244, 0.06);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 16px 0;
+    font-size: 14px; white-space: pre-line;
+  }
+  .bvp-callout.warn { border-color: var(--yellow); background: rgba(245,158,11,0.06); }
+  .bvp-callout.ok   { border-color: var(--green);  background: rgba(47,179,68,0.06); }
+  .bvp-callout.bad  { border-color: var(--red);    background: rgba(214,57,57,0.06); }
+  .bvp-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+  .bvp-compare-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0;
+  }
+  .bvp-compare-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+  }
+  .bvp-compare-card.good { border-color: var(--green); }
+  .bvp-compare-card.warn { border-color: var(--yellow); }
+  .bvp-compare-card h4 { font-size: 13px; font-weight: 800; margin-bottom: 10px; }
+  .bvp-compare-card.good h4 { color: var(--green); }
+  .bvp-compare-card.warn h4 { color: var(--yellow); }
+  .bvp-compare-card p { font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+  .bvp-compare-card p:last-child { margin-bottom: 0; }
+
+  .bvp-flow {
+    display: flex; flex-direction: column; gap: 0; margin: 20px 0;
+    position: relative; padding-left: 28px;
+  }
+  .bvp-flow::before {
+    content: ''; position: absolute; left: 8px; top: 12px; bottom: 12px;
+    width: 2px; background: var(--border);
+  }
+  .bvp-flow-item {
+    position: relative; margin-bottom: 20px;
+  }
+  .bvp-flow-item::before {
+    content: ''; position: absolute;
+    left: -24px; top: 6px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--bg);
+  }
+  .bvp-flow-item.proxy-step::before { background: var(--yellow); }
+  .bvp-flow-item h4 { font-size: 14px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+  .bvp-flow-item p  { font-size: 13px; color: var(--text-muted); margin-bottom: 0; }
+
+  .bvp-phase-tag {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 4px; margin-bottom: 6px;
+  }
+  .tag-normal { background: rgba(94,129,244,0.15); color: var(--accent); }
+  .tag-proxy  { background: rgba(245,158,11,0.15); color: var(--yellow); }
+  .tag-post   { background: rgba(47,179,68,0.15);  color: var(--green); }
+
+  .bvp-tri-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 20px 0;
+  }
+  .bvp-tri-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px;
+  }
+  .bvp-tri-card h4 { font-size: 13px; font-weight: 800; margin-bottom: 10px; color: var(--accent); }
+  .bvp-tri-card p  { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+  .bvp-tri-card p:last-child { margin-bottom: 0; }
+  .bvp-tri-card.yellow h4 { color: var(--yellow); }
+  .bvp-tri-card.green  h4 { color: var(--green); }
+
+  .bvp-sub-title {
+    font-size: .95rem; font-weight: 700; color: #4ecdc4;
+    margin: 24px 0 10px; padding-left: 10px;
+    border-left: 3px solid #4ecdc4;
+  }
+
+  .bvp-summary {
+    background: linear-gradient(135deg, rgba(94,129,244,0.08), rgba(47,179,68,0.08));
+    border: 1px solid rgba(94,129,244,0.25);
+    border-radius: 12px; padding: 24px 28px; margin-bottom: 24px;
+  }
+  .bvp-summary h3 {
+    color: var(--green); font-size: .85rem; font-weight: 700;
+    margin-bottom: 14px; letter-spacing: 1px; text-transform: uppercase;
+  }
+  .bvp-summary ul { padding-left: 0; list-style: none; }
+  .bvp-summary ul li {
+    padding: 7px 0; border-bottom: 1px solid var(--border);
+    font-size: 14px; color: var(--text);
+  }
+  .bvp-summary ul li:last-child { border-bottom: none; }
+  .bvp-summary ul li::before { content: "→ "; color: var(--green); font-weight: 700; }
+
+  .bvp-kw  { color: #c792ea; }
+  .bvp-cls { color: #82aaff; }
+  .bvp-fn  { color: #82aaff; }
+  .bvp-str { color: #c3e88d; }
+  .bvp-cmt { color: #546e7a; font-style: italic; }
+  .bvp-ann { color: #f78c6c; }
+  .bvp-ok  { color: var(--green); font-weight: 700; }
+  .bvp-bad { color: var(--red);   font-weight: 700; }
+  .bvp-hi  { color: var(--accent); font-weight: 700; }
+  .bvp-hi2 { color: #4ecdc4; font-weight: 700; }
+  .bvp-hi3 { color: var(--yellow); font-weight: 700; }
+  .bvp-dim { color: var(--text-muted); }
+
+  .bvp-table {
+    width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px;
+  }
+  .bvp-table th {
+    background: var(--surface2); color: var(--accent);
+    padding: 10px 14px; text-align: left; font-weight: 700;
+    border-bottom: 2px solid var(--border);
+  }
+  .bvp-table td {
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    color: var(--text-muted); vertical-align: top;
+  }
+  .bvp-table tr:last-child td { border-bottom: none; }
+  .bvp-table td:first-child { color: var(--text); font-weight: 600; }
+
+  @media (max-width: 768px) {
+    .bvp-compare-grid { grid-template-columns: 1fr; }
+    .bvp-tri-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── Quiz ── */
+  .bvp-quiz-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 24px; margin-bottom: 14px;
+  }
+  .bvp-quiz-q { font-weight: 700; color: #fff; margin-bottom: 14px; font-size: 15px; }
+  .bvp-qnum   { color: var(--accent); margin-right: 8px; }
+  .bvp-options { display: flex; flex-direction: column; gap: 8px; }
+  .bvp-option {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 10px 14px; border-radius: 8px;
+    border: 1px solid var(--border); cursor: pointer;
+    font-size: 13px; color: var(--text-muted); transition: all 0.15s;
+  }
+  .bvp-option:hover { border-color: var(--accent); color: #fff; }
+  .bvp-option.bvp-selected { border-color: var(--accent); color: #fff; background: rgba(94,129,244,0.08); }
+  .bvp-opt-label {
+    min-width: 22px; height: 22px; border-radius: 50%;
+    background: var(--border); color: var(--text-muted);
+    font-size: 11px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .bvp-option.bvp-correct { border-color: var(--green) !important; background: rgba(47,179,68,0.10) !important; color: #fff !important; }
+  .bvp-option.bvp-wrong   { border-color: var(--red)   !important; background: rgba(214,57,57,0.10) !important; }
+  .bvp-option.bvp-correct .bvp-opt-label { background: var(--green) !important; color: #fff !important; }
+  .bvp-option.bvp-wrong   .bvp-opt-label { background: var(--red)   !important; color: #fff !important; }
+  .bvp-quiz-explain {
+    margin-top: 12px; padding: 10px 14px;
+    background: var(--surface); border-radius: 8px;
+    font-size: 13px; color: var(--text-muted); line-height: 1.7;
+    display: none; border-left: 3px solid var(--accent);
+  }
+  .bvp-quiz-explain.show { display: block; }
+  .bvp-quiz-actions { display: flex; gap: 10px; margin-top: 10px; }
+  .bvp-btn {
+    padding: 7px 16px; border-radius: 8px; border: none;
+    font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity 0.2s;
+  }
+  .bvp-btn:hover { opacity: 0.85; }
+  .bvp-btn-primary { background: var(--accent); color: #fff; }
+  .bvp-btn-reset   { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+  .bvp-quiz-score {
+    text-align: center; padding: 20px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; margin-top: 16px; display: none;
+  }
+  .bvp-score-num {
+    font-size: 2.2rem; font-weight: 900;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .bvp-quiz-score p { color: var(--text-muted); margin-top: 8px; font-size: 14px; }
+</style>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════ -->
+<div class="card">
+  <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+    <span class="badge badge-date">2026-05-19</span>
+    <span class="badge badge-tag">Spring</span>
+    <span class="badge badge-tag">Bean</span>
+    <span class="badge badge-tag">CGLIB Proxy</span>
+  </div>
+  <h1 style="font-size:1.6rem; font-weight:800; margin-bottom:10px;">
+    Spring Bean vs Proxy Bean
+  </h1>
+  <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.7;">
+    <code>@Service</code> · <code>@Component</code> · <code>@Bean</code> 으로 등록된 모든 빈이 CGLIB 프록시인 줄 알았다.
+    실제로는 <strong>특정 조건</strong>을 가진 빈만 프록시로 교체된다.
+    Application 초기화 과정에서 무엇이 그 차이를 만드는지 정리한다.
+  </p>
+
+  <div class="bvp-summary">
+    <h3>핵심 정리</h3>
+    <ul>
+      <li>일반 <code>@Service</code> · <code>@Component</code> 빈은 <strong>순수 객체(POJO)</strong> 그대로 컨테이너에 저장된다</li>
+      <li><code>@Transactional</code> · <code>@Aspect</code> 등 <strong>AOP 적용 대상</strong>만 CGLIB 프록시로 교체된다</li>
+      <li>교체 시점은 Bean 생성 직후 <strong>BeanPostProcessor</strong> 단계다</li>
+      <li>프록시 여부는 런타임에 <code>AopUtils.isAopProxy(bean)</code> 또는 <code>bean.getClass()</code>로 확인할 수 있다</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     1. 잘못 알기 쉬운 오해
+══════════════════════════════════════════ -->
+<div class="card" id="section-misconception">
+  <div class="bvp-section-header">
+    <div class="bvp-section-number">1</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">흔한 오해 — "모든 Bean은 프록시다"</h2>
+  </div>
+
+  <div class="bvp-callout bad">
+    <strong>오해</strong>
+    Spring Container에 등록된 Bean은 전부 CGLIB이 감싼 프록시 객체다.
+  </div>
+
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    이 오해가 생기는 이유는 <code>@Configuration</code> 클래스 동작 방식 때문이다.
+    <code>@Configuration</code>이 붙은 클래스는 <span class="bvp-hi">클래스 자체</span>가 CGLIB 프록시로 교체된다.
+    그 안의 <code>@Bean</code> 메서드를 여러 번 호출해도 같은 인스턴스를 반환하도록 가로채기 위해서다.
+    하지만 <code>@Bean</code> 메서드가 <em>반환하는 객체</em>는 별개다.
+    해당 객체에 AOP 대상 어노테이션이 없으면 순수 객체 그대로 등록된다.
+  </p>
+
+  <div class="bvp-compare-grid">
+    <div class="bvp-compare-card warn">
+      <h4>프록시가 되는 것</h4>
+      <p><code>@Configuration</code> 클래스 자체</p>
+      <p><code>@Transactional</code>이 붙은 클래스 / 메서드를 가진 빈</p>
+      <p><code>@Aspect</code>의 Pointcut에 매칭되는 빈</p>
+      <p>Spring Security — 메서드 시큐리티(<code>@PreAuthorize</code>) 대상 빈</p>
+      <p><code>@Async</code>가 붙은 빈</p>
+      <p><code>@Cacheable</code> / <code>@CacheEvict</code> 등 캐시 대상 빈</p>
+    </div>
+    <div class="bvp-compare-card good">
+      <h4>순수 객체(POJO)로 남는 것</h4>
+      <p><code>@Service</code> · <code>@Component</code> · <code>@Repository</code> 단독 선언</p>
+      <p>위 어노테이션이 없는 일반 <code>@Bean</code> 반환 객체</p>
+      <p>DTO · Entity · Value Object</p>
+      <p>AOP Pointcut에 매칭되지 않는 모든 빈</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     2. Application 초기화 흐름
+══════════════════════════════════════════ -->
+<div class="card" id="section-lifecycle">
+  <div class="bvp-section-header">
+    <div class="bvp-section-number">2</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">Application 초기화 — Bean이 만들어지는 순서</h2>
+  </div>
+
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8; margin-bottom:20px;">
+    Spring Container가 Bean을 생성하고 등록하는 흐름은 아래와 같다.
+    프록시 교체는 <span class="bvp-hi3">4단계 BeanPostProcessor</span>에서 발생한다.
+  </p>
+
+  <div class="bvp-flow">
+    <div class="bvp-flow-item">
+      <span class="bvp-phase-tag tag-normal">STEP 1</span>
+      <h4>BeanDefinition 등록</h4>
+      <p>
+        <code>@ComponentScan</code>이 클래스패스를 스캔하고, <code>@Bean</code> 메서드를 파싱해
+        Bean의 <em>설계도(BeanDefinition)</em> 를 메타데이터로 등록한다.
+        아직 객체는 생성되지 않는다.
+      </p>
+      <div class="terminal-window" style="margin-top:12px;">
+        <div class="terminal-header">
+          <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+          <span class="terminal-title">STEP 1 — BeanDefinition 내부 동작 (의사 코드)</span>
+        </div>
+        <pre><code><span class="bvp-cmt">// @Service, @Component가 붙은 클래스를 스캔</span>
+<span class="bvp-ann">@Service</span>
+<span class="bvp-kw">public class</span> <span class="bvp-cls">OrderService</span> { ... }      <span class="bvp-cmt">// 대상 발견</span>
+
+<span class="bvp-ann">@Service</span>
+<span class="bvp-kw">public class</span> <span class="bvp-cls">UserQueryService</span> { ... }  <span class="bvp-cmt">// 대상 발견</span>
+
+<span class="bvp-cmt">// 클래스패스 스캔 결과 → BeanDefinition 메타데이터로 변환 후 registry에 저장</span>
+<span class="bvp-cmt">// 이 시점에는 new OrderService() 호출이 일어나지 않는다</span>
+<span class="bvp-cls">BeanDefinition</span> bd = <span class="bvp-kw">new</span> <span class="bvp-cls">RootBeanDefinition</span>(<span class="bvp-cls">OrderService</span>.<span class="bvp-kw">class</span>);
+bd.<span class="bvp-fn">setScope</span>(<span class="bvp-str">"singleton"</span>);
+registry.<span class="bvp-fn">registerBeanDefinition</span>(<span class="bvp-str">"orderService"</span>, bd); <span class="bvp-cmt">// 설계도만 등록</span></code></pre>
+      </div>
+    </div>
+
+    <div class="bvp-flow-item">
+      <span class="bvp-phase-tag tag-normal">STEP 2</span>
+      <h4>BeanPostProcessor 자체 등록</h4>
+      <p>
+        <code>AutowiredAnnotationBeanPostProcessor</code>,
+        <code>AnnotationAwareAspectJAutoProxyCreator</code> 등 특수 후처리기들이
+        일반 Bean보다 <strong>먼저</strong> 인스턴스화되어 컨테이너에 등록된다.
+      </p>
+      <div class="terminal-window" style="margin-top:12px;">
+        <div class="terminal-header">
+          <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+          <span class="terminal-title">STEP 2 — BeanPostProcessor 우선 등록</span>
+        </div>
+        <pre><code><span class="bvp-cmt">// Spring Boot AutoConfiguration 또는 @EnableAspectJAutoProxy가 자동 등록</span>
+<span class="bvp-cmt">// 일반 Bean 생성 전에 아래 후처리기들이 먼저 인스턴스화된다</span>
+
+<span class="bvp-cls">AutowiredAnnotationBeanPostProcessor</span>     <span class="bvp-cmt">// @Autowired 의존성 주입 담당</span>
+<span class="bvp-cls">CommonAnnotationBeanPostProcessor</span>        <span class="bvp-cmt">// @PostConstruct, @PreDestroy 담당</span>
+<span class="bvp-cls">AnnotationAwareAspectJAutoProxyCreator</span>   <span class="bvp-cmt">// ← 프록시 생성 담당 (핵심)</span>
+
+<span class="bvp-cmt">// AnnotationAwareAspectJAutoProxyCreator는 이 시점에</span>
+<span class="bvp-cmt">// @Aspect 클래스를 읽어 Advisor 목록을 미리 구성해둔다</span></code></pre>
+      </div>
+    </div>
+
+    <div class="bvp-flow-item">
+      <span class="bvp-phase-tag tag-normal">STEP 3</span>
+      <h4>일반 Bean 인스턴스 생성 + 의존성 주입</h4>
+      <p>
+        컨테이너가 BeanDefinition을 보고 생성자 또는 팩토리 메서드를 호출해
+        <strong>순수 객체(POJO)</strong> 를 만든다.
+        이후 <code>@Autowired</code> 등으로 의존성이 주입된다.
+      </p>
+      <div class="terminal-window" style="margin-top:12px;">
+        <div class="terminal-header">
+          <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+          <span class="terminal-title">STEP 3 — AbstractAutowireCapableBeanFactory 내부 동작 (의사 코드)</span>
+        </div>
+        <pre><code><span class="bvp-cmt">// 3-A. 생성자 호출 → 순수 POJO 생성</span>
+<span class="bvp-cls">OrderService</span> rawBean = <span class="bvp-kw">new</span> <span class="bvp-cls">OrderService</span>();
+<span class="bvp-cmt">// rawBean.getClass() → class com.example.OrderService  (아직 프록시 아님)</span>
+
+<span class="bvp-cmt">// 3-B. 의존성 주입 (@Autowired, 생성자 주입 등)</span>
+<span class="bvp-cls">OrderRepository</span> repo = ctx.<span class="bvp-fn">getBean</span>(<span class="bvp-cls">OrderRepository</span>.<span class="bvp-kw">class</span>);
+rawBean.<span class="bvp-fn">setOrderRepository</span>(repo);
+
+<span class="bvp-cmt">// 3-C. 초기화 콜백</span>
+rawBean.<span class="bvp-fn">init</span>();  <span class="bvp-cmt">// @PostConstruct 또는 afterPropertiesSet()</span>
+
+<span class="bvp-cmt">// → 이 시점까지 rawBean은 여전히 순수 POJO</span>
+<span class="bvp-cmt">// → 다음 STEP 4에서 프록시 교체 여부가 결정된다</span></code></pre>
+      </div>
+    </div>
+
+    <div class="bvp-flow-item proxy-step">
+      <span class="bvp-phase-tag tag-proxy">STEP 4 — 프록시 교체 발생 지점</span>
+      <h4>BeanPostProcessor.postProcessAfterInitialization()</h4>
+      <p>
+        Bean 초기화(<code>@PostConstruct</code>, <code>afterPropertiesSet()</code>) 완료 후
+        등록된 모든 <code>BeanPostProcessor</code>가 순차 실행된다.
+        <code>AnnotationAwareAspectJAutoProxyCreator</code>는 이 시점에
+        각 Bean이 AOP 대상인지 판단하고, 해당하면 <strong>CGLIB 서브클래스 프록시로 교체</strong>한다.
+        컨테이너는 원본 객체 대신 프록시 객체를 최종 등록한다.
+      </p>
+      <div class="terminal-window" style="margin-top:12px;">
+        <div class="terminal-header">
+          <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+          <span class="terminal-title">STEP 4 — AnnotationAwareAspectJAutoProxyCreator 내부 동작 (의사 코드)</span>
+        </div>
+        <pre><code><span class="bvp-kw">public</span> <span class="bvp-cls">Object</span> <span class="bvp-fn">postProcessAfterInitialization</span>(<span class="bvp-cls">Object</span> bean, <span class="bvp-cls">String</span> beanName) {
+
+    <span class="bvp-cmt">// STEP 2에서 구성해둔 Advisor 목록을 순회하며 Pointcut 매칭 검사</span>
+    <span class="bvp-cls">List</span>&lt;<span class="bvp-cls">Advisor</span>&gt; eligibleAdvisors = <span class="bvp-fn">findEligibleAdvisors</span>(bean.<span class="bvp-fn">getClass</span>());
+
+    <span class="bvp-kw">if</span> (eligibleAdvisors.<span class="bvp-fn">isEmpty</span>()) {
+        <span class="bvp-kw">return</span> bean; <span class="bvp-cmt">// 매칭 없음 → POJO 그대로 반환 (UserQueryService 등)</span>
+    }
+
+    <span class="bvp-cmt">// 매칭 있음 → CGLIB이 원본 클래스를 상속한 서브클래스 생성</span>
+    <span class="bvp-cls">Object</span> proxy = <span class="bvp-fn">createCglibProxy</span>(bean, eligibleAdvisors);
+    <span class="bvp-cmt">// proxy.getClass() → class com.example.OrderService$$SpringCGLIB$$0</span>
+    <span class="bvp-cmt">// proxy 내부의 target 필드 → 원본 rawBean (OrderService)</span>
+
+    <span class="bvp-kw">return</span> proxy; <span class="bvp-cmt">// 컨테이너는 이 proxy를 최종 Bean으로 저장</span>
+}</code></pre>
+      </div>
+    </div>
+
+    <div class="bvp-flow-item">
+      <span class="bvp-phase-tag tag-post">STEP 5</span>
+      <h4>ApplicationContext 준비 완료</h4>
+      <p>
+        컨테이너에는 일반 빈은 POJO로, AOP 대상 빈은 프록시로 저장된 상태가 된다.
+        이후 <code>getBean()</code> 또는 <code>@Autowired</code>로 조회하면 최종 등록된 객체가 반환된다.
+      </p>
+      <div class="terminal-window" style="margin-top:12px;">
+        <div class="terminal-header">
+          <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+          <span class="terminal-title">STEP 5 — ApplicationContext 최종 상태 확인</span>
+        </div>
+        <pre><code><span class="bvp-cmt">// @Transactional 있는 Bean → 프록시로 저장됨</span>
+ctx.<span class="bvp-fn">getBean</span>(<span class="bvp-str">"orderService"</span>).<span class="bvp-fn">getClass</span>().<span class="bvp-fn">getName</span>();
+<span class="bvp-cmt">// → com.example.OrderService$$SpringCGLIB$$0</span>
+
+<span class="bvp-cmt">// 어노테이션 없는 Bean → POJO 그대로 저장됨</span>
+ctx.<span class="bvp-fn">getBean</span>(<span class="bvp-str">"userQueryService"</span>).<span class="bvp-fn">getClass</span>().<span class="bvp-fn">getName</span>();
+<span class="bvp-cmt">// → com.example.UserQueryService</span>
+
+<span class="bvp-cmt">// 메서드 호출 흐름 비교</span>
+orderService.<span class="bvp-fn">placeOrder</span>(dto);
+<span class="bvp-cmt">// → CGLIB 프록시가 가로챔 → TransactionInterceptor 실행 → 원본 메서드 위임</span>
+
+userQueryService.<span class="bvp-fn">findById</span>(id);
+<span class="bvp-cmt">// → 직접 실행 (가로채는 레이어 없음)</span></code></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     3. AOP 프록시 생성 조건
+══════════════════════════════════════════ -->
+<div class="card" id="section-condition">
+  <div class="bvp-section-header">
+    <div class="bvp-section-number">3</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">프록시가 생성되는 조건 — Advisor Matching</h2>
+  </div>
+
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8; margin-bottom:16px;">
+    <code>AnnotationAwareAspectJAutoProxyCreator</code>는 모든 Bean에 대해
+    등록된 <strong>Advisor 목록</strong>을 순회한다.
+    Advisor의 <strong>Pointcut</strong>이 해당 Bean의 클래스 또는 메서드에 매칭되면 프록시를 생성한다.
+  </p>
+
+  <div class="bvp-sub-title">대표 Advisor와 Pointcut 매칭 조건</div>
+
+  <table class="bvp-table">
+    <thead>
+      <tr>
+        <th>어노테이션</th>
+        <th>Advisor</th>
+        <th>Pointcut 매칭 조건</th>
+        <th>프록시 타입</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>@Transactional</code></td>
+        <td><code>BeanFactoryTransactionAttributeSourceAdvisor</code></td>
+        <td>클래스/메서드에 <code>@Transactional</code>이 존재</td>
+        <td>CGLIB (기본), JDK Dynamic (인터페이스 있을 때 설정 가능)</td>
+      </tr>
+      <tr>
+        <td><code>@Aspect</code></td>
+        <td>사용자 정의 Advisor (AspectJ 표현식)</td>
+        <td><code>@Pointcut</code> 표현식에 매칭되는 클래스/메서드</td>
+        <td>CGLIB 또는 JDK Dynamic</td>
+      </tr>
+      <tr>
+        <td><code>@Async</code></td>
+        <td><code>AsyncAnnotationAdvisor</code></td>
+        <td>클래스/메서드에 <code>@Async</code>가 존재</td>
+        <td>CGLIB</td>
+      </tr>
+      <tr>
+        <td><code>@PreAuthorize</code> 등</td>
+        <td><code>MethodSecurityInterceptor</code> Advisor</td>
+        <td>Spring Security 메서드 시큐리티 어노테이션 존재</td>
+        <td>CGLIB</td>
+      </tr>
+      <tr>
+        <td><code>@Cacheable</code></td>
+        <td><code>BeanFactoryCacheOperationSourceAdvisor</code></td>
+        <td>클래스/메서드에 캐시 어노테이션이 존재</td>
+        <td>CGLIB</td>
+      </tr>
+      <tr>
+        <td>(없음)</td>
+        <td>매칭 없음</td>
+        <td>어떤 Advisor의 Pointcut에도 매칭되지 않음</td>
+        <td>프록시 없음 — POJO 그대로</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="bvp-callout ok">
+    <strong>결론</strong>
+    매칭 여부 판단은 Advisor → Pointcut → 클래스/메서드 순으로 진행된다.
+    하나라도 매칭되면 프록시가 생성되고, 모두 미매칭이면 원본 POJO가 그대로 등록된다.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     4. 코드로 확인하는 방법
+══════════════════════════════════════════ -->
+<div class="card" id="section-verify">
+  <div class="bvp-section-header">
+    <div class="bvp-section-number">4</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">런타임에서 프록시 여부 확인하기</h2>
+  </div>
+
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8; margin-bottom:16px;">
+    아래 코드를 작성하면 각 Bean이 실제로 프록시인지 직접 출력해볼 수 있다.
+  </p>
+
+  <div class="bvp-sub-title">방법 1 — getClass() 출력</div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">ProxyCheckRunner.java</span>
+    </div>
+    <pre><code><span class="bvp-ann">@Component</span>
+<span class="bvp-kw">public class</span> <span class="bvp-cls">ProxyCheckRunner</span> <span class="bvp-kw">implements</span> <span class="bvp-cls">ApplicationRunner</span> {
+
+    <span class="bvp-ann">@Autowired</span> <span class="bvp-kw">private</span> <span class="bvp-cls">OrderService</span>      orderService;   <span class="bvp-cmt">// @Transactional 있음</span>
+    <span class="bvp-ann">@Autowired</span> <span class="bvp-kw">private</span> <span class="bvp-cls">UserQueryService</span>  userQueryService; <span class="bvp-cmt">// 어노테이션 없음</span>
+
+    <span class="bvp-ann">@Override</span>
+    <span class="bvp-kw">public void</span> <span class="bvp-fn">run</span>(<span class="bvp-cls">ApplicationArguments</span> args) {
+        <span class="bvp-cmt">// CGLIB 프록시면 클래스명에 "$$SpringCGLIB$$" 또는 "$$EnhancerBySpringCGLIB$$" 포함</span>
+        System.out.println(orderService.getClass().getName());
+        <span class="bvp-cmt">// → com.example.OrderService$$SpringCGLIB$$0</span>
+
+        System.out.println(userQueryService.getClass().getName());
+        <span class="bvp-cmt">// → com.example.UserQueryService  (POJO 그대로)</span>
+    }
+}</code></pre>
+  </div>
+
+  <div class="bvp-sub-title">방법 2 — AopUtils 사용 (권장)</div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">AopUtils API</span>
+    </div>
+    <pre><code><span class="bvp-kw">import</span> org.springframework.aop.support.<span class="bvp-cls">AopUtils</span>;
+
+<span class="bvp-cls">AopUtils</span>.<span class="bvp-fn">isAopProxy</span>(bean);       <span class="bvp-cmt">// JDK Dynamic + CGLIB 모두 true</span>
+<span class="bvp-cls">AopUtils</span>.<span class="bvp-fn">isCglibProxy</span>(bean);     <span class="bvp-cmt">// CGLIB 프록시일 때만 true</span>
+<span class="bvp-cls">AopUtils</span>.<span class="bvp-fn">isJdkDynamicProxy</span>(bean); <span class="bvp-cmt">// JDK Dynamic Proxy일 때만 true</span></code></pre>
+  </div>
+
+  <div class="bvp-sub-title">방법 3 — ApplicationContext 전체 Bean 목록 순회</div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">ProxyInspector.java</span>
+    </div>
+    <pre><code><span class="bvp-ann">@Component</span>
+<span class="bvp-kw">public class</span> <span class="bvp-cls">ProxyInspector</span> <span class="bvp-kw">implements</span> <span class="bvp-cls">ApplicationRunner</span> {
+
+    <span class="bvp-ann">@Autowired</span>
+    <span class="bvp-kw">private</span> <span class="bvp-cls">ApplicationContext</span> ctx;
+
+    <span class="bvp-ann">@Override</span>
+    <span class="bvp-kw">public void</span> <span class="bvp-fn">run</span>(<span class="bvp-cls">ApplicationArguments</span> args) {
+        <span class="bvp-kw">for</span> (<span class="bvp-cls">String</span> name : ctx.<span class="bvp-fn">getBeanDefinitionNames</span>()) {
+            <span class="bvp-cls">Object</span> bean = ctx.<span class="bvp-fn">getBean</span>(name);
+            <span class="bvp-kw">if</span> (<span class="bvp-cls">AopUtils</span>.<span class="bvp-fn">isAopProxy</span>(bean)) {
+                System.out.<span class="bvp-fn">printf</span>(<span class="bvp-str">"[PROXY] %s → %s%n"</span>, name, bean.<span class="bvp-fn">getClass</span>().<span class="bvp-fn">getSimpleName</span>());
+            }
+        }
+    }
+}</code></pre>
+  </div>
+
+  <div class="bvp-callout ok">
+    <strong>실행 결과 예시</strong>
+    [PROXY] orderService        → OrderService$$SpringCGLIB$$0
+    [PROXY] paymentService      → PaymentService$$SpringCGLIB$$0
+    <span class="bvp-dim">(userQueryService, productService 등은 출력되지 않음 — POJO)</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     5. @Configuration 예외 케이스
+══════════════════════════════════════════ -->
+<div class="card" id="section-configuration">
+  <div class="bvp-section-header">
+    <div class="bvp-section-number">5</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">@Configuration 클래스 — 항상 프록시인 이유</h2>
+  </div>
+
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8; margin-bottom:16px;">
+    <code>@Configuration</code>은 AOP Pointcut 매칭과 관계없이 <strong>항상</strong> CGLIB 프록시가 된다.
+    이유는 <code>@Bean</code> 메서드 간 싱글톤 보장 때문이다.
+  </p>
+
+  <div class="bvp-compare-grid">
+    <div class="bvp-compare-card warn">
+      <h4>@Configuration 없이 @Bean만 사용하면?</h4>
+      <p>
+        <code>AppConfig</code> 클래스가 POJO 그대로 등록된다.
+        <code>dataSource()</code>를 여러 Bean이 호출하면 매번 <strong>새 객체</strong>가 생성된다.
+        싱글톤 보장이 깨진다.
+      </p>
+    </div>
+    <div class="bvp-compare-card good">
+      <h4>@Configuration 있으면?</h4>
+      <p>
+        CGLIB이 <code>AppConfig</code>를 상속한 서브클래스를 만들어
+        <code>@Bean</code> 메서드를 오버라이드한다.
+        이미 컨테이너에 등록된 Bean이면 새로 생성하지 않고 컨테이너에서 꺼내 반환한다.
+        싱글톤이 보장된다.
+      </p>
+    </div>
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">AppConfig.java — @Configuration의 싱글톤 보장</span>
+    </div>
+    <pre><code><span class="bvp-ann">@Configuration</span>
+<span class="bvp-kw">public class</span> <span class="bvp-cls">AppConfig</span> {
+
+    <span class="bvp-ann">@Bean</span>
+    <span class="bvp-kw">public</span> <span class="bvp-cls">DataSource</span> <span class="bvp-fn">dataSource</span>() {
+        <span class="bvp-kw">return new</span> <span class="bvp-cls">HikariDataSource</span>();
+    }
+
+    <span class="bvp-ann">@Bean</span>
+    <span class="bvp-kw">public</span> <span class="bvp-cls">TransactionManager</span> <span class="bvp-fn">txManager</span>() {
+        <span class="bvp-cmt">// dataSource()를 직접 호출하지만, CGLIB이 가로채서 컨테이너의 싱글톤을 반환</span>
+        <span class="bvp-kw">return new</span> <span class="bvp-cls">DataSourceTransactionManager</span>(<span class="bvp-fn">dataSource</span>());
+    }
+}</code></pre>
+  </div>
+
+  <div class="bvp-callout warn">
+    <strong>주의 — proxyBeanMethods = false</strong>
+    <code>@Configuration(proxyBeanMethods = false)</code> 로 설정하면 CGLIB 프록시가 생성되지 않는다.
+    <code>@Bean</code> 메서드 간 싱글톤 보장이 사라지므로, 메서드 간 의존 관계가 없을 때만 사용한다.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     6. POJO vs Proxy — 내부 구조 비교
+══════════════════════════════════════════ -->
+<div class="card" id="section-structure">
+  <div class="bvp-section-header">
+    <div class="bvp-section-number">6</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">POJO Bean vs Proxy Bean — 내부 구조</h2>
+  </div>
+
+  <div class="bvp-tri-grid">
+    <div class="bvp-tri-card">
+      <h4>POJO Bean</h4>
+      <p><strong>클래스:</strong> <code>UserQueryService</code></p>
+      <p><strong>부모:</strong> Object</p>
+      <p><strong>메서드 호출:</strong> 직접 실행</p>
+      <p><strong>Interceptor 체인:</strong> 없음</p>
+      <p><strong>원본 객체:</strong> 자기 자신</p>
+    </div>
+    <div class="bvp-tri-card yellow">
+      <h4>CGLIB Proxy Bean</h4>
+      <p><strong>클래스:</strong> <code>OrderService$$SpringCGLIB$$0</code></p>
+      <p><strong>부모:</strong> <code>OrderService</code> (상속)</p>
+      <p><strong>메서드 호출:</strong> Interceptor 체인 → 원본 위임</p>
+      <p><strong>Interceptor 체인:</strong> TransactionInterceptor 등</p>
+      <p><strong>원본 객체:</strong> 내부 target 필드에 보관</p>
+    </div>
+    <div class="bvp-tri-card green">
+      <h4>JDK Dynamic Proxy Bean</h4>
+      <p><strong>클래스:</strong> <code>$Proxy42</code></p>
+      <p><strong>부모:</strong> Proxy (인터페이스 구현)</p>
+      <p><strong>메서드 호출:</strong> InvocationHandler → 원본 위임</p>
+      <p><strong>조건:</strong> 인터페이스 존재 + 설정 필요</p>
+      <p><strong>원본 객체:</strong> InvocationHandler 내부에 보관</p>
+    </div>
+  </div>
+
+  <div class="bvp-callout">
+    <strong>CGLIB vs JDK Dynamic — Spring Boot 기본값</strong>
+    Spring Boot 2.x 이후 기본은 <span class="bvp-hi">CGLIB</span>이다.
+    인터페이스가 있어도 CGLIB을 사용한다.
+    JDK Dynamic Proxy로 바꾸려면 <code>spring.aop.proxy-target-class=false</code>를 설정해야 한다.
+    CGLIB은 클래스 상속 방식이므로 <code>final</code> 클래스나 <code>final</code> 메서드에는 적용할 수 없다.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     7. 최종 요약
+══════════════════════════════════════════ -->
+<div class="card" id="section-summary">
+  <div class="bvp-section-header">
+    <div class="bvp-section-number">7</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">한 줄 요약 — 무엇이 차이를 만드는가</h2>
+  </div>
+
+  <div class="bvp-callout ok">
+    <strong>핵심</strong>
+    BeanPostProcessor가 각 Bean을 검사해 등록된 Advisor의 Pointcut에 매칭되는지 확인한다.
+    매칭되면 CGLIB 서브클래스 프록시로 교체해 컨테이너에 저장하고, 매칭되지 않으면 POJO 그대로 저장한다.
+    결국 <span class="bvp-hi">@Transactional · @Aspect · @Async</span> 등 AOP Advice가 필요한 빈만 프록시가 된다.
+  </div>
+
+  <table class="bvp-table">
+    <thead>
+      <tr>
+        <th>질문</th>
+        <th>답변</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>모든 Spring Bean이 프록시인가?</td>
+        <td><span class="bvp-bad">No</span> — AOP 대상이 아닌 Bean은 POJO 그대로 등록된다</td>
+      </tr>
+      <tr>
+        <td>프록시 교체는 언제 일어나는가?</td>
+        <td>Bean 초기화 완료 직후 <code>BeanPostProcessor.postProcessAfterInitialization()</code></td>
+      </tr>
+      <tr>
+        <td>무엇이 매칭 여부를 판단하는가?</td>
+        <td><code>AnnotationAwareAspectJAutoProxyCreator</code>가 Advisor 목록을 순회해 Pointcut 매칭 검사</td>
+      </tr>
+      <tr>
+        <td>@Configuration은 왜 항상 프록시인가?</td>
+        <td><code>@Bean</code> 메서드 간 싱글톤 보장을 위해 CGLIB이 메서드 호출을 가로채야 하기 때문</td>
+      </tr>
+      <tr>
+        <td>런타임에 확인하는 방법은?</td>
+        <td><code>AopUtils.isAopProxy(bean)</code> 또는 <code>bean.getClass().getName()</code>에서 <code>$$SpringCGLIB$$</code> 확인</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════
+     8. 퀴즈
+══════════════════════════════════════════ -->
+<div class="card" id="section-quiz">
+  <div class="bvp-section-header">
+    <div class="bvp-section-number">8</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">퀴즈 — 직접 확인해보자</h2>
+  </div>
+
+  <!-- Q1 -->
+  <div class="bvp-quiz-item" data-answer="b">
+    <div class="bvp-quiz-q"><span class="bvp-qnum">Q1.</span> 다음 중 Spring Container 초기화 시 CGLIB 프록시로 저장되는 Bean은?</div>
+    <div class="bvp-options">
+      <div class="bvp-option" onclick="bvpChoose(this,'a')"><span class="bvp-opt-label">A</span> <code>@Service</code>만 붙은 <code>UserQueryService</code></div>
+      <div class="bvp-option" onclick="bvpChoose(this,'b')"><span class="bvp-opt-label">B</span> <code>@Transactional</code> 메서드를 가진 <code>OrderService</code></div>
+      <div class="bvp-option" onclick="bvpChoose(this,'c')"><span class="bvp-opt-label">C</span> <code>@Repository</code>만 붙은 <code>UserRepository</code></div>
+      <div class="bvp-option" onclick="bvpChoose(this,'d')"><span class="bvp-opt-label">D</span> <code>@Component</code>만 붙은 <code>EventPublisher</code></div>
+    </div>
+    <div class="bvp-quiz-explain">
+      <strong style="color:var(--green)">정답: B</strong><br>
+      <code>@Transactional</code>은 <code>BeanFactoryTransactionAttributeSourceAdvisor</code>의 Pointcut에 매칭되므로 <code>AnnotationAwareAspectJAutoProxyCreator</code>가 CGLIB 프록시로 교체한다.
+      A · C · D는 AOP Advisor Pointcut에 매칭되는 어노테이션이 없으므로 POJO 그대로 등록된다.
+    </div>
+    <div class="bvp-quiz-actions">
+      <button class="bvp-btn bvp-btn-primary" onclick="bvpSubmit(this)">확인</button>
+      <button class="bvp-btn bvp-btn-reset" onclick="bvpReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <!-- Q2 -->
+  <div class="bvp-quiz-item" data-answer="c">
+    <div class="bvp-quiz-q"><span class="bvp-qnum">Q2.</span> Bean이 프록시로 교체되는 정확한 시점은?</div>
+    <div class="bvp-options">
+      <div class="bvp-option" onclick="bvpChoose(this,'a')"><span class="bvp-opt-label">A</span> BeanDefinition이 registry에 등록된 직후</div>
+      <div class="bvp-option" onclick="bvpChoose(this,'b')"><span class="bvp-opt-label">B</span> <code>@Autowired</code> 의존성 주입이 완료된 직후</div>
+      <div class="bvp-option" onclick="bvpChoose(this,'c')"><span class="bvp-opt-label">C</span> <code>@PostConstruct</code> 실행 후 <code>BeanPostProcessor.postProcessAfterInitialization()</code></div>
+      <div class="bvp-option" onclick="bvpChoose(this,'d')"><span class="bvp-opt-label">D</span> <code>ApplicationContext.refresh()</code>가 시작되기 직전</div>
+    </div>
+    <div class="bvp-quiz-explain">
+      <strong style="color:var(--green)">정답: C</strong><br>
+      프록시 교체는 Bean 초기화(<code>@PostConstruct</code>, <code>afterPropertiesSet()</code>) 완료 이후
+      <code>BeanPostProcessor.postProcessAfterInitialization()</code> 단계에서 일어난다.
+      이 시점까지 Bean은 순수 POJO이며, 이 메서드가 프록시를 반환하면 컨테이너가 원본 대신 프록시를 최종 등록한다.
+    </div>
+    <div class="bvp-quiz-actions">
+      <button class="bvp-btn bvp-btn-primary" onclick="bvpSubmit(this)">확인</button>
+      <button class="bvp-btn bvp-btn-reset" onclick="bvpReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <!-- Q3 -->
+  <div class="bvp-quiz-item" data-answer="b">
+    <div class="bvp-quiz-q"><span class="bvp-qnum">Q3.</span> <code>AnnotationAwareAspectJAutoProxyCreator</code>가 프록시 생성 여부를 결정하는 기준은?</div>
+    <div class="bvp-options">
+      <div class="bvp-option" onclick="bvpChoose(this,'a')"><span class="bvp-opt-label">A</span> Bean 클래스 이름에 "Service" · "Repository" 키워드가 포함되는지</div>
+      <div class="bvp-option" onclick="bvpChoose(this,'b')"><span class="bvp-opt-label">B</span> 등록된 Advisor의 Pointcut이 해당 Bean의 클래스 또는 메서드에 매칭되는지</div>
+      <div class="bvp-option" onclick="bvpChoose(this,'c')"><span class="bvp-opt-label">C</span> Bean이 인터페이스를 구현하는지 여부</div>
+      <div class="bvp-option" onclick="bvpChoose(this,'d')"><span class="bvp-opt-label">D</span> <code>@Autowired</code> 필드의 개수가 일정 수 이상인지</div>
+    </div>
+    <div class="bvp-quiz-explain">
+      <strong style="color:var(--green)">정답: B</strong><br>
+      Advisor → Pointcut → 클래스/메서드 순으로 매칭을 검사한다.
+      하나라도 매칭되면 프록시가 생성되고, 모두 미매칭이면 POJO 그대로 반환된다.
+      인터페이스 구현 여부(C)는 JDK Dynamic Proxy vs CGLIB 선택에 관여하지만, 프록시 생성 자체를 결정하지는 않는다.
+    </div>
+    <div class="bvp-quiz-actions">
+      <button class="bvp-btn bvp-btn-primary" onclick="bvpSubmit(this)">확인</button>
+      <button class="bvp-btn bvp-btn-reset" onclick="bvpReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <!-- Q4 -->
+  <div class="bvp-quiz-item" data-answer="c">
+    <div class="bvp-quiz-q">
+      <span class="bvp-qnum">Q4.</span>
+      아래 코드의 출력 결과는? (<code>UserQueryService</code>에는 <code>@Transactional</code>, <code>@Async</code>, <code>@Cacheable</code> 등 AOP 어노테이션이 전혀 없다)
+      <div class="terminal-window" style="margin:10px 0 0;">
+        <div class="terminal-header">
+          <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+          <span class="terminal-title">Quiz Q4</span>
+        </div>
+        <pre><code>ctx.getBean("userQueryService").getClass().getName();</code></pre>
+      </div>
+    </div>
+    <div class="bvp-options">
+      <div class="bvp-option" onclick="bvpChoose(this,'a')"><span class="bvp-opt-label">A</span> <code>com.example.UserQueryService$$SpringCGLIB$$0</code></div>
+      <div class="bvp-option" onclick="bvpChoose(this,'b')"><span class="bvp-opt-label">B</span> <code>com.example.$Proxy42</code></div>
+      <div class="bvp-option" onclick="bvpChoose(this,'c')"><span class="bvp-opt-label">C</span> <code>com.example.UserQueryService</code></div>
+      <div class="bvp-option" onclick="bvpChoose(this,'d')"><span class="bvp-opt-label">D</span> <code>java.lang.Object</code></div>
+    </div>
+    <div class="bvp-quiz-explain">
+      <strong style="color:var(--green)">정답: C</strong><br>
+      AOP Advisor Pointcut에 매칭되는 어노테이션이 없으므로 <code>postProcessAfterInitialization()</code>가 원본 POJO를 그대로 반환한다.
+      결과적으로 컨테이너에 <code>UserQueryService</code> 인스턴스 자체가 저장되며 클래스명에 <code>$$SpringCGLIB$$</code>가 붙지 않는다.
+      A는 CGLIB 프록시, B는 JDK Dynamic Proxy의 클래스명 패턴이다.
+    </div>
+    <div class="bvp-quiz-actions">
+      <button class="bvp-btn bvp-btn-primary" onclick="bvpSubmit(this)">확인</button>
+      <button class="bvp-btn bvp-btn-reset" onclick="bvpReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <!-- Q5 -->
+  <div class="bvp-quiz-item" data-answer="b">
+    <div class="bvp-quiz-q"><span class="bvp-qnum">Q5.</span> <code>@Configuration(proxyBeanMethods = false)</code>로 설정했을 때 발생하는 문제는?</div>
+    <div class="bvp-options">
+      <div class="bvp-option" onclick="bvpChoose(this,'a')"><span class="bvp-opt-label">A</span> <code>@Bean</code> 메서드 자체가 실행되지 않아 Bean이 등록되지 않는다</div>
+      <div class="bvp-option" onclick="bvpChoose(this,'b')"><span class="bvp-opt-label">B</span> CGLIB 프록시가 생성되지 않아 <code>@Bean</code> 메서드 간 직접 호출 시 매번 새 객체가 생성될 수 있다</div>
+      <div class="bvp-option" onclick="bvpChoose(this,'c')"><span class="bvp-opt-label">C</span> JDK Dynamic Proxy로 자동 전환되어 인터페이스 없는 Bean이 등록 실패한다</div>
+      <div class="bvp-option" onclick="bvpChoose(this,'d')"><span class="bvp-opt-label">D</span> <code>@Transactional</code> 어노테이션이 무시된다</div>
+    </div>
+    <div class="bvp-quiz-explain">
+      <strong style="color:var(--green)">정답: B</strong><br>
+      <code>proxyBeanMethods = false</code>로 설정하면 <code>@Configuration</code> 클래스가 CGLIB 프록시가 되지 않는다.
+      따라서 <code>dataSource()</code> 같은 <code>@Bean</code> 메서드를 다른 <code>@Bean</code> 메서드 내에서 직접 호출하면
+      컨테이너의 싱글톤 Bean을 반환하는 것이 아니라 <code>new DataSource()</code>를 새로 실행해 버린다.
+      <code>@Bean</code> 메서드 간 의존 관계가 없을 때만 안전하게 사용할 수 있다.
+    </div>
+    <div class="bvp-quiz-actions">
+      <button class="bvp-btn bvp-btn-primary" onclick="bvpSubmit(this)">확인</button>
+      <button class="bvp-btn bvp-btn-reset" onclick="bvpReset(this)">초기화</button>
+    </div>
+  </div>
+
+  <div class="bvp-quiz-score" id="bvpScoreBoard">
+    <div class="bvp-score-num" id="bvpScoreNum">0 / 5</div>
+    <p id="bvpScoreMsg"></p>
+  </div>
+</div>
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#section-misconception" onclick="toggleTOC()">1. 흔한 오해</a></li>
+    <li><a href="#section-lifecycle" onclick="toggleTOC()">2. 초기화 흐름</a></li>
+    <li><a href="#section-condition" onclick="toggleTOC()">3. 프록시 생성 조건</a></li>
+    <li><a href="#section-verify" onclick="toggleTOC()">4. 런타임 확인 방법</a></li>
+    <li><a href="#section-configuration" onclick="toggleTOC()">5. @Configuration 예외</a></li>
+    <li><a href="#section-structure" onclick="toggleTOC()">6. POJO vs Proxy 구조</a></li>
+    <li><a href="#section-summary" onclick="toggleTOC()">7. 최종 요약</a></li>
+    <li><a href="#section-quiz" onclick="toggleTOC()">8. 퀴즈</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>
+
+<script>
+  function bvpChoose(el, val) {
+    const item = el.closest('.bvp-quiz-item');
+    if (item.dataset.done) return;
+    item.querySelectorAll('.bvp-option').forEach(o => o.classList.remove('bvp-selected'));
+    el.classList.add('bvp-selected');
+    item.dataset.selected = val;
+  }
+
+  function bvpSubmit(btn) {
+    const item = btn.closest('.bvp-quiz-item');
+    if (item.dataset.done) return;
+    const selected = item.dataset.selected;
+    if (!selected) { alert('선택지를 골라주세요.'); return; }
+    const correct = item.dataset.answer;
+    item.querySelectorAll('.bvp-option').forEach(o => {
+      const v = o.getAttribute('onclick').match(/'([a-d])'\)/)[1];
+      if (v === correct) o.classList.add('bvp-correct');
+      else if (v === selected) o.classList.add('bvp-wrong');
+    });
+    item.querySelector('.bvp-quiz-explain').classList.add('show');
+    item.dataset.done = '1';
+    bvpCheckAllDone();
+  }
+
+  function bvpReset(btn) {
+    const item = btn.closest('.bvp-quiz-item');
+    delete item.dataset.done;
+    delete item.dataset.selected;
+    item.querySelectorAll('.bvp-option').forEach(o => {
+      o.classList.remove('bvp-correct', 'bvp-wrong', 'bvp-selected');
+    });
+    item.querySelector('.bvp-quiz-explain').classList.remove('show');
+    document.getElementById('bvpScoreBoard').style.display = 'none';
+  }
+
+  function bvpCheckAllDone() {
+    const items = document.querySelectorAll('.bvp-quiz-item');
+    const done  = [...items].filter(i => i.dataset.done);
+    if (done.length < items.length) return;
+    let score = 0;
+    items.forEach(item => { if (item.dataset.selected === item.dataset.answer) score++; });
+    const board = document.getElementById('bvpScoreBoard');
+    document.getElementById('bvpScoreNum').textContent = score + ' / ' + items.length;
+    const msgs = ['다시 한번 읽어보자!', '조금 더 읽어보자.', '반은 왔다!', '거의 다 왔다!', '완벽하다!', '완벽하다!'];
+    document.getElementById('bvpScoreMsg').textContent = msgs[score] || '';
+    board.style.display = 'block';
+    board.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+</script>
