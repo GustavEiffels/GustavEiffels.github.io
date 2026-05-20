@@ -616,11 +616,78 @@ userQueryService.<span class="bvp-fn">findById</span>(id);
 </div>
 
 <!-- ══════════════════════════════════════════
-     5. @Configuration 예외 케이스
+     5. Bean Scope — 기본은 Singleton
+══════════════════════════════════════════ -->
+<div class="card" id="section-singleton">
+  <div class="bvp-section-header">
+    <div class="bvp-section-number">5</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">Bean Scope — 기본은 Singleton, POJO든 Proxy든 동일</h2>
+  </div>
+
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8; margin-bottom:16px;">
+    프록시 여부와 관계없이, 아무 설정 없이 등록된 Spring Bean은 모두 <strong>Singleton Scope</strong>다.
+    ApplicationContext 초기화 시 딱 한 번 생성되어 컨테이너에 보관되고,
+    이후 <code>getBean()</code>이나 <code>@Autowired</code>로 가져올 때마다 <strong>같은 인스턴스</strong>가 반환된다.
+  </p>
+
+  <div class="bvp-callout ok">
+    <strong>핵심 — 메서드를 몇 번 호출해도 객체는 새로 생기지 않는다</strong>
+    프록시 Bean도 싱글톤, 그 안에 감싸진 원본 Bean도 싱글톤이다.
+    차이는 "객체 생성 횟수"가 아니라 "메서드 호출이 지나가는 경로"다.
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Singleton 확인 — 어떤 Bean이든 동일 인스턴스</span>
+    </div>
+    <pre><code><span class="bvp-cmt">// POJO Bean — 메서드를 100번 호출해도 객체는 그대로</span>
+<span class="bvp-cls">UserQueryService</span> a = ctx.<span class="bvp-fn">getBean</span>(<span class="bvp-cls">UserQueryService</span>.<span class="bvp-kw">class</span>);
+<span class="bvp-cls">UserQueryService</span> b = ctx.<span class="bvp-fn">getBean</span>(<span class="bvp-cls">UserQueryService</span>.<span class="bvp-kw">class</span>);
+System.out.println(a == b); <span class="bvp-cmt">// true — 완전히 같은 인스턴스</span>
+
+<span class="bvp-cmt">// Proxy Bean — 프록시도 싱글톤, 내부 원본도 싱글톤</span>
+<span class="bvp-cls">OrderService</span> p1 = ctx.<span class="bvp-fn">getBean</span>(<span class="bvp-cls">OrderService</span>.<span class="bvp-kw">class</span>);
+<span class="bvp-cls">OrderService</span> p2 = ctx.<span class="bvp-fn">getBean</span>(<span class="bvp-cls">OrderService</span>.<span class="bvp-kw">class</span>);
+System.out.println(p1 == p2); <span class="bvp-cmt">// true — 프록시 객체도 같은 인스턴스</span></code></pre>
+  </div>
+
+  <div class="bvp-sub-title">메서드 호출 경로 비교 — 객체 생성이 아니다</div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">호출 경로 차이</span>
+    </div>
+    <pre><code><span class="bvp-cmt">// POJO Bean 호출</span>
+userQueryService.<span class="bvp-fn">findById</span>(id);
+<span class="bvp-cmt">// → 싱글톤 POJO 객체에 직접 도달 (가로채는 레이어 없음)</span>
+
+<span class="bvp-cmt">// Proxy Bean 호출</span>
+orderService.<span class="bvp-fn">placeOrder</span>(dto);
+<span class="bvp-cmt">// → 싱글톤 프록시 객체가 받음</span>
+<span class="bvp-cmt">//   → TransactionInterceptor 실행 (트랜잭션 시작)</span>
+<span class="bvp-cmt">//   → 싱글톤 원본 객체에 위임 (새로 생성 X)</span>
+<span class="bvp-cmt">//   → TransactionInterceptor 실행 (커밋/롤백)</span>
+
+<span class="bvp-cmt">// 두 경우 모두 객체는 Application 기동 시 만들어진 것을 그대로 사용한다</span></code></pre>
+  </div>
+
+  <div class="bvp-callout warn">
+    <strong>Singleton이 깨지는 경우는 따로 있다</strong>
+    아래 섹션에서 설명하는 <code>@Configuration</code>의 특수 케이스는
+    일반 Bean 메서드 호출이 아니라, <code>@Configuration</code> 클래스 내부에서
+    <code>@Bean</code> 메서드를 <em>자바 코드로 직접 호출</em>하는 경우에만 해당한다.
+    일반적인 서비스 메서드 호출과는 완전히 다른 이야기다.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     6. @Configuration 예외 케이스
 ══════════════════════════════════════════ -->
 <div class="card" id="section-configuration">
   <div class="bvp-section-header">
-    <div class="bvp-section-number">5</div>
+    <div class="bvp-section-number">6</div>
     <h2 style="font-size:1.2rem; font-weight:800; margin:0;">@Configuration 클래스 — 항상 프록시인 이유</h2>
   </div>
 
@@ -682,7 +749,7 @@ userQueryService.<span class="bvp-fn">findById</span>(id);
 ══════════════════════════════════════════ -->
 <div class="card" id="section-structure">
   <div class="bvp-section-header">
-    <div class="bvp-section-number">6</div>
+    <div class="bvp-section-number">7</div>
     <h2 style="font-size:1.2rem; font-weight:800; margin:0;">POJO Bean vs Proxy Bean — 내부 구조</h2>
   </div>
 
@@ -727,7 +794,7 @@ userQueryService.<span class="bvp-fn">findById</span>(id);
 ══════════════════════════════════════════ -->
 <div class="card" id="section-summary">
   <div class="bvp-section-header">
-    <div class="bvp-section-number">7</div>
+    <div class="bvp-section-number">8</div>
     <h2 style="font-size:1.2rem; font-weight:800; margin:0;">한 줄 요약 — 무엇이 차이를 만드는가</h2>
   </div>
 
@@ -775,7 +842,7 @@ userQueryService.<span class="bvp-fn">findById</span>(id);
 ══════════════════════════════════════════ -->
 <div class="card" id="section-quiz">
   <div class="bvp-section-header">
-    <div class="bvp-section-number">8</div>
+    <div class="bvp-section-number">9</div>
     <h2 style="font-size:1.2rem; font-weight:800; margin:0;">퀴즈 — 직접 확인해보자</h2>
   </div>
 
@@ -911,10 +978,11 @@ userQueryService.<span class="bvp-fn">findById</span>(id);
     <li><a href="#section-lifecycle" onclick="toggleTOC()">2. 초기화 흐름</a></li>
     <li><a href="#section-condition" onclick="toggleTOC()">3. 프록시 생성 조건</a></li>
     <li><a href="#section-verify" onclick="toggleTOC()">4. 런타임 확인 방법</a></li>
-    <li><a href="#section-configuration" onclick="toggleTOC()">5. @Configuration 예외</a></li>
-    <li><a href="#section-structure" onclick="toggleTOC()">6. POJO vs Proxy 구조</a></li>
-    <li><a href="#section-summary" onclick="toggleTOC()">7. 최종 요약</a></li>
-    <li><a href="#section-quiz" onclick="toggleTOC()">8. 퀴즈</a></li>
+    <li><a href="#section-singleton" onclick="toggleTOC()">5. Bean Scope — 기본은 Singleton</a></li>
+    <li><a href="#section-configuration" onclick="toggleTOC()">6. @Configuration 예외</a></li>
+    <li><a href="#section-structure" onclick="toggleTOC()">7. POJO vs Proxy 구조</a></li>
+    <li><a href="#section-summary" onclick="toggleTOC()">8. 최종 요약</a></li>
+    <li><a href="#section-quiz" onclick="toggleTOC()">9. 퀴즈</a></li>
   </ul>
 </nav>
 
