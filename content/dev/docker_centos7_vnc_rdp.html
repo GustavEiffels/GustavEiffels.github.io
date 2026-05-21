@@ -1,0 +1,956 @@
+<!-- [2026-05-21] Docker CentOS 7 GUI 원격 접속 — VNC & RDP 설치 가이드 -->
+<style>
+  .report-toc {
+    position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+    background: var(--surface); border-left: 1px solid var(--border);
+    padding: 40px 25px; z-index: 1001;
+    transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+  }
+  .report-toc.active { right: 0; }
+  .report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .report-toc ul { list-style: none; padding: 0; margin: 0; }
+  .report-toc li { margin-bottom: 12px; line-height: 1.4; }
+  .report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+  .report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+  .toc-backdrop {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+    z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+  }
+  .toc-backdrop.active { display: block; opacity: 1; }
+  .toc-toggle-btn {
+    position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+    background: var(--accent); color: #fff; border: none; border-radius: 50%;
+    font-size: 1.5rem; cursor: pointer; z-index: 1002;
+    box-shadow: 0 4px 15px var(--accent-glow);
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+  }
+  .toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); }
+  @media (max-width: 768px) {
+    .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+  }
+
+  /* ── Fragment Scoped Styles ── */
+  .dvnc-section-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 20px;
+  }
+  .dvnc-section-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+  }
+  .dvnc-section-number.rdp { background: #4ecdc4; box-shadow: 0 0 10px rgba(78,205,196,0.3); }
+
+  .dvnc-callout {
+    border-left: 4px solid var(--accent);
+    background: rgba(94, 129, 244, 0.06);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 16px 0;
+    font-size: 14px; white-space: pre-line;
+  }
+  .dvnc-callout.warn { border-color: var(--yellow); background: rgba(245,158,11,0.06); }
+  .dvnc-callout.ok   { border-color: var(--green);  background: rgba(47,179,68,0.06); }
+  .dvnc-callout.bad  { border-color: var(--red);    background: rgba(214,57,57,0.06); }
+  .dvnc-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+  .dvnc-step-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 4px 12px;
+    font-size: 12px; font-weight: 700; color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .dvnc-step-badge .snum {
+    background: var(--accent); color: #fff;
+    border-radius: 50%; width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center; font-size: 11px;
+  }
+  .dvnc-step-badge.rdp { color: #4ecdc4; }
+  .dvnc-step-badge.rdp .snum { background: #4ecdc4; color: #0f1117; }
+
+  .dvnc-sub-title {
+    font-size: .95rem; font-weight: 700; color: #4ecdc4;
+    margin: 20px 0 10px; padding-left: 10px;
+    border-left: 3px solid #4ecdc4;
+  }
+
+  .dvnc-compare-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0;
+  }
+  .dvnc-compare-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+  }
+  .dvnc-compare-card.good { border-color: var(--green); }
+  .dvnc-compare-card.bad  { border-color: var(--red); }
+  .dvnc-compare-card h4 { font-size: 13px; font-weight: 800; margin-bottom: 10px; }
+  .dvnc-compare-card.good h4 { color: var(--green); }
+  .dvnc-compare-card.bad  h4 { color: var(--red); }
+  .dvnc-compare-card p { font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+  .dvnc-compare-card p:last-child { margin-bottom: 0; }
+
+  .dvnc-table {
+    width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px;
+  }
+  .dvnc-table th {
+    background: var(--surface2); color: var(--accent);
+    padding: 10px 14px; text-align: left; font-weight: 700;
+    border-bottom: 2px solid var(--border);
+  }
+  .dvnc-table td {
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    color: var(--text-muted); vertical-align: top;
+  }
+  .dvnc-table tr:last-child td { border-bottom: none; }
+  .dvnc-table td:first-child { color: var(--text); font-weight: 600; }
+
+  .dvnc-summary {
+    background: linear-gradient(135deg, rgba(94,129,244,0.08), rgba(47,179,68,0.08));
+    border: 1px solid rgba(94,129,244,0.25);
+    border-radius: 12px; padding: 24px 28px; margin-bottom: 24px;
+  }
+  .dvnc-summary h3 {
+    color: var(--green); font-size: .85rem; font-weight: 700;
+    margin-bottom: 14px; letter-spacing: 1px; text-transform: uppercase;
+  }
+  .dvnc-summary.rdp-summary { background: linear-gradient(135deg, rgba(78,205,196,0.08), rgba(47,179,68,0.08)); border-color: rgba(78,205,196,0.25); }
+  .dvnc-summary.rdp-summary h3 { color: #4ecdc4; }
+  .dvnc-summary ul { padding-left: 0; list-style: none; }
+  .dvnc-summary ul li {
+    padding: 7px 0; border-bottom: 1px solid var(--border);
+    font-size: 13px; color: var(--text); font-family: 'JetBrains Mono', monospace;
+  }
+  .dvnc-summary ul li:last-child { border-bottom: none; }
+  .dvnc-summary ul li::before { content: "$ "; color: var(--green); font-weight: 700; }
+  .dvnc-summary.rdp-summary ul li::before { color: #4ecdc4; }
+
+  .dvnc-arch {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 24px 28px; margin: 16px 0;
+    font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 2;
+    color: var(--text-muted); overflow-x: auto;
+  }
+
+  .dvnc-hi  { color: var(--accent);  font-weight: 700; }
+  .dvnc-hi2 { color: #4ecdc4;        font-weight: 700; }
+  .dvnc-hi3 { color: var(--yellow);  font-weight: 700; }
+  .dvnc-ok  { color: var(--green);   font-weight: 700; }
+  .dvnc-bad { color: var(--red);     font-weight: 700; }
+
+  @media (max-width: 768px) {
+    .dvnc-compare-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════ -->
+<div class="card">
+  <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px; flex-wrap:wrap;">
+    <span class="badge badge-date">2026-05-21</span>
+    <span class="badge badge-tag">Docker</span>
+    <span class="badge badge-tag">CentOS 7</span>
+    <span class="badge badge-tag">VNC</span>
+    <span class="badge badge-tag">RDP</span>
+    <span class="badge badge-tag">DevOps</span>
+  </div>
+  <h1 style="font-size:1.6rem; font-weight:800; margin-bottom:10px;">
+    Docker CentOS 7 GUI 원격 접속
+  </h1>
+  <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.7;">
+    CLI 전용 CentOS 7 컨테이너에 <code>XFCE + TigerVNC</code> 또는 <code>xrdp</code>를 추가해
+    Windows Host에서 GUI 데스크탑으로 원격 접속하는 가이드.
+    CentOS 7 EOL 대응 vault 미러 설정부터 VNC · RDP 비교까지 전 과정을 다룬다.
+  </p>
+
+  <div style="display:flex; gap:24px; flex-wrap:wrap; margin-top:16px;">
+    <div style="display:flex; flex-direction:column; gap:4px;">
+      <span style="font-size:11px; color:var(--text-muted); font-weight:700; letter-spacing:1px;">VNC 방식</span>
+      <span style="font-size:13px; color:var(--text);">TigerVNC + XFCE · 포트 5901 · RealVNC Viewer</span>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:4px;">
+      <span style="font-size:11px; color:#4ecdc4; font-weight:700; letter-spacing:1px;">RDP 방식</span>
+      <span style="font-size:13px; color:var(--text);">xrdp + XFCE · 포트 3390 · mstsc.exe (Windows 내장)</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     1. 개요 & 환경
+══════════════════════════════════════════ -->
+<div class="card" id="dvnc-overview">
+  <div class="dvnc-section-header">
+    <div class="dvnc-section-number">1</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">개요 & 환경</h2>
+  </div>
+
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8; margin-bottom:16px;">
+    Docker의 <code>centos:7</code> 이미지는 순수 CLI 환경이다.
+    여기에 GUI 데스크탑 환경과 원격 접속 서버를 추가해 Windows에서 그래픽으로 접속할 수 있다.
+    두 가지 방법이 있으며 각각 다른 클라이언트를 사용한다.
+  </p>
+
+  <table class="dvnc-table">
+    <thead>
+      <tr><th>항목</th><th>VNC 방식</th><th>RDP 방식</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Base Image</td><td colspan="2"><code>centos:7</code></td></tr>
+      <tr><td>GUI 환경</td><td colspan="2">XFCE4 (경량 데스크탑)</td></tr>
+      <tr><td>원격 서버</td><td>TigerVNC Server</td><td>xrdp</td></tr>
+      <tr><td>포트</td><td>5901</td><td>3390 (Host) → 3389 (Container)</td></tr>
+      <tr><td>클라이언트</td><td>RealVNC Viewer (별도 설치)</td><td>mstsc.exe (Windows 내장)</td></tr>
+      <tr><td>인증</td><td>VNC 전용 패스워드</td><td>OS 계정 (root + passwd)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="dvnc-callout warn">
+    <strong>CentOS 7 EOL</strong>
+    2024년 6월 공식 지원 종료. 보안 업데이트가 없으므로 테스트·학습 전용으로만 사용할 것.
+    yum 미러도 폐쇄되어 반드시 vault.centos.org 아카이브 서버로 교체해야 한다 (Step 2).
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     VNC — STEP 1
+══════════════════════════════════════════ -->
+<div class="card" id="dvnc-step1">
+  <div class="dvnc-section-header">
+    <div class="dvnc-section-number">2</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">VNC Step 1 — 컨테이너 실행</h2>
+  </div>
+  <div class="dvnc-step-badge"><span class="snum">1</span>Host PowerShell</div>
+
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    VNC 포트(5901)를 열어두고 백그라운드로 컨테이너를 실행한다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">PowerShell — 컨테이너 실행</span>
+    </div>
+    <pre><code># VNC 포트 5901 오픈
+docker run -itd `
+  --name centos7-test `
+  -p 5901:5901 `
+  centos:7
+
+# 컨테이너 내부 접속
+docker exec -it centos7-test /bin/bash</code></pre>
+  </div>
+
+  <div class="dvnc-callout ok">
+    <strong>확인 포인트</strong>
+    이 시점에서 컨테이너는 순수 CLI 상태다. 이후 단계에서 GUI를 추가한다.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     VNC — STEP 2
+══════════════════════════════════════════ -->
+<div class="card" id="dvnc-step2">
+  <div class="dvnc-section-header">
+    <div class="dvnc-section-number">3</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">VNC Step 2 — Vault 미러 설정 (EOL 대응)</h2>
+  </div>
+  <div class="dvnc-step-badge"><span class="snum">2</span>컨테이너 내부</div>
+
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    CentOS 7 EOL로 <span class="dvnc-bad">mirrorlist.centos.org</span>가 폐쇄됐다.
+    yum 실행 전 반드시 <span class="dvnc-hi2">vault.centos.org</span> 아카이브 서버로 교체해야 한다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">컨테이너 내부 — vault 미러 교체</span>
+    </div>
+    <pre><code># mirrorlist 비활성화 + vault 서버로 baseurl 교체
+sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-Base.repo
+sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' \
+  /etc/yum.repos.d/CentOS-Base.repo
+
+# 캐시 초기화
+yum clean all</code></pre>
+  </div>
+
+  <div class="dvnc-callout bad">
+    <strong>이 설정 없이 yum 실행 시 발생하는 에러</strong>
+    Could not resolve host: mirrorlist.centos.org; Unknown error
+    Cannot find a valid baseurl for repo: base/7/x86_64
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     VNC — STEP 3
+══════════════════════════════════════════ -->
+<div class="card" id="dvnc-step3">
+  <div class="dvnc-section-header">
+    <div class="dvnc-section-number">4</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">VNC Step 3 — XFCE + TigerVNC 설치</h2>
+  </div>
+  <div class="dvnc-step-badge"><span class="snum">3</span>컨테이너 내부</div>
+
+  <div class="dvnc-sub-title">EPEL 저장소 추가</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">EPEL 추가</span>
+    </div>
+    <pre><code>yum -y install epel-release</code></pre>
+  </div>
+
+  <div class="dvnc-callout">
+    <strong>왜 EPEL?</strong>
+    XFCE 패키지는 기본 CentOS 저장소에 없다. EPEL(Extra Packages for Enterprise Linux)을 먼저 추가해야 한다.
+  </div>
+
+  <div class="dvnc-sub-title">XFCE + TigerVNC 패키지 설치</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">패키지 설치</span>
+    </div>
+    <pre><code>yum -y install \
+  tigervnc-server \
+  xfce4-session \
+  xfwm4 \
+  xfdesktop \
+  xfce4-panel \
+  xfce4-terminal \
+  dbus-x11 \
+  xorg-x11-fonts-Type1</code></pre>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     VNC — STEP 4
+══════════════════════════════════════════ -->
+<div class="card" id="dvnc-step4">
+  <div class="dvnc-section-header">
+    <div class="dvnc-section-number">5</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">VNC Step 4 — 패스워드 & xstartup 설정</h2>
+  </div>
+  <div class="dvnc-step-badge"><span class="snum">4</span>컨테이너 내부</div>
+
+  <div class="dvnc-sub-title">디렉터리 생성 & 패스워드 설정</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">VNC 패스워드 설정</span>
+    </div>
+    <pre><code>mkdir -p ~/.vnc
+
+# 패스워드 입력 프롬프트 (예: test1234)
+vncpasswd</code></pre>
+  </div>
+
+  <div class="dvnc-sub-title">XFCE 자동 실행 스크립트 작성</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">~/.vnc/xstartup</span>
+    </div>
+    <pre><code>cat > ~/.vnc/xstartup &lt;&lt; 'EOF'
+#!/bin/bash
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+exec startxfce4
+EOF
+
+chmod +x ~/.vnc/xstartup</code></pre>
+  </div>
+
+  <div class="dvnc-callout ok">
+    <strong>xstartup 역할</strong>
+    VNC 서버가 시작될 때 XFCE 데스크탑을 자동으로 실행하도록 지정하는 스크립트다.
+    이 파일이 없거나 잘못 설정되면 VNC 접속 후 데스크탑이 뜨지 않는다.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     VNC — STEP 5
+══════════════════════════════════════════ -->
+<div class="card" id="dvnc-step5">
+  <div class="dvnc-section-header">
+    <div class="dvnc-section-number">6</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">VNC Step 5 — VNC 서버 시작</h2>
+  </div>
+  <div class="dvnc-step-badge"><span class="snum">5</span>컨테이너 내부</div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">VNC 서버 실행</span>
+    </div>
+    <pre><code>vncserver :1 -geometry 1280x800 -depth 24</code></pre>
+  </div>
+
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8; margin-top:12px;">성공 시 아래와 같이 출력된다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">출력 예시</span>
+    </div>
+    <pre><code>New 'localhost:1 (root)' desktop is localhost:1
+Starting applications specified in /root/.vnc/xstartup
+Log file is /root/.vnc/localhost:1.log</code></pre>
+  </div>
+
+  <table class="dvnc-table" style="margin-top:16px;">
+    <thead><tr><th>옵션</th><th>의미</th></tr></thead>
+    <tbody>
+      <tr><td><code>:1</code></td><td>디스플레이 번호 = 포트 5901 (5900 + 1)</td></tr>
+      <tr><td><code>-geometry 1280x800</code></td><td>해상도 설정</td></tr>
+      <tr><td><code>-depth 24</code></td><td>색상 깊이 (24bit)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════
+     VNC — STEP 6
+══════════════════════════════════════════ -->
+<div class="card" id="dvnc-step6">
+  <div class="dvnc-section-header">
+    <div class="dvnc-section-number">7</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">VNC Step 6 — RealVNC Viewer 접속</h2>
+  </div>
+  <div class="dvnc-step-badge"><span class="snum">6</span>Host Windows</div>
+
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8; margin-bottom:12px;">
+    RealVNC Viewer(무료)를 설치 후 아래 정보로 접속한다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">접속 정보</span>
+    </div>
+    <pre><code>주소:     localhost::5901
+패스워드: (Step 4에서 설정한 패스워드)</code></pre>
+  </div>
+
+  <div class="dvnc-compare-grid">
+    <div class="dvnc-compare-card good">
+      <h4>정상 접속</h4>
+      <p>XFCE 데스크탑 화면 표시</p>
+      <p>파일 관리자, 터미널 사용 가능</p>
+    </div>
+    <div class="dvnc-compare-card bad">
+      <h4>접속 실패 시</h4>
+      <p>포트 충돌 → <code>-p 5902:5901</code> 로 변경</p>
+      <p>VNC 미실행 → <code>vncserver :1</code> 재실행</p>
+      <p>화면 없음 → xstartup 설정 확인</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     RDP — 개요
+══════════════════════════════════════════ -->
+<div class="card" id="dvnc-rdp-overview">
+  <div class="dvnc-section-header">
+    <div class="dvnc-section-number rdp">8</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0; color:#4ecdc4;">RDP 방식 — Windows 원격 데스크톱 (mstsc)</h2>
+  </div>
+
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8; margin-bottom:16px;">
+    <code>xrdp</code>를 설치하면 Windows에 기본 내장된 <strong>원격 데스크톱 연결(mstsc.exe)</strong>로 바로 접속할 수 있다.
+    VNC Viewer 같은 별도 클라이언트 설치가 필요 없다.
+  </p>
+
+  <table class="dvnc-table">
+    <thead><tr><th>항목</th><th>내용</th></tr></thead>
+    <tbody>
+      <tr><td>프로토콜</td><td><span class="dvnc-hi2">RDP (Remote Desktop Protocol)</span></td></tr>
+      <tr><td>서버 패키지</td><td>xrdp (EPEL)</td></tr>
+      <tr><td>포트</td><td>Host 3390 → Container 3389</td></tr>
+      <tr><td>클라이언트</td><td>Windows 원격 데스크톱 연결 (내장, 설치 불필요)</td></tr>
+      <tr><td>GUI 환경</td><td>XFCE4 (동일)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="dvnc-callout ok">
+    <strong>Docker + systemd 제약</strong>
+    Docker 컨테이너는 기본적으로 systemd가 없다. xrdp를 <code>systemctl</code> 대신 바이너리를 직접 실행한다.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     RDP — STEP 1
+══════════════════════════════════════════ -->
+<div class="card" id="dvnc-rdp-step1">
+  <div class="dvnc-section-header">
+    <div class="dvnc-section-number rdp">9</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">RDP Step 1 — 컨테이너 실행 (포트 3390)</h2>
+  </div>
+  <div class="dvnc-step-badge rdp"><span class="snum">1</span>Host PowerShell</div>
+
+  <div class="dvnc-callout warn">
+    <strong>3389:3389 매핑 불가</strong>
+    Windows RDP 서비스가 이미 Host 3389를 점유하고 있어 mstsc가 컨테이너 대신 Windows 자체에 연결된다.
+    Host 포트는 반드시 3390(또는 다른 포트)으로 변경한다.
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">PowerShell — 컨테이너 실행</span>
+    </div>
+    <pre><code>docker run -itd `
+  --name centos7-rdp `
+  -p 5901:5901 `
+  -p 3390:3389 `
+  centos:7
+
+docker exec -it centos7-rdp /bin/bash</code></pre>
+  </div>
+
+  <div class="dvnc-callout">
+    <strong>Vault 미러 설정 필수</strong>
+    yum 실행 전 반드시 VNC Step 2 (vault.centos.org 미러 교체)를 먼저 수행한다.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     RDP — STEP 2
+══════════════════════════════════════════ -->
+<div class="card" id="dvnc-rdp-step2">
+  <div class="dvnc-section-header">
+    <div class="dvnc-section-number rdp">10</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">RDP Step 2 — xrdp + XFCE 설치</h2>
+  </div>
+  <div class="dvnc-step-badge rdp"><span class="snum">2</span>컨테이너 내부</div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">패키지 설치</span>
+    </div>
+    <pre><code># EPEL 추가 (이미 설치됐으면 생략)
+yum -y install epel-release
+
+# xrdp + XFCE 설치
+yum -y install \
+  xrdp \
+  xfce4-session \
+  xfwm4 \
+  xfdesktop \
+  xfce4-panel \
+  xfce4-terminal \
+  dbus-x11 \
+  xorg-x11-fonts-Type1</code></pre>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     RDP — STEP 3
+══════════════════════════════════════════ -->
+<div class="card" id="dvnc-rdp-step3">
+  <div class="dvnc-section-header">
+    <div class="dvnc-section-number rdp">11</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">RDP Step 3 — 세션 설정 & root 패스워드</h2>
+  </div>
+  <div class="dvnc-step-badge rdp"><span class="snum">3</span>컨테이너 내부</div>
+
+  <div class="dvnc-sub-title">(1) .Xsession 설정</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">~/.Xsession</span>
+    </div>
+    <pre><code>echo "exec /usr/bin/xfce4-session" > ~/.Xsession
+chmod +x ~/.Xsession</code></pre>
+  </div>
+
+  <div class="dvnc-sub-title">(2) startwm-bash.sh 수정 — 핵심</div>
+
+  <div class="dvnc-callout bad">
+    <strong>세션 즉시 종료 문제의 원인</strong>
+    xrdp는 /etc/xrdp/startwm.sh 가 아닌 /usr/libexec/xrdp/startwm-bash.sh 를 실제로 실행한다.
+    이 파일을 수정하지 않으면 접속 즉시 세션이 종료된다 — 가장 흔한 실패 원인.
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">/usr/libexec/xrdp/startwm-bash.sh</span>
+    </div>
+    <pre><code>cat > /usr/libexec/xrdp/startwm-bash.sh &lt;&lt; 'EOF'
+#!/bin/bash
+exec /usr/bin/xfce4-session
+EOF
+chmod +x /usr/libexec/xrdp/startwm-bash.sh</code></pre>
+  </div>
+
+  <div class="dvnc-sub-title">(3) root 패스워드 설정</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">root 패스워드</span>
+    </div>
+    <pre><code>passwd root
+# 새 패스워드 입력 (예: test1234)</code></pre>
+  </div>
+
+  <div class="dvnc-callout warn">
+    <strong>패스워드 필수</strong>
+    RDP는 VNC와 달리 OS 계정으로 로그인한다. passwd 설정 없으면 접속 불가.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     RDP — STEP 4
+══════════════════════════════════════════ -->
+<div class="card" id="dvnc-rdp-step4">
+  <div class="dvnc-section-header">
+    <div class="dvnc-section-number rdp">12</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">RDP Step 4 — xrdp 서버 시작</h2>
+  </div>
+  <div class="dvnc-step-badge rdp"><span class="snum">4</span>컨테이너 내부</div>
+
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8; margin-bottom:12px;">
+    Docker에는 systemd가 없으므로 바이너리를 직접 실행한다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">xrdp 실행</span>
+    </div>
+    <pre><code># 재시작 시 스테일 PID 파일 제거 (필수)
+rm -f /var/run/xrdp.pid /var/run/xrdp-sesman.pid
+
+# xrdp 시작
+/usr/sbin/xrdp-sesman
+/usr/sbin/xrdp
+
+# 포트 리스닝 확인
+ss -tlnp | grep 3389
+# [::]:3389 LISTEN 상태이면 정상</code></pre>
+  </div>
+
+  <div class="dvnc-callout ok">
+    <strong>정상 확인</strong>
+    <code>[::]:3389</code>가 LISTEN 상태로 출력되면 접속 준비 완료.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     RDP — STEP 5
+══════════════════════════════════════════ -->
+<div class="card" id="dvnc-rdp-step5">
+  <div class="dvnc-section-header">
+    <div class="dvnc-section-number rdp">13</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">RDP Step 5 — mstsc.exe 접속</h2>
+  </div>
+  <div class="dvnc-step-badge rdp"><span class="snum">5</span>Host Windows</div>
+
+  <div class="dvnc-sub-title">(1) Host LAN IP 확인</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">PowerShell — LAN IP 확인</span>
+    </div>
+    <pre><code>ipconfig | findstr "IPv4"
+# 예: 192.168.0.84</code></pre>
+  </div>
+
+  <div class="dvnc-callout warn">
+    <strong>localhost 사용 불가</strong>
+    mstsc는 루프백(localhost / 127.0.0.1) RDP 연결을 차단한다. 반드시 실제 LAN IP를 사용해야 한다.
+  </div>
+
+  <div class="dvnc-sub-title">(2) 원격 데스크톱 연결 접속 정보</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">mstsc 접속 정보</span>
+    </div>
+    <pre><code>컴퓨터:       192.168.0.84:3390
+사용자 이름:  root
+암호:         (Step 3에서 설정한 패스워드)</code></pre>
+  </div>
+
+  <div class="dvnc-compare-grid">
+    <div class="dvnc-compare-card good">
+      <h4>정상 접속</h4>
+      <p>XFCE 데스크탑 화면 표시</p>
+      <p>Windows 원격 데스크톱 내장 클라이언트 사용</p>
+    </div>
+    <div class="dvnc-compare-card bad">
+      <h4>접속 실패 시</h4>
+      <p>localhost 사용 → LAN IP로 변경</p>
+      <p>세션 즉시 종료 → startwm-bash.sh 수정 확인</p>
+      <p>xrdp 미실행 → PID 삭제 후 재실행</p>
+      <p>패스워드 오류 → <code>passwd root</code> 재설정</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     아키텍처 다이어그램
+══════════════════════════════════════════ -->
+<div class="card" id="dvnc-arch">
+  <div class="dvnc-section-header">
+    <div class="dvnc-section-number">14</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">아키텍처 — 전체 흐름</h2>
+  </div>
+
+  <div class="grid">
+    <div>
+      <p style="font-size:13px; color:var(--accent); font-weight:700; margin-bottom:8px;">VNC 방식</p>
+      <div class="dvnc-arch">Host (Windows 11)
+   │
+   │  localhost:5901 (TCP)
+   │
+   ▼
+┌─────────────────────┐
+│  Docker Container   │
+│  Image: centos:7    │
+│                     │
+│  TigerVNC (:1)      │
+│       │             │
+│       ▼             │
+│  XFCE Desktop (GUI) │
+└─────────────────────┘</div>
+    </div>
+    <div>
+      <p style="font-size:13px; color:#4ecdc4; font-weight:700; margin-bottom:8px;">RDP 방식</p>
+      <div class="dvnc-arch">Host (Windows 11)
+   │
+   │  LAN IP:3390 (TCP)
+   │
+   ▼
+┌─────────────────────┐
+│  Docker Container   │
+│  Image: centos:7    │
+│                     │
+│  xrdp (:3389)       │
+│       │             │
+│       ▼             │
+│  XFCE Desktop (GUI) │
+└─────────────────────┘</div>
+    </div>
+  </div>
+
+  <table class="dvnc-table" style="margin-top:20px;">
+    <thead><tr><th>구성 요소</th><th>역할</th></tr></thead>
+    <tbody>
+      <tr><td><code>centos:7</code></td><td>기본 CLI 운영체제 컨테이너</td></tr>
+      <tr><td><code>TigerVNC</code></td><td>X11 화면을 네트워크로 전송하는 VNC 서버</td></tr>
+      <tr><td><code>xrdp</code></td><td>RDP 프로토콜로 XFCE 세션을 제공하는 서버</td></tr>
+      <tr><td><code>XFCE4</code></td><td>경량 GUI 데스크탑 환경 (startxfce4)</td></tr>
+      <tr><td><code>RealVNC Viewer</code></td><td>Host에서 VNC 화면 수신 및 입력 전송</td></tr>
+      <tr><td><code>mstsc.exe</code></td><td>Windows 내장 RDP 클라이언트</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════
+     유용한 명령어
+══════════════════════════════════════════ -->
+<div class="card" id="dvnc-commands">
+  <div class="dvnc-section-header">
+    <div class="dvnc-section-number">15</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">유용한 명령어</h2>
+  </div>
+
+  <div class="dvnc-sub-title">VNC 서버 관리 (컨테이너 내부)</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">VNC 관리 명령</span>
+    </div>
+    <pre><code># VNC 서버 종료
+vncserver -kill :1
+
+# VNC 서버 재시작
+vncserver :1 -geometry 1280x800 -depth 24
+
+# VNC 로그 확인
+cat ~/.vnc/localhost:1.log</code></pre>
+  </div>
+
+  <div class="dvnc-sub-title">Docker 컨테이너 관리 (Host PowerShell)</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Docker 관리 명령</span>
+    </div>
+    <pre><code># 컨테이너 정지
+docker stop centos7-test
+
+# 컨테이너 재시작 후 VNC 재기동
+docker start centos7-test
+docker exec -it centos7-test vncserver :1 -geometry 1280x800 -depth 24
+
+# 컨테이너 내부 접속
+docker exec -it centos7-test /bin/bash
+
+# 컨테이너 삭제
+docker rm -f centos7-test</code></pre>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     주의사항
+══════════════════════════════════════════ -->
+<div class="card" id="dvnc-caution">
+  <div class="dvnc-section-header">
+    <div class="dvnc-section-number">16</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">주의사항</h2>
+  </div>
+
+  <table class="dvnc-table">
+    <thead><tr><th>항목</th><th>내용</th><th>조치</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="dvnc-bad">CentOS 7 EOL</span></td>
+        <td>2024년 6월 보안 업데이트 종료</td>
+        <td>테스트 전용으로만 사용</td>
+      </tr>
+      <tr>
+        <td><span class="dvnc-hi3">포트 충돌</span></td>
+        <td>5901 또는 3390이 이미 사용 중</td>
+        <td>Host 포트를 다른 번호로 변경</td>
+      </tr>
+      <tr>
+        <td><span class="dvnc-hi3">VNC 세션 유지</span></td>
+        <td>컨테이너 재시작 시 세션 끊김</td>
+        <td><code>vncserver :1</code> 다시 실행 필요</td>
+      </tr>
+      <tr>
+        <td><span class="dvnc-hi">EPEL 필수</span></td>
+        <td>XFCE 패키지가 기본 저장소에 없음</td>
+        <td>epel-release 먼저 설치</td>
+      </tr>
+      <tr>
+        <td><span class="dvnc-hi2">startwm-bash.sh</span></td>
+        <td>RDP 세션 즉시 종료의 주요 원인</td>
+        <td><code>/usr/libexec/xrdp/startwm-bash.sh</code> 수정 확인</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="dvnc-callout warn">
+    <strong>VNC 보안</strong>
+    VNC는 기본적으로 암호화가 없다. 외부 네트워크에 노출된 환경에서는 SSH 터널링을 통해 접속해야 한다.
+    ssh -L 5901:localhost:5901 user@server
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     VNC vs RDP 비교
+══════════════════════════════════════════ -->
+<div class="card" id="dvnc-compare">
+  <div class="dvnc-section-header">
+    <div class="dvnc-section-number">17</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">VNC vs RDP 비교</h2>
+  </div>
+
+  <table class="dvnc-table">
+    <thead><tr><th>항목</th><th>VNC (TigerVNC)</th><th>RDP (xrdp)</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>클라이언트</td>
+        <td><span class="dvnc-hi3">RealVNC Viewer 설치 필요</span></td>
+        <td><span class="dvnc-ok">Windows 기본 내장 (mstsc)</span></td>
+      </tr>
+      <tr>
+        <td>Host 포트</td>
+        <td>5901</td>
+        <td>3390 <span class="dvnc-bad">(3389는 Windows RDP와 충돌)</span></td>
+      </tr>
+      <tr>
+        <td>인증 방식</td>
+        <td>VNC 전용 패스워드 (vncpasswd)</td>
+        <td>OS 계정 (root + passwd)</td>
+      </tr>
+      <tr>
+        <td>핵심 설정 파일</td>
+        <td><code>~/.vnc/xstartup</code></td>
+        <td><span class="dvnc-hi2">/usr/libexec/xrdp/startwm-bash.sh</span></td>
+      </tr>
+      <tr>
+        <td>흔한 실패 원인</td>
+        <td>xstartup 미설정</td>
+        <td><span class="dvnc-bad">startwm-bash.sh 미수정 (세션 즉시 종료)</span></td>
+      </tr>
+      <tr>
+        <td>서버 시작</td>
+        <td><code>vncserver :1</code></td>
+        <td><code>xrdp-sesman</code> + <code>xrdp</code> 직접 실행</td>
+      </tr>
+      <tr>
+        <td>추천 상황</td>
+        <td>VNC 환경이 이미 있을 때</td>
+        <td><span class="dvnc-ok">Windows Host에서 별도 설치 없이 접속</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════
+     Quick Summary
+══════════════════════════════════════════ -->
+<div class="dvnc-summary" id="dvnc-summary-vnc">
+  <h3>Quick Summary — VNC 방식</h3>
+  <ul>
+    <li>docker run -itd -p 5901:5901 --name centos7-test centos:7</li>
+    <li>sed 로 vault.centos.org 미러 교체 후 yum clean all</li>
+    <li>yum -y install epel-release tigervnc-server xfce4-session xfwm4 xfdesktop xfce4-panel xfce4-terminal dbus-x11</li>
+    <li>vncpasswd &amp;&amp; ~/.vnc/xstartup 에 exec startxfce4 설정</li>
+    <li>vncserver :1 -geometry 1280x800 -depth 24</li>
+    <li>RealVNC Viewer → localhost::5901 접속</li>
+  </ul>
+</div>
+
+<div class="dvnc-summary rdp-summary" id="dvnc-summary-rdp">
+  <h3>Quick Summary — RDP 방식</h3>
+  <ul>
+    <li>docker run -itd -p 5901:5901 -p 3390:3389 --name centos7-rdp centos:7</li>
+    <li>sed 로 vault.centos.org 미러 교체 후 yum clean all</li>
+    <li>yum -y install epel-release xrdp xfce4-session xfwm4 xfdesktop xfce4-panel xfce4-terminal dbus-x11</li>
+    <li>echo "exec /usr/bin/xfce4-session" > ~/.Xsession</li>
+    <li>/usr/libexec/xrdp/startwm-bash.sh 를 exec /usr/bin/xfce4-session 으로 교체 (핵심)</li>
+    <li>passwd root</li>
+    <li>rm -f /var/run/xrdp*.pid &amp;&amp; xrdp-sesman &amp;&amp; xrdp 실행</li>
+    <li>ipconfig 로 LAN IP 확인 후 mstsc → 192.168.x.x:3390 → root 로그인</li>
+  </ul>
+</div>
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#dvnc-overview"  onclick="toggleTOC()">1. 개요 & 환경</a></li>
+    <li><a href="#dvnc-step1"     onclick="toggleTOC()">2. VNC Step 1 — 컨테이너 실행</a></li>
+    <li><a href="#dvnc-step2"     onclick="toggleTOC()">3. VNC Step 2 — Vault 미러</a></li>
+    <li><a href="#dvnc-step3"     onclick="toggleTOC()">4. VNC Step 3 — XFCE + VNC 설치</a></li>
+    <li><a href="#dvnc-step4"     onclick="toggleTOC()">5. VNC Step 4 — 패스워드 & xstartup</a></li>
+    <li><a href="#dvnc-step5"     onclick="toggleTOC()">6. VNC Step 5 — 서버 시작</a></li>
+    <li><a href="#dvnc-step6"     onclick="toggleTOC()">7. VNC Step 6 — 접속</a></li>
+    <li><a href="#dvnc-rdp-overview" onclick="toggleTOC()">8. RDP 방식 개요</a></li>
+    <li><a href="#dvnc-rdp-step1" onclick="toggleTOC()">9. RDP Step 1 — 컨테이너</a></li>
+    <li><a href="#dvnc-rdp-step2" onclick="toggleTOC()">10. RDP Step 2 — xrdp 설치</a></li>
+    <li><a href="#dvnc-rdp-step3" onclick="toggleTOC()">11. RDP Step 3 — 세션 설정</a></li>
+    <li><a href="#dvnc-rdp-step4" onclick="toggleTOC()">12. RDP Step 4 — 서버 시작</a></li>
+    <li><a href="#dvnc-rdp-step5" onclick="toggleTOC()">13. RDP Step 5 — 접속</a></li>
+    <li><a href="#dvnc-arch"      onclick="toggleTOC()">14. 아키텍처</a></li>
+    <li><a href="#dvnc-commands"  onclick="toggleTOC()">15. 유용한 명령어</a></li>
+    <li><a href="#dvnc-caution"   onclick="toggleTOC()">16. 주의사항</a></li>
+    <li><a href="#dvnc-compare"   onclick="toggleTOC()">17. VNC vs RDP 비교</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>

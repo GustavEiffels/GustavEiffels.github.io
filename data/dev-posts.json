@@ -1,5 +1,10 @@
 [
   {
+    "date": "2026-05-21",
+    "title": "Docker CentOS 7 GUI 원격 접속 — VNC & RDP 설치 가이드",
+    "file": "dev/docker_centos7_vnc_rdp"
+  },
+  {
     "date": "2026-05-20",
     "title": "JPA — N+1 문제와 영속성 컨텍스트 완전 이해",
     "file": "dev/spring_jpa_n1_persistence_context"

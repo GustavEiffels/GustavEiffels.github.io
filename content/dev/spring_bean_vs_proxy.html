@@ -701,7 +701,8 @@ orderService.<span class="bvp-fn">placeOrder</span>(dto);
       <h4>@Configuration 없이 @Bean만 사용하면?</h4>
       <p>
         <code>AppConfig</code> 클래스가 POJO 그대로 등록된다.
-        <code>dataSource()</code>를 여러 Bean이 호출하면 매번 <strong>새 객체</strong>가 생성된다.
+        같은 클래스 내 다른 <code>@Bean</code> 메서드가 <code>dataSource()</code>를
+        <strong>Java 코드로 직접 호출</strong>하면 컨테이너를 거치지 않아 매번 <strong>새 객체</strong>가 생성된다.
         싱글톤 보장이 깨진다.
       </p>
     </div>
