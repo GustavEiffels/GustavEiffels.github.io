@@ -1,0 +1,668 @@
+<style>
+/* ── 코드 구문 강조 ── */
+.kw  { color: #c792ea; }
+.cls { color: #82aaff; }
+.fn  { color: #82aaff; }
+.str { color: #c3e88d; }
+.cmt { color: #6a9955; font-style: italic; }
+.ann { color: #f78c6c; }
+.num { color: #f78c6c; }
+.hi  { color: var(--accent); font-weight: 700; }
+.hi2 { color: #4ecdc4; font-weight: 700; }
+.hi3 { color: var(--yellow); font-weight: 700; }
+.ok2 { color: var(--green); font-weight: 700; }
+.bad2{ color: var(--red);  font-weight: 700; }
+.dim { color: var(--text-muted); }
+
+/* ── 다이어그램 pre ── */
+pre.diagram {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 22px;
+  margin: 16px 0;
+  font-family: 'Consolas', 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.9;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* ── 챕터 레이블 ── */
+.ch-label {
+  display: flex; align-items: center; gap: 14px;
+  margin: 48px 0 20px; padding-bottom: 12px;
+  border-bottom: 2px solid var(--border);
+}
+.ch-label:first-of-type { margin-top: 0; }
+.ch-badge-lbl {
+  display: inline-flex; align-items: center;
+  background: var(--accent); color: #fff;
+  font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 6px;
+}
+.ch-label h2 { font-size: 1.05rem; font-weight: 800; color: #fff; margin: 0; }
+
+/* ── 섹션 헤더 ── */
+.sec-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.sec-num {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--surface2); border: 2px solid var(--border);
+  color: var(--accent); font-size: 12px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.sec-header h3 { font-size: 1rem; font-weight: 700; color: #fff; margin: 0; }
+
+/* ── 후보 헤더 (배지 + 한줄 요약) ── */
+.opt-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
+.opt-badge {
+  flex-shrink: 0; padding: 5px 12px; border-radius: 8px; font-size: 11px;
+  font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px;
+}
+.opt-sse   { background: rgba(214,57,57,0.18);  color: var(--red); }
+.opt-poll  { background: rgba(47,179,68,0.18);  color: var(--green); }
+.opt-sw    { background: rgba(94,129,244,0.18); color: var(--accent); }
+.opt-lp    { background: rgba(245,158,11,0.18); color: var(--yellow); }
+.opt-ws    { background: rgba(78,205,196,0.18); color: #4ecdc4; }
+.opt-title { font-size: 1rem; font-weight: 800; color: #fff; margin-bottom: 3px; }
+.opt-sub   { font-size: 12px; color: var(--text-muted); }
+
+/* ── 비교 테이블 ── */
+.cmp-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+.cmp-table th {
+  background: var(--surface2); color: var(--accent); font-size: 11px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; padding: 10px 14px; text-align: left;
+  border-bottom: 2px solid var(--border);
+}
+.cmp-table td { padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.cmp-table tr:last-child td { border-bottom: none; }
+.cmp-table td.g { color: var(--green);  font-weight: 600; }
+.cmp-table td.b { color: var(--red);    font-weight: 600; }
+.cmp-table td.n { color: var(--yellow); font-weight: 600; }
+
+/* ── 순위 카드 ── */
+.rank-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin: 16px 0; }
+.rank-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px 18px;
+}
+.rank-num { font-size: 1.7rem; font-weight: 800; line-height: 1; margin-bottom: 6px; }
+.rank-name { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+.rank-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+.rank-when { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-top: 8px; }
+@media (max-width: 700px) { .rank-grid { grid-template-columns: 1fr; } }
+
+/* ── TOC ── */
+.report-toc {
+  position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+  background: var(--surface); border-left: 1px solid var(--border);
+  padding: 40px 25px; z-index: 1001;
+  transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+}
+.report-toc.active { right: 0; }
+.report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.report-toc ul { list-style: none; padding: 0; margin: 0; }
+.report-toc li { margin-bottom: 12px; line-height: 1.4; }
+.report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+.report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+.toc-backdrop {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+  z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+}
+.toc-backdrop.active { display: block; opacity: 1; }
+.toc-toggle-btn {
+  position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+  background: var(--accent); color: #fff; border: none; border-radius: 50%;
+  font-size: 1.4rem; cursor: pointer; z-index: 1002;
+  box-shadow: 0 4px 15px var(--accent-glow);
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+}
+.toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); }
+@media (max-width: 768px) {
+  .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.1rem; }
+}
+</style>
+
+<!-- 헤더 -->
+<div style="margin-bottom: 28px;">
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom: 14px;">
+    <span class="badge badge-tag">Spring Boot</span>
+    <span class="badge badge-tag">SSE</span>
+    <span class="badge badge-tag">Polling</span>
+    <span class="badge badge-tag">SharedWorker</span>
+    <span class="badge badge-date">2026-06-08</span>
+  </div>
+  <h1 style="font-size:1.8rem; font-weight:800; color:#fff; margin-bottom:10px;">
+    실시간 작업 상태 모니터링, 어떤 방식을 선택해야 했나
+  </h1>
+  <p style="color:var(--text-muted); font-size:14px;">
+    SSE vs Polling+Cache vs SSE+SharedWorker — 운영 화면에 작업 진행 상태를 띄우면서 실제로 부딪힌 고민과 검토 기록
+  </p>
+</div>
+
+<!-- CH 1 -->
+<div class="ch-label" id="ch1">
+  <span class="ch-badge-lbl">CH 01</span>
+  <h2>왜 이 고민이 시작됐나 — 배경</h2>
+</div>
+
+<div class="card">
+  <div class="sec-header"><div class="sec-num">1</div><h3>요구사항: 작업 상태를 실시간으로 보여줘야 했다</h3></div>
+  <p>
+    배치로 도는 작업(Job)들을 PENDING → RUNNING → COMPLETED/FAILED 흐름으로 운영 화면에서 추적하는 기능이 필요했다.
+    처음엔 새로고침이면 충분하다고 봤는데, 화면을 켜놓고 계속 지켜보는 사람이 생기면서
+    <span class="point">"새로고침 없이 자동으로 갱신됐으면 좋겠다"</span>는 요청이 들어왔다. 여기서부터 고민이 시작됐다.
+  </p>
+  <p>
+    선택지는 결국 셋이었다. 서버가 변경을 감지해서 바로 밀어줄지(Push), 클라이언트가 주기적으로 물어볼지(Pull),
+    아니면 그 중간 절충안을 찾을지. 이걸 정리하면서 내 언어로 다시 한 번 짚고 넘어가보려고 한다.
+  </p>
+  <div style="background:var(--surface2); padding:12px; border-radius:10px; margin-top:10px; font-size:0.9rem;">
+    📌 <strong>자기 교정:</strong><br>
+    처음엔 "서버가 변경되는 순간 바로 밀어주면 끝이지" 하고 SSE(Server-Sent Events)부터 붙였다.
+    그런데 운영 화면 특성상 같은 대시보드를 여러 탭으로 띄워놓고 보는 사람들이 있다는 걸 뒤늦게 알았고,
+    거기서 예상 못한 벽에 부딪혔다.
+  </div>
+</div>
+
+<div class="card">
+  <div class="sec-header"><div class="sec-num">2</div><h3>실제로 마주친 문제 — 탭을 여러 개 열면 멈춘다</h3></div>
+  <p>
+    같은 도메인에서 모니터링 화면을 6개 넘게 열어두면 7번째 탭부터 연결이 응답 없이 멈췄다.
+    처음엔 서버 쪽 에미터(Emitter) 누수라고 의심해서 로그부터 뒤졌는데, 원인은 서버가 아니라
+    <strong>브라우저의 HTTP/1.1 동시 연결 제한</strong>이었다.
+  </p>
+  <pre class="diagram">
+[localhost:8080 | Chrome / Firefox / Safari 공통]
+
+Tab 1 --SSE--> [연결 1 점유, 탭이 닫힐 때까지 유지]
+Tab 2 --SSE--> [연결 2 점유]
+Tab 3 --SSE--> [연결 3 점유]
+Tab 4 --SSE--> [연결 4 점유]
+Tab 5 --SSE--> [연결 5 점유]
+Tab 6 --SSE--> [연결 6 점유]   <-- 도메인당 한도 도달
+Tab 7 --SSE--> [요청이 큐에서 대기 -> 화면이 그대로 멈춤]
+</pre>
+  <div class="callout warn">
+    <strong>이 시점에서 알게 된 것</strong>
+    HTTP/1.1은 브라우저가 같은 출처(origin)에 동시에 맺을 수 있는 TCP 연결을 6개로 제한한다.
+    이 한도는 탭 단위가 아니라 브라우저 프로세스 전체에서 공유된다.
+    SSE, WebSocket, Long Polling처럼 "연결을 계속 들고 있는" 방식은 전부 이 한도의 영향을 받는다.
+  </div>
+  <p>
+    그래서 질문이 바뀌었다. <strong>"SSE를 어떻게 고칠까"</strong>가 아니라
+    <strong>"실시간성, 연결 한도, 구현 난이도를 같이 만족시키는 방법이 뭘까"</strong>로.
+    아래는 그 과정에서 SSE / Polling+Cache / SSE+SharedWorker를 중심으로 따져보고,
+    겸사겸사 Long Polling과 WebSocket 계열까지 들여다본 기록이다. 잘못 짚었던 부분은 자기 교정 박스로 따로 표시한다.
+  </p>
+</div>
+
+<!-- CH 2 -->
+<div class="ch-label" id="ch2">
+  <span class="ch-badge-lbl">CH 02</span>
+  <h2>본격적으로 저울질한 세 가지 — SSE / Polling+Cache / SSE+SharedWorker</h2>
+</div>
+
+<div class="card">
+  <div class="sec-header"><div class="sec-num">1</div><h3>왜 이 셋으로 좁혔는가</h3></div>
+  <p>
+    실시간 갱신을 구현하는 방법은 생각보다 여러 갈래였지만, 결국 우리 상황(운영자가 직접 화면을 켜놓고 보는 대시보드,
+    수 초 정도의 지연은 허용 가능, 서버 → 클라이언트 단방향 전달이면 충분)에 맞춰 고민의 무게를 둔 것은 다음 세 가지였다.
+  </p>
+  <pre class="diagram">
+[1] SSE (per-tab)        서버가 변경 시 즉시 Push   |  탭마다 연결 1개 점유   |  6탭 한도에 걸림
+[2] Polling + Cache      클라이언트가 주기적으로 Pull |  요청 후 연결 즉시 반환 |  탭 수 영향 없음
+[3] SSE + SharedWorker   탭들이 연결 1개를 공유      |  브라우저 전체 1개 점유 |  Push 유지 + 한도 해결
+</pre>
+  <p>
+    SSE는 "이미 만들어 둔 것을 살릴 수 있는가"라는 관점에서, Polling+Cache는 "당장 가장 안전하고 빠르게 적용할 수 있는가"라는
+    관점에서, SSE+SharedWorker는 "구조를 크게 바꾸지 않으면서 한도 문제만 해결할 수 있는가"라는 관점에서 각각 후보에 올랐다.
+    아래에서 하나씩 어떤 기준으로 따져봤는지 정리한다.
+  </p>
+</div>
+
+<!-- CH 3 -->
+<div class="ch-label" id="ch3">
+  <span class="ch-badge-lbl">CH 03</span>
+  <h2>1순위 후보 — SSE (per-tab)</h2>
+</div>
+
+<div class="card">
+  <div class="opt-header">
+    <span class="opt-badge opt-sse">SSE</span>
+    <div>
+      <div class="opt-title">서버가 변경되는 순간 즉시 Push</div>
+      <div class="opt-sub">가장 먼저 손이 간 방식. 실시간성은 좋지만 연결을 계속 점유한다는 게 발목을 잡았다.</div>
+    </div>
+  </div>
+  <p>
+    각 탭이 <code>GET /api/sse/stream</code>으로 구독하면 서버는 <code>SseEmitter</code>를 만들어 레지스트리에 등록하고,
+    스케줄러가 주기적으로 상태를 조회해서 등록된 에미터 전체에 브로드캐스트하는 구조다.
+    구현 자체는 어렵지 않았고, 변경이 생기면 지연 없이 화면에 바로 반영되는 게 가장 큰 장점이었다.
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">SseController.java</span>
+    </div>
+    <pre><code><span class="ann">@GetMapping</span>(value = <span class="str">"/stream"</span>, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+<span class="kw">public</span> <span class="cls">SseEmitter</span> <span class="fn">subscribe</span>() {
+    String id = <span class="cls">UUID</span>.randomUUID().toString().substring(<span class="num">0</span>, <span class="num">8</span>);
+    <span class="cls">SseEmitter</span> emitter = <span class="kw">new</span> <span class="cls">SseEmitter</span>(<span class="num">1_800_000L</span>);
+
+    emitters.put(id, emitter);
+
+    Runnable cleanup = () -&gt; emitters.remove(id);
+    emitter.onCompletion(cleanup);
+    emitter.onTimeout(cleanup);
+    emitter.onError(e -&gt; cleanup.run());
+
+    <span class="kw">return</span> emitter; <span class="cmt">// 응답이 열린 채로 유지 = 연결 슬롯을 계속 점유</span>
+}</code></pre>
+  </div>
+  <p>
+    문제는 마지막 줄 주석에 다 있다. <code>return emitter</code> 이후에도 응답 스트림이 닫히지 않고 계속 열려 있다는 것.
+    이 "계속 열려 있음"이 브라우저의 동시 연결 한도를 그대로 잡아먹는 원인이었다.
+  </p>
+  <table class="cmp-table">
+    <thead><tr><th>항목</th><th>검토 결과</th></tr></thead>
+    <tbody>
+      <tr><td>실시간성</td><td class="g">변경 즉시 반영, 체감 지연 거의 없음</td></tr>
+      <tr><td>브라우저 연결 한도</td><td class="b">HTTP/1.1 기준 도메인당 6개 — 7번째 탭부터 블로킹</td></tr>
+      <tr><td>서버 자원</td><td class="n">연결을 유지하는 만큼 에미터 레지스트리가 계속 메모리를 점유</td></tr>
+      <tr><td>스케일아웃</td><td class="b">인스턴스마다 에미터가 따로 존재 — Redis Pub/Sub 같은 별도 처리 필요</td></tr>
+    </tbody>
+  </table>
+  <div class="callout danger">
+    <strong>왜 그대로 못 썼나</strong>
+    실시간성 자체는 마음에 들었지만, 여러 탭을 동시에 열어두는 사용 패턴과 정면으로 부딪혔다.
+    "탭은 6개까지만 열어주세요"라고 안내하는 건 답이 될 수 없었다.
+  </div>
+</div>
+
+<!-- CH 4 -->
+<div class="ch-label" id="ch4">
+  <span class="ch-badge-lbl">CH 04</span>
+  <h2>가장 현실적인 대안 — Polling + Cache</h2>
+</div>
+
+<div class="card">
+  <div class="opt-header">
+    <span class="opt-badge opt-poll">Polling</span>
+    <div>
+      <div class="opt-title">클라이언트가 주기적으로 물어보고, 서버는 캐시로 받아넘긴다</div>
+      <div class="opt-sub">한도 문제에서 완전히 자유롭고, 구현도 가장 단순했다 — 결국 가장 먼저 적용한 방식.</div>
+    </div>
+  </div>
+  <p>
+    SSE의 한도 문제를 알고 나서 가장 먼저 떠올린 대안이 Polling이었다. "주기적으로 다시 물어보면 되는 거 아닌가" 정도의
+    단순한 아이디어였는데, 걸리는 부분은 하나였다. "탭이 여러 개면 그만큼 DB도 자주 조회하게 되지 않나?"
+    그래서 <span class="point">스케줄러가 한 번만 조회해서 캐시에 적재하고, 클라이언트 요청은 캐시에서만 응답하는 구조</span>로 다듬었다.
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">JobService.java</span>
+    </div>
+    <pre><code><span class="cmt">// 스케줄러가 5초마다 한 번 호출 — DB 조회는 여기서 끝</span>
+<span class="kw">public void</span> <span class="fn">refreshCache</span>() {
+    <span class="cls">Cache</span> cache = cacheManager.getCache(<span class="str">"activeJobs"</span>);
+    <span class="kw">if</span> (cache != <span class="kw">null</span>) cache.put(<span class="str">"list"</span>, getActiveJobs());
+}
+
+<span class="cmt">// 탭이 몇 개든 이 메서드는 캐시만 보고 즉시 반환</span>
+<span class="kw">public</span> List&lt;Job&gt; <span class="fn">getCachedActiveJobs</span>() {
+    <span class="cls">Cache</span>.ValueWrapper w = cacheManager.getCache(<span class="str">"activeJobs"</span>).get(<span class="str">"list"</span>);
+    <span class="kw">return</span> (w != <span class="kw">null</span>) ? (List&lt;Job&gt;) w.get() : List.of();
+}</code></pre>
+  </div>
+  <p>
+    캐시 TTL은 스케줄러 주기(5초)의 6배인 30초로 잡았다. 갱신되기 전에 만료돼버리는 일을 막기 위한 여유값이다.
+    적용해보니 탭을 몇 개 열든 DB 조회 횟수는 그대로였고, 응답도 1ms 안쪽으로 충분히 빨랐다.
+  </p>
+  <table class="cmp-table">
+    <thead><tr><th>항목</th><th>검토 결과</th></tr></thead>
+    <tbody>
+      <tr><td>브라우저 연결 한도</td><td class="g">해당 없음 — 탭 100개를 열어도 정상 동작</td></tr>
+      <tr><td>DB 부하</td><td class="g">탭 수와 무관하게 스케줄러가 1회만 조회, 캐시가 흡수</td></tr>
+      <tr><td>실시간성</td><td class="n">폴링 주기(5초)만큼의 지연은 감수해야 함</td></tr>
+      <tr><td>구현 난이도</td><td class="g">캐시 적재 + 캐시 조회, 단 두 메서드로 끝남</td></tr>
+      <tr><td>스케일아웃</td><td class="g">Caffeine을 Redis로 바꾸면 다중 인스턴스에도 그대로 대응</td></tr>
+    </tbody>
+  </table>
+  <div class="callout ok">
+    <strong>지금 당장의 답으로 채택한 이유</strong>
+    수 초 단위 지연은 운영 모니터링 화면에서 충분히 허용되는 수준이고, 한도 문제와 DB 부하 우려를 동시에 해소했다.
+    구현도 단순해서 리스크 없이 바로 적용할 수 있었다. 그래서 1차로는 이 방식으로 정했다.
+  </div>
+</div>
+
+<!-- CH 5 -->
+<div class="ch-label" id="ch5">
+  <span class="ch-badge-lbl">CH 05</span>
+  <h2>절충안으로 떠올린 — SSE + SharedWorker</h2>
+</div>
+
+<div class="card">
+  <div class="opt-header">
+    <span class="opt-badge opt-sw">SSE + SW</span>
+    <div>
+      <div class="opt-title">탭들이 SSE 연결 하나를 같이 쓴다</div>
+      <div class="opt-sub">"실시간성을 포기하지 않으면서 한도 문제만 없앨 수는 없을까"에 대한 답으로 떠올린 방식.</div>
+    </div>
+  </div>
+  <p>
+    Polling+Cache로 일단 문제는 풀었지만 "나중에 더 빠른 반영이 필요해지면 어떡하지"라는 물음표는 남아 있었다.
+    그러다 찾은 게 <code>SharedWorker</code>다. 같은 출처의 탭들이 JS 워커 하나를 공유할 수 있고,
+    그 워커가 대표로 SSE 연결을 1개만 맺으면 — 탭이 몇 개든 서버 입장에서는 연결 1개로만 보인다. 이 구조가 꽤 마음에 들었다.
+  </p>
+  <pre class="diagram">
+Tab A --MessagePort--> |              |
+Tab B --MessagePort--> | SharedWorker |--SSE 연결 1개-- Server
+Tab C --MessagePort--> |              |
+Tab N --MessagePort--> |              |
+
+탭이 N개여도 서버로 가는 SSE 연결은 항상 1개
+브라우저가 점유하는 연결 슬롯도 1개 -> 6개 한도와 무관해짐
+</pre>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">shared-worker.js (개념 검증용 스케치)</span>
+    </div>
+    <pre><code><span class="kw">const</span> ports = <span class="kw">new</span> Set();
+<span class="kw">let</span> es = <span class="kw">null</span>;
+
+<span class="kw">function</span> <span class="fn">connect</span>() {
+    es = <span class="kw">new</span> EventSource(<span class="str">'/api/sse/stream'</span>);
+    es.addEventListener(<span class="str">'jobs'</span>, e =&gt; {
+        ports.forEach(p =&gt; p.postMessage(e.data)); <span class="cmt">// 받은 걸 모든 탭에 그대로 전달</span>
+    });
+}
+
+self.onconnect = e =&gt; {
+    <span class="kw">const</span> port = e.ports[<span class="num">0</span>];
+    ports.add(port);
+    port.start();
+    <span class="kw">if</span> (!es) connect(); <span class="cmt">// 최초 연결만 워커가 대표로 수행</span>
+};</code></pre>
+  </div>
+  <div class="callout info">
+    <strong>가장 끌렸던 지점</strong>
+    이건 순수하게 클라이언트 측 변경이라 서버의 <code>SseController</code>는 손댈 필요가 없다.
+    "서버는 그대로 두고 클라이언트만 감싸면 한도 문제가 사라진다"는 점에서 가장 깔끔한 절충안으로 보였다.
+  </div>
+  <div style="background:var(--surface2); padding:12px; border-radius:10px; margin-top:10px; font-size:0.9rem;">
+    📌 <strong>자기 교정:</strong><br>
+    처음엔 "클라이언트만 바꾸면 되니까 사실상 공짜 아닌가" 하고 너무 쉽게 봤는데, 확인해보니 Safari가
+    SharedWorker를 지원한 게 16버전(2022년)부터다. 구형 환경을 완전히 배제할 수 없다면 적용 전에 반드시
+    짚고 넘어가야 할 변수였다. 그래서 "지금 당장"보다는 <strong>"실시간성이 정말 필요해지는 시점"</strong>의 카드로 남겨두기로 했다.
+  </div>
+  <table class="cmp-table">
+    <thead><tr><th>항목</th><th>검토 결과</th></tr></thead>
+    <tbody>
+      <tr><td>브라우저 연결 한도</td><td class="g">해결 — 탭이 몇 개든 SSE 연결은 1개</td></tr>
+      <tr><td>실시간성</td><td class="g">SSE의 즉시 Push 그대로 유지</td></tr>
+      <tr><td>서버 변경</td><td class="g">불필요 — 기존 SseController를 그대로 재사용</td></tr>
+      <tr><td>브라우저 호환성</td><td class="n">Safari 16+ 필요 — 구형 환경에서는 주의</td></tr>
+      <tr><td>스케일아웃</td><td class="b">서버 쪽 에미터 분리 문제는 그대로 남음 (Redis Pub/Sub 별도 검토 필요)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- CH 6 -->
+<div class="ch-label" id="ch6">
+  <span class="ch-badge-lbl">CH 06</span>
+  <h2>겸사겸사 살펴본 것들 — Long Polling과 WebSocket 계열</h2>
+</div>
+
+<div class="card">
+  <div class="sec-header"><div class="sec-num">1</div><h3>"이것도 후보가 될 수 있을까?" 하고 짚어본 것들</h3></div>
+  <p>
+    위 세 가지로 결론을 좁혀가는 와중에 "혹시 더 나은 방식을 놓치고 있는 건 아닐까" 싶어서
+    Long Polling과 WebSocket 계열도 같이 들여다봤다. 결과적으로 둘 다 채택하지는 않았는데,
+    왜 아닌지를 적어두면 나중에 비슷한 고민을 또 할 때 시간을 아낄 수 있을 것 같다.
+  </p>
+
+  <div class="opt-header" style="margin-top: 18px;">
+    <span class="opt-badge opt-lp">Long Poll</span>
+    <div>
+      <div class="opt-title">서버가 변경이 생길 때까지 응답을 들고 있는 방식</div>
+      <div class="opt-sub">SSE보다 구현은 더 복잡한데, 한도 문제는 똑같이 가지고 있었다.</div>
+    </div>
+  </div>
+  <p>
+    클라이언트가 요청을 보내면 서버가 <code>DeferredResult</code>로 응답을 보류하고 있다가, 변경이 감지되면 그제서야
+    응답을 내려주는 방식이다. 그런데 이 "보류하는 동안"에도 결국 HTTP 연결은 유지된 상태라서,
+    SSE와 똑같이 6개 한도에 걸린다. 게다가 타임아웃 처리, 대기 큐 동시성 관리까지 신경 쓸 게 더 많아져서
+    "SSE보다 복잡한데 얻는 게 없다"는 결론으로 빠르게 정리됐다.
+  </p>
+
+  <div class="opt-header" style="margin-top: 22px;">
+    <span class="opt-badge opt-ws">WebSocket</span>
+    <div>
+      <div class="opt-title">양방향 통신 — 그런데 우리에게 양방향이 필요했나?</div>
+      <div class="opt-sub">클라이언트 -&gt; 서버로 보낼 데이터가 없는 모니터링 화면에는 과한 선택지였다.</div>
+    </div>
+  </div>
+  <p>
+    WebSocket은 서버와 클라이언트가 서로 메시지를 주고받을 수 있는 양방향 연결이다. 강력한 만큼
+    핸드셰이크, ping/pong, 세션 관리 등 신경 쓸 게 늘어난다. 그런데 우리가 만들던 화면은
+    "서버 상태를 보여주기만 하면 되는" 단방향 모니터링이었고, 클라이언트가 서버로 보낼 데이터 자체가 없었다.
+    거기다 연결을 유지한다는 점에서 한도 문제도 SSE와 동일하게 가지고 있었으니, 굳이 더 무거운 도구를 쓸 이유가 없었다.
+  </p>
+  <p>
+    같은 맥락에서 <strong>WebSocket + SharedWorker</strong> 조합도 살펴봤는데, 양방향이 필수인 채팅이나
+    공동 편집 같은 서비스에는 어울리겠지만, 우리 케이스에는 구현 복잡도만 가장 높은 선택지였다.
+    "양방향이 필요해지는 완전히 다른 서비스를 만들 때"를 위해 알아만 두기로 했다.
+  </p>
+  <div class="callout warn">
+    <strong>이 둘을 들여다보고 얻은 것</strong>
+    Long Polling과 WebSocket 모두 "연결을 유지한다"는 점에서 SSE와 같은 한계를 공유한다는 걸 확인했다.
+    덕분에 "연결을 계속 들고 있을 것인가, 아닌가"가 이 고민 전체를 가르는 진짜 기준이라는 게 더 명확해졌다.
+  </div>
+</div>
+
+<!-- CH 7 -->
+<div class="ch-label" id="ch7">
+  <span class="ch-badge-lbl">CH 07</span>
+  <h2>전체 비교와 최종 선택</h2>
+</div>
+
+<div class="card">
+  <div class="sec-header"><div class="sec-num">1</div><h3>다섯 가지 방식, 한눈에 정리</h3></div>
+  <table class="cmp-table">
+    <thead>
+      <tr>
+        <th>항목</th>
+        <th>SSE<br>per-tab</th>
+        <th>Polling<br>+Cache</th>
+        <th>Long<br>Polling</th>
+        <th>WebSocket<br>per-tab</th>
+        <th>SSE<br>+SharedWorker</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>실시간성</strong></td>
+        <td class="g">즉시</td><td class="n">주기 지연</td><td class="n">거의 즉시</td><td class="g">즉시</td><td class="g">즉시</td>
+      </tr>
+      <tr>
+        <td><strong>HTTP/1.1 탭 한도</strong></td>
+        <td class="b">6개</td><td class="g">없음</td><td class="b">6개</td><td class="b">6개</td><td class="g">없음</td>
+      </tr>
+      <tr>
+        <td><strong>서버 변경 필요</strong></td>
+        <td>있음</td><td>있음</td><td>있음</td><td>있음</td><td class="g">불필요</td>
+      </tr>
+      <tr>
+        <td><strong>구현 난이도</strong></td>
+        <td class="n">중간</td><td class="g">낮음</td><td class="b">높음</td><td class="n">중간~높음</td><td class="n">중간</td>
+      </tr>
+      <tr>
+        <td><strong>이번 케이스 적합도</strong></td>
+        <td class="b">부적합</td><td class="g">적합</td><td class="b">부적합</td><td class="b">과함</td><td class="g">적합(차기)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <div class="sec-header"><div class="sec-num">2</div><h3>최종적으로 정리한 우선순위</h3></div>
+  <p>
+    돌이켜보면 이 고민의 핵심은 결국 두 가지였다. "연결을 계속 들고 있을 것인가, 매번 새로 물어볼 것인가",
+    그리고 "실시간성을 어디까지 양보할 수 있는가". 이 기준으로 정리한 우선순위는 다음과 같다.
+  </p>
+  <div class="rank-grid">
+    <div class="rank-card">
+      <div class="rank-num" style="color:var(--green)">1st</div>
+      <div class="rank-name">Polling + Cache</div>
+      <div class="rank-desc">지금 바로 적용 가능. 탭 수 제한 없음. 구현이 단순해서 리스크가 가장 적었다. 1차로 이 방식을 채택했다.</div>
+      <div class="rank-when" style="color:var(--green)">현재 적용 / 단기</div>
+    </div>
+    <div class="rank-card">
+      <div class="rank-num" style="color:var(--accent)">2nd</div>
+      <div class="rank-name">SSE + SharedWorker</div>
+      <div class="rank-desc">"5초 지연도 아쉽다"는 요구가 커지면 그때 전환할 카드. 서버 변경 없이 클라이언트만 바꾸면 된다.</div>
+      <div class="rank-when" style="color:var(--accent)">실시간성 요구 시 / 중기</div>
+    </div>
+    <div class="rank-card">
+      <div class="rank-num" style="color:var(--text-muted)">3rd</div>
+      <div class="rank-name">WebSocket(+SharedWorker)</div>
+      <div class="rank-desc">양방향 통신이 정말 필요해지는, 지금과는 다른 종류의 화면을 만들 때를 위해 기억해두는 선택지.</div>
+      <div class="rank-when" style="color:var(--text-muted)">양방향 필수 시에만</div>
+    </div>
+  </div>
+  <div class="callout ok">
+    <strong>이번 검토에서 남은 결론</strong>
+    "실시간"이라는 말을 듣자마자 SSE나 WebSocket부터 떠올렸는데, 정작 따져봐야 했던 건
+    연결을 계속 들고 있는 방식이 우리 사용 패턴(다중 탭)과 맞는지였다.
+    당장은 Polling+Cache로 안전하게 풀고, SSE+SharedWorker는 다음 단계 카드로 남겨두는 것 —
+    이번 고민 끝에 내린 가장 현실적인 답이다.
+  </div>
+</div>
+
+<!-- CH 8 -->
+<div class="ch-label" id="ch8">
+  <span class="ch-badge-lbl">CH 08</span>
+  <h2>관련 문제 + 해설 (Self Quiz)</h2>
+</div>
+
+<div class="card" style="border-left: 5px solid var(--yellow);">
+  <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:20px;">
+    먼저 질문 박스(파란 라인)만 보고 스스로 답해본 다음, 노란 해설 박스와 맞춰보면 기억이 더 단단해진다.
+  </p>
+
+  <!-- Q1 -->
+  <div style="background:var(--surface2); padding:18px; border-radius:12px; margin-bottom:18px; border-left: 3px solid var(--accent);">
+    <h3 style="margin-top:0; margin-bottom:10px;">Q1. <span style="color:var(--text-muted); font-size:0.85rem; font-weight:normal;">— 원인 진단</span></h3>
+    <p style="margin-bottom:15px;">
+      같은 도메인에서 SSE 모니터링 화면을 7개 이상 열었더니 7번째 탭부터 응답이 없다.
+      서버 로그에는 에러가 없다. 가장 먼저 의심해야 할 원인은 무엇이고, 왜 서버가 아니라 거기인가?
+    </p>
+    <div style="background:rgba(241,180,76,0.1); padding:12px 15px; border-radius:8px; border-left: 3px solid var(--yellow);">
+      <p style="margin:0; font-size:0.9rem;"><strong style="color:var(--yellow);">💡 해설:</strong>
+        브라우저의 <strong>HTTP/1.1 도메인당 동시 연결 제한(6개)</strong>을 의심해야 한다.
+        이 한도는 탭 단위가 아니라 브라우저 프로세스 전체에서 공유되며, SSE처럼 응답을 계속 열어두는 연결은
+        탭이 닫힐 때까지 슬롯 하나를 영구히 점유한다. 서버 로그가 깨끗한 이유도 여기 있다 — 요청이 서버에
+        도달하기 전, 브라우저 단계에서 대기 큐에 걸려 있는 상태이기 때문이다.</p>
+    </div>
+  </div>
+
+  <!-- Q2 -->
+  <div style="background:var(--surface2); padding:18px; border-radius:12px; margin-bottom:18px; border-left: 3px solid var(--accent);">
+    <h3 style="margin-top:0; margin-bottom:10px;">Q2. <span style="color:var(--text-muted); font-size:0.85rem; font-weight:normal;">— 공통점 찾기</span></h3>
+    <p style="margin-bottom:15px;">
+      SSE, Long Polling, WebSocket — 이 세 방식은 구현 방법이 전혀 다른데도
+      모두 "HTTP/1.1 환경에서 탭 6개 한도"라는 같은 문제를 안고 있다. 공통적으로 어떤 성질을 가지고 있기 때문인가?
+    </p>
+    <div style="background:rgba(241,180,76,0.1); padding:12px 15px; border-radius:8px; border-left: 3px solid var(--yellow);">
+      <p style="margin:0; font-size:0.9rem;"><strong style="color:var(--yellow);">💡 해설:</strong>
+        셋 다 <strong>요청-응답이 한 번으로 끝나지 않고 연결을 계속 유지</strong>한다는 공통점이 있다.
+        SSE는 Push를 위해, Long Polling은 응답을 보류하기 위해, WebSocket은 양방향 통신을 위해 각각 연결을
+        붙잡아 둔다. 반면 일반 GET 요청(Polling)은 응답을 받는 즉시 연결을 반환하므로 이 한도와 무관하다.</p>
+    </div>
+  </div>
+
+  <!-- Q3 -->
+  <div style="background:var(--surface2); padding:18px; border-radius:12px; margin-bottom:18px; border-left: 3px solid var(--accent);">
+    <h3 style="margin-top:0; margin-bottom:10px;">Q3. <span style="color:var(--text-muted); font-size:0.85rem; font-weight:normal;">— 설계 의도</span></h3>
+    <p style="margin-bottom:15px;">
+      Polling+Cache 구조에서 <code>refreshCache()</code>와 <code>getCachedActiveJobs()</code>를
+      굳이 분리한 이유는 무엇인가? 하나로 합쳐서 매 요청마다 DB를 조회하면 안 되는가?
+    </p>
+    <div style="background:rgba(241,180,76,0.1); padding:12px 15px; border-radius:8px; border-left: 3px solid var(--yellow);">
+      <p style="margin:0; font-size:0.9rem;"><strong style="color:var(--yellow);">💡 해설:</strong>
+        합치면 <strong>탭 수만큼 DB 조회가 늘어난다.</strong> 분리해두면 DB 조회는 스케줄러가
+        주기적으로 한 번만 수행하고, 클라이언트 요청은 캐시에서 즉시 응답을 받는다 — 탭이 100개여도
+        DB 부하는 동일하게 유지된다. "갱신"과 "조회"의 책임을 나누는 것이 핵심이다.</p>
+    </div>
+  </div>
+
+  <!-- Q4 -->
+  <div style="background:var(--surface2); padding:18px; border-radius:12px; margin-bottom:18px; border-left: 3px solid var(--accent);">
+    <h3 style="margin-top:0; margin-bottom:10px;">Q4. <span style="color:var(--text-muted); font-size:0.85rem; font-weight:normal;">— 캐시 설정</span></h3>
+    <p style="margin-bottom:15px;">
+      스케줄러 주기가 5초인데 캐시 TTL을 30초(6배)로 잡은 이유는 무엇인가?
+      TTL을 5초로 똑같이 맞추면 어떤 문제가 생길 수 있는가?
+    </p>
+    <div style="background:rgba(241,180,76,0.1); padding:12px 15px; border-radius:8px; border-left: 3px solid var(--yellow);">
+      <p style="margin:0; font-size:0.9rem;"><strong style="color:var(--yellow);">💡 해설:</strong>
+        TTL을 갱신 주기와 똑같이 맞추면, 스케줄러 실행이 아주 살짝만 지연돼도 <strong>캐시가 먼저 만료되어
+        빈 응답이 나가거나, 그 순간 요청이 몰리면 DB로 직접 떨어질 위험</strong>이 생긴다.
+        주기보다 넉넉한 여유값(여기서는 6배)을 둬서, 스케줄러가 살짝 늦어도 캐시가 끊기지 않도록 완충 구간을
+        만들어 둔 것이다.</p>
+    </div>
+  </div>
+
+  <!-- Q5 -->
+  <div style="background:var(--surface2); padding:18px; border-radius:12px; margin-bottom:18px; border-left: 3px solid var(--accent);">
+    <h3 style="margin-top:0; margin-bottom:10px;">Q5. <span style="color:var(--text-muted); font-size:0.85rem; font-weight:normal;">— 절충안의 한계</span></h3>
+    <p style="margin-bottom:15px;">
+      SSE + SharedWorker는 "서버 코드 변경이 필요 없는" 깔끔한 절충안으로 소개됐다.
+      그런데도 즉시 전면 적용하기엔 망설여지는 이유 두 가지를 들어보시오.
+    </p>
+    <div style="background:rgba(241,180,76,0.1); padding:12px 15px; border-radius:8px; border-left: 3px solid var(--yellow);">
+      <p style="margin:0; font-size:0.9rem;"><strong style="color:var(--yellow);">💡 해설:</strong>
+        ① <strong>브라우저 호환성</strong> — Safari가 SharedWorker를 지원한 건 16버전(2022년)부터라
+        구형 환경에서는 동작하지 않을 수 있다. ② <strong>스케일아웃 한계는 그대로</strong> — SharedWorker는
+        브라우저-서버 간 연결 개수만 줄여줄 뿐, 서버 인스턴스마다 에미터 레지스트리가 따로 존재하는
+        구조적 문제(다중 인스턴스 환경에서 Redis Pub/Sub 같은 보완이 필요한 점)는 그대로 남는다.</p>
+    </div>
+  </div>
+
+  <!-- Q6 -->
+  <div style="background:var(--surface2); padding:18px; border-radius:12px; margin-bottom:0; border-left: 3px solid var(--accent);">
+    <h3 style="margin-top:0; margin-bottom:10px;">Q6. <span style="color:var(--text-muted); font-size:0.85rem; font-weight:normal;">— 선택 기준</span></h3>
+    <p style="margin-bottom:15px;">
+      "서버 → 클라이언트 단방향 알림만 필요한 화면"에 WebSocket을 적용하는 게 왜 과한 선택인지,
+      그리고 그 대신 점검해야 할 더 근본적인 질문은 무엇인지 한 문장으로 정리해보시오.
+    </p>
+    <div style="background:rgba(241,180,76,0.1); padding:12px 15px; border-radius:8px; border-left: 3px solid var(--yellow);">
+      <p style="margin:0; font-size:0.9rem;"><strong style="color:var(--yellow);">💡 해설:</strong>
+        WebSocket의 핵심 가치는 <strong>양방향 통신</strong>인데, 단방향 알림에는 그 능력이 그대로 버려지고
+        핸드셰이크·세션 관리 같은 복잡도만 추가된다. "어떤 프로토콜을 쓸까"보다 먼저
+        <strong>"이 화면은 연결을 계속 들고 있어야 하는가, 아닌가"</strong>를 따지는 게 더 근본적인 질문이다 —
+        그 답에 따라 SSE 계열과 Polling 계열로 갈라지고, 그 다음에야 양방향 필요 여부로 WebSocket을 검토하면 된다.</p>
+    </div>
+  </div>
+</div>
+
+<!-- TOC -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#ch1" onclick="toggleTOC()">CH 01. 왜 이 고민이 시작됐나</a></li>
+    <li><a href="#ch2" onclick="toggleTOC()">CH 02. 저울질한 세 가지</a></li>
+    <li><a href="#ch3" onclick="toggleTOC()">CH 03. SSE (per-tab)</a></li>
+    <li><a href="#ch4" onclick="toggleTOC()">CH 04. Polling + Cache</a></li>
+    <li><a href="#ch5" onclick="toggleTOC()">CH 05. SSE + SharedWorker</a></li>
+    <li><a href="#ch6" onclick="toggleTOC()">CH 06. Long Polling / WebSocket</a></li>
+    <li><a href="#ch7" onclick="toggleTOC()">CH 07. 전체 비교와 최종 선택</a></li>
+    <li><a href="#ch8" onclick="toggleTOC()">CH 08. 관련 문제 (Self Quiz)</a></li>
+  </ul>
+</nav>
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>

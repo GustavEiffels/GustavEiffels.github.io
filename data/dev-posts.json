@@ -1,5 +1,10 @@
 [
   {
+    "date": "2026-06-08",
+    "title": "Spring Boot · 실시간 작업 상태 모니터링, SSE vs Polling+Cache vs SSE+SharedWorker 무엇을 선택했나",
+    "file": "dev/spring_sse_vs_polling_realtime_strategy"
+  },
+  {
     "date": "2026-05-21",
     "title": "Docker CentOS 7 GUI 원격 접속 — VNC & RDP 설치 가이드",
     "file": "dev/docker_centos7_vnc_rdp"
