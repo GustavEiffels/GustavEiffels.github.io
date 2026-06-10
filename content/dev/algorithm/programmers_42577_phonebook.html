@@ -1,0 +1,163 @@
+<!-- [2026-06-10] 프로그래머스 42577 - 전화번호 목록 -->
+<style>
+  .ct-section-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+  }
+  .ct-section-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .ct-kw     { color: #c792ea; }
+  .ct-type   { color: #82aaff; }
+  .ct-str    { color: #c3e88d; }
+  .ct-num    { color: #f78c6c; }
+  .ct-method { color: #82aaff; }
+</style>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════ -->
+<div class="card">
+  <div style="margin-bottom:8px;">
+    <span class="badge badge-tag">Coding Test · Hash</span>
+  </div>
+  <h1 style="font-size:1.6rem; font-weight:800; margin-bottom:10px;">
+    전화번호 목록
+  </h1>
+  <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.7;">
+    프로그래머스 Lv.2 · 42577 · 접두어(prefix) 판별 문제 풀이 회고
+  </p>
+  <div class="meta" style="margin-top: 14px; font-size: 12px; color: var(--text-muted);">
+    <span>언어: Java</span>
+    <span style="margin: 0 8px;">분류: 해시</span>
+    <span>핵심 기법: 사전순 정렬 + 인접 비교</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CH 1. 풀이 회고
+══════════════════════════════════════════ -->
+<div class="ct-section-header" style="margin: 24px 0 16px;">
+  <span class="badge badge-tag">CH 1</span>
+  <h2 style="font-size:1.1rem; font-weight:800; color:#fff; margin:0;">풀이 회고</h2>
+</div>
+
+<!-- ══════════════════════════════════════════
+     1. 문제 개요
+══════════════════════════════════════════ -->
+<div class="card" id="section-overview">
+  <div class="ct-section-header">
+    <div class="ct-section-number">1</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">문제 개요</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    오랜만의 코딩 테스트 문제였다.<br>
+    프로그래머스 42577번 문제이고 접두어를 찾는 문제였다.<br>
+    코딩 테스트 문제에 사용한 언어는 Java 이다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     2. 첫 접근 - 정렬이 필요하다
+══════════════════════════════════════════ -->
+<div class="card" id="section-approach">
+  <div class="ct-section-header">
+    <div class="ct-section-number">2</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">첫 접근 - 정렬이 필요하다</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    문제를 본 순간 든 생각은<br>
+    일단 정렬이 필요하다고 생각이 들었다.
+  </p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    N개의 숫자 중 하나만 접두어로 선정하여 비교해야 하며,<br>
+    일치하는 숫자가 없다고 하였으니, 글자 길이로 오름차순 정렬을 하여<br>
+    최대한 비교 대상을 점진적으로 줄여 나가는 것이 좋다고 생각했다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     3. 시행착오 - 숫자로 변환했더니 0이 사라진다
+══════════════════════════════════════════ -->
+<div class="card" id="section-mistake">
+  <div class="ct-section-header">
+    <div class="ct-section-number">3</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">시행착오 - 숫자로 변환했더니 0이 사라진다</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    그래서 무지성으로 숫자 문자열을 숫자로 변경하여 오름차순 정렬 후<br>
+    다시 문자열 배열로 만들려고 했는데, 이럴 경우 숫자 문자열의 숫자가 수정되는<br>
+    경우가 발생한다.
+  </p>
+  <pre>ex ) 010 -> 10</pre>
+</div>
+
+<!-- ══════════════════════════════════════════
+     4. 해결 - 문자열 그대로, 사전순 정렬
+══════════════════════════════════════════ -->
+<div class="card" id="section-solution">
+  <div class="ct-section-header">
+    <div class="ct-section-number">4</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">해결 - 문자열 그대로, 사전순 정렬</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    그래서 문자열 배열을 그대로 사용했고 문제를 더 쉽게 풀 수 있었다.
+  </p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    숫자도 문자로 보기 때문에 이런 3가지 숫자가 존재할 때<br>
+    문자열 배열로 정렬한다면 이렇게 나열이 된다.
+  </p>
+  <pre>ex ) "802", "91", "2400" -> "2400", "802", "91"</pre>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    여기서 제공된 배열을 예로 들자면 이렇게 나열이 된다.
+  </p>
+  <pre>ex ) "119", "97674223", "1195524421" -> "119", "1195524421", "97674223"</pre>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    여기서 Java String의 method startWith를 함께 써주어<br>
+    문제를 보다 빠르게 풀 수 있었다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     5. 최종 코드
+══════════════════════════════════════════ -->
+<div class="card" id="section-code">
+  <div class="ct-section-header">
+    <div class="ct-section-number">5</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">최종 코드</h2>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">N42577.java</span>
+    </div>
+    <pre><code><span class="ct-kw">package</span> com.test.programmers.hash;
+
+<span class="ct-kw">import</span> java.util.Arrays;
+
+<span class="ct-kw">public</span> <span class="ct-kw">class</span> <span class="ct-type">N42577</span> {
+
+    <span class="ct-kw">public</span> <span class="ct-kw">static</span> <span class="ct-kw">void</span> <span class="ct-method">main</span>(<span class="ct-type">String</span>[] args) {
+        <span class="ct-type">String</span>[] phone_book = {<span class="ct-str">"119"</span>, <span class="ct-str">"97674223"</span>, <span class="ct-str">"1195524421"</span>};
+        <span class="ct-type">System</span>.out.<span class="ct-method">println</span>(<span class="ct-method">solution</span>(phone_book));
+    }
+
+    <span class="ct-kw">public</span> <span class="ct-kw">static</span> <span class="ct-kw">boolean</span> <span class="ct-method">solution</span>(<span class="ct-type">String</span>[] phone_book) {
+        <span class="ct-type">Arrays</span>.<span class="ct-method">sort</span>(phone_book);
+        <span class="ct-kw">for</span> (<span class="ct-kw">int</span> i = <span class="ct-num">0</span>; i &lt; phone_book.length - <span class="ct-num">1</span>; i++) {
+            <span class="ct-kw">if</span> (phone_book[i + <span class="ct-num">1</span>].<span class="ct-method">startsWith</span>(phone_book[i])) {
+                <span class="ct-kw">return</span> <span class="ct-kw">false</span>;
+            }
+        }
+        <span class="ct-kw">return</span> <span class="ct-kw">true</span>;
+    }
+}</code></pre>
+  </div>
+  <p class="dim" style="text-align:center; font-size:12px; color:var(--text-muted); margin-top:16px;">
+    문제 출처: 프로그래머스 Lv.2 - 전화번호 목록 (42577)
+  </p>
+</div>

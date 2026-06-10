@@ -61,12 +61,41 @@
     margin-right: 6px;
     font-family: 'JetBrains Mono', monospace;
   }
+  .dev-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .dev-tab-btn {
+    padding: 10px 18px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .dev-tab-btn:hover {
+    color: var(--text);
+  }
+  .dev-tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
 </style>
 
 <h1>Development Log</h1>
 <div class="card">
   <h2>Technology Stack and Research Topics</h2>
   <p>Technical records of building efficient systems.</p>
+
+  <div class="dev-tabs" id="dev-tabs">
+    <button class="dev-tab-btn active" data-category="record" onclick="devSetCategory('record')">Record</button>
+    <button class="dev-tab-btn" data-category="algorithm" onclick="devSetCategory('algorithm')">Algorithm</button>
+  </div>
 
   <ul id="dev-post-list" style="list-style:none; padding:0; margin: 20px 0 0;">
     <li style="color: var(--text-muted); font-size: 14px;">로딩 중...</li>
@@ -80,18 +109,39 @@
   const PER_PAGE = 10;
   let allPosts = [];
   let currentPage = 1;
+  let currentCategory = 'record';
 
   function escHtml(s) {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
+
+  function getFilteredPosts() {
+    return allPosts.filter((post) => (post.category || 'record') === currentCategory);
+  }
+
+  window.devSetCategory = function (category) {
+    if (category === currentCategory) return;
+    currentCategory = category;
+    document.querySelectorAll('#dev-tabs .dev-tab-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.category === category);
+    });
+    renderList(1);
+  };
 
   function renderList(page) {
     currentPage = page;
     const list = document.getElementById('dev-post-list');
     if (!list) return;
 
+    const filtered = getFilteredPosts();
     const start = (page - 1) * PER_PAGE;
-    const slice = allPosts.slice(start, start + PER_PAGE);
+    const slice = filtered.slice(start, start + PER_PAGE);
+
+    if (slice.length === 0) {
+      list.innerHTML = '<li style="color: var(--text-muted); font-size: 14px;">게시글이 없습니다.</li>';
+      renderPagination();
+      return;
+    }
 
     list.innerHTML = slice.map(post => `
       <li>
@@ -108,7 +158,7 @@
     const pag = document.getElementById('dev-pagination');
     if (!pag) return;
 
-    const total = Math.ceil(allPosts.length / PER_PAGE);
+    const total = Math.ceil(getFilteredPosts().length / PER_PAGE);
     if (total <= 1) { pag.innerHTML = ''; return; }
 
     const WINDOW = 2;
@@ -136,7 +186,7 @@
   }
 
   window.devGoPage = function (page) {
-    const total = Math.ceil(allPosts.length / PER_PAGE);
+    const total = Math.ceil(getFilteredPosts().length / PER_PAGE);
     if (page < 1 || page > total) return;
     renderList(page);
     document.getElementById('dev-post-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });

@@ -41,6 +41,7 @@
           </li>
         </ul>
       </nav>
+      <div class="recent-views" id="recent-views"></div>
       <div class="visitor-counter" id="visitor-counter"></div>
     </aside>
 
@@ -128,6 +129,7 @@
 
               target.style.opacity = 1;
               updateActiveLink(page);
+              recordRecentView(page, target);
             }, 200);
           } else {
             throw new Error("Page not found");
@@ -171,6 +173,63 @@
       }
       // ------------------------------
 
+      // --- Recently Viewed (localStorage) ---
+      const RECENT_VIEWS_KEY = "recentViews";
+      const RECENT_VIEWS_MAX = 5;
+      const RECENT_VIEWS_LIST_PAGES = ["home", "dev", "stocks"];
+
+      function recordRecentView(page, target) {
+        if (RECENT_VIEWS_LIST_PAGES.includes(page)) return;
+
+        const titleEl = target.querySelector("h1");
+        const title = titleEl ? titleEl.textContent.trim() : page;
+
+        let views = [];
+        try {
+          views = JSON.parse(localStorage.getItem(RECENT_VIEWS_KEY)) || [];
+        } catch (e) {
+          views = [];
+        }
+
+        views = views.filter((v) => v.page !== page);
+        views.unshift({ page, title });
+        views = views.slice(0, RECENT_VIEWS_MAX);
+
+        localStorage.setItem(RECENT_VIEWS_KEY, JSON.stringify(views));
+        renderRecentViews();
+      }
+
+      function renderRecentViews() {
+        const container = document.getElementById("recent-views");
+        if (!container) return;
+
+        let views = [];
+        try {
+          views = JSON.parse(localStorage.getItem(RECENT_VIEWS_KEY)) || [];
+        } catch (e) {
+          views = [];
+        }
+
+        if (views.length === 0) {
+          container.innerHTML = "";
+          return;
+        }
+
+        const items = views
+          .map(
+            (v) =>
+              `<li><a onclick="loadContent('${v.page.replace(/'/g, "\\'")}')" data-recent-page="${v.page}">${v.title}</a></li>`
+          )
+          .join("");
+
+        container.innerHTML = `
+          <div class="recent-views-card">
+            <div class="recent-views-header">🕘 최근 본 글</div>
+            <ul>${items}</ul>
+          </div>`;
+      }
+      // ---------------------------------------
+
       window.onpopstate = function (event) {
         if (event.state && event.state.page) {
           _loadFragment(event.state.page);
@@ -185,6 +244,8 @@
           _loadFragment(hash);
         }
       })();
+
+      renderRecentViews();
 
       // Visitor counter from stats.json
       (function () {

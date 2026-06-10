@@ -1,112 +1,140 @@
 [
   {
+    "date": "2026-06-10",
+    "title": "[코딩테스트] 프로그래머스 42577 - 전화번호 목록 (해시, Java)",
+    "file": "dev/algorithm/programmers_42577_phonebook",
+    "category": "algorithm"
+  },
+  {
     "date": "2026-06-08",
     "title": "Spring Boot · 실시간 작업 상태 모니터링, SSE vs Polling+Cache vs SSE+SharedWorker 무엇을 선택했나",
-    "file": "dev/spring_sse_vs_polling_realtime_strategy"
+    "file": "dev/spring_sse_vs_polling_realtime_strategy",
+    "category": "record"
   },
   {
     "date": "2026-05-21",
     "title": "Docker CentOS 7 GUI 원격 접속 — VNC & RDP 설치 가이드",
-    "file": "dev/docker_centos7_vnc_rdp"
+    "file": "dev/docker_centos7_vnc_rdp",
+    "category": "record"
   },
   {
     "date": "2026-05-20",
     "title": "JPA — N+1 문제와 영속성 컨텍스트 완전 이해",
-    "file": "dev/spring_jpa_n1_persistence_context"
+    "file": "dev/spring_jpa_n1_persistence_context",
+    "category": "record"
   },
   {
     "date": "2026-05-19",
     "title": "Spring Bean vs Proxy Bean — 초기화 시 무엇이 차이를 만드는가",
-    "file": "dev/spring_bean_vs_proxy"
+    "file": "dev/spring_bean_vs_proxy",
+    "category": "record"
   },
   {
     "date": "2026-05-18",
     "title": "Spring Boot · Filter · Interceptor · Container · Security — 계층별 처리 흐름 완전 이해",
-    "file": "dev/spring_filter_interceptor_architecture"
+    "file": "dev/spring_filter_interceptor_architecture",
+    "category": "record"
   },
   {
     "date": "2026-05-14",
     "title": "B 트리 & B+ 트리 완전 이해 — DB 인덱스의 모든 것",
-    "file": "dev/db_btree_bplustree_deep_dive"
+    "file": "dev/db_btree_bplustree_deep_dive",
+    "category": "record"
   },
   {
     "date": "2026-05-08",
     "title": "Spring Boot · 레이어드 아키텍처 예외·검증 위치 완전 이해 — Infrastructure vs Domain Service",
-    "file": "dev/spring_layered_exception"
+    "file": "dev/spring_layered_exception",
+    "category": "record"
   },
   {
     "date": "2026-05-08",
     "title": "Proxy Pattern 완전 이해 — Static · JDK Dynamic · CGLIB 진화 흐름",
-    "file": "dev/spring_proxy_pattern"
+    "file": "dev/spring_proxy_pattern",
+    "category": "record"
   },
   {
     "date": "2026-05-06",
     "title": "Spring Boot · AOP & Proxy 완전 이해 — 횡단 관심사부터 CGLIB 내부 동작까지",
-    "file": "dev/spring_aop_proxy"
+    "file": "dev/spring_aop_proxy",
+    "category": "record"
   },
   {
     "date": "2026-05-06",
     "title": "Spring Boot · @Transactional 완전 이해 — Propagation · Isolation · Rollback 규칙",
-    "file": "dev/spring_transactional"
+    "file": "dev/spring_transactional",
+    "category": "record"
   },
   {
     "date": "2026-04-27",
     "title": "Prometheus Core System Analysis: 시계열 DB의 동작 원리와 구조",
-    "file": "dev/prometheus"
+    "file": "dev/prometheus",
+    "category": "record"
   },
   {
     "date": "2026-04-23",
     "title": "Spring Boot · SSE & ASYNC Dispatch - Spring Security 인가 심층 분석",
-    "file": "dev/springboot_sse_async_security"
+    "file": "dev/springboot_sse_async_security",
+    "category": "record"
   },
   {
     "date": "2026-04-22",
     "title": "RHEL 8 · Prometheus 2.53.0 + Node Exporter 1.8.1 설치 가이드 (폐쇄망 / 온라인)",
-    "file": "dev/rhel_prometheus_setup"
+    "file": "dev/rhel_prometheus_setup",
+    "category": "record"
   },
   {
     "date": "2026-04-22",
     "title": "RHEL 8 · Tomcat 10.1.34 설치 가이드 (폐쇄망 / 온라인)",
-    "file": "dev/rhel_tomcat10_setup"
+    "file": "dev/rhel_tomcat10_setup",
+    "category": "record"
   },
   {
     "date": "2026-04-22",
     "title": "RHEL 8 · Java 17 설치 가이드 (폐쇄망 바이너리 / 온라인 DNF)",
-    "file": "dev/rhel_java17_full_setup"
+    "file": "dev/rhel_java17_full_setup",
+    "category": "record"
   },
   {
     "date": "2026-04-22",
     "title": "RHEL 8 · PostgreSQL 17.2 설치 가이드 (폐쇄망 소스 컴파일 / 온라인 PGDG)",
-    "file": "dev/rhel_postgresql17_setup"
+    "file": "dev/rhel_postgresql17_setup",
+    "category": "record"
   },
   {
     "date": "2026-04-21",
     "title": "RHEL 7 with Java 17 Installation",
-    "file": "dev/rhel_java17_install"
+    "file": "dev/rhel_java17_install",
+    "category": "record"
   },
   {
     "date": "2026-04-21",
     "title": "Docker on CentOS 7 with Java 17 Installation",
-    "file": "dev/docker_centos_java17_install"
+    "file": "dev/docker_centos_java17_install",
+    "category": "record"
   },
   {
     "date": "2026-04-21",
     "title": "OS Engineering · Concurrency Summary",
-    "file": "dev/os_concurrency_summary"
+    "file": "dev/os_concurrency_summary",
+    "category": "record"
   },
   {
     "date": "2026-04-21",
     "title": "DB Connection?",
-    "file": "dev/db_connection_my_summary"
+    "file": "dev/db_connection_my_summary",
+    "category": "record"
   },
   {
     "date": "2026-04-20",
     "title": "DB Connection Leak & Timeout Deep Dive",
-    "file": "dev/db_leak_timeout_deepdive"
+    "file": "dev/db_leak_timeout_deepdive",
+    "category": "record"
   },
   {
     "date": "2026-04-20",
     "title": "DB Connection Cost: Why is it 'Expensive'?",
-    "file": "dev/db_connection_cost"
+    "file": "dev/db_connection_cost",
+    "category": "record"
   }
 ]
