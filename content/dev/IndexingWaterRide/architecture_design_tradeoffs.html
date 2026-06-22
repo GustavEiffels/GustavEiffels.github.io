@@ -1,0 +1,301 @@
+<!-- [2026-06-22] 설계 결정과 트레이드오프 회고 — Indexing & WaterRide -->
+<style>
+/* ── TOC ── */
+.report-toc {
+  position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+  background: var(--surface); border-left: 1px solid var(--border);
+  padding: 40px 25px; z-index: 1001;
+  transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+}
+.report-toc.active { right: 0; }
+.report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.report-toc ul { list-style: none; padding: 0; margin: 0; }
+.report-toc li { margin-bottom: 12px; line-height: 1.4; }
+.report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+.report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+.toc-backdrop {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+  z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+}
+.toc-backdrop.active { display: block; opacity: 1; }
+.toc-toggle-btn {
+  position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+  background: var(--accent); color: #fff; border: none; border-radius: 50%;
+  font-size: 1.5rem; cursor: pointer; z-index: 1002;
+  box-shadow: 0 4px 15px var(--accent-glow);
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+}
+.toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); box-shadow: 0 6px 20px var(--accent-glow); }
+@media (max-width: 768px) {
+  .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+}
+
+/* ── Scoped Styles ── */
+.iwr-chapter-label { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.iwr-ch-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--accent); color: #fff; font-size: 11px;
+  font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 6px; flex-shrink: 0;
+}
+.iwr-sub-title { font-size: .95rem; font-weight: 700; color: var(--accent); margin: 22px 0 10px; padding-left: 10px; border-left: 3px solid var(--accent); }
+
+.iwr-callout {
+  border-left: 4px solid var(--accent);
+  background: rgba(94,129,244,0.05);
+  border-radius: 0 10px 10px 0;
+  padding: 14px 18px; margin: 16px 0; font-size: 14px;
+}
+.iwr-callout.warn { border-color: var(--yellow); background: rgba(245,158,11,0.05); }
+.iwr-callout.ok   { border-color: var(--green);  background: rgba(47,179,68,0.05); }
+.iwr-callout.bad  { border-color: var(--red);    background: rgba(214,57,57,0.05); }
+.iwr-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+.iwr-tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-right: 6px; }
+.iwr-tag-green  { background: rgba(47,179,68,0.12);  color: var(--green); }
+.iwr-tag-red    { background: rgba(214,57,57,0.12);  color: var(--red); }
+.iwr-tag-blue   { background: rgba(94,129,244,0.12); color: var(--accent); }
+.iwr-tag-orange { background: rgba(245,158,11,0.12); color: var(--yellow); }
+
+.iwr-summary {
+  background: linear-gradient(135deg, rgba(94,129,244,0.08), rgba(47,179,68,0.08));
+  border: 1px solid rgba(94,129,244,0.25);
+  border-radius: 12px; padding: 24px 28px; margin-bottom: 24px;
+}
+.iwr-summary h3 { color: var(--green); font-size: 0.85rem; font-weight: 700; margin-bottom: 14px; letter-spacing: 1px; text-transform: uppercase; }
+.iwr-summary ul { padding-left: 0; list-style: none; }
+.iwr-summary ul li { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text); }
+.iwr-summary ul li:last-child { border-bottom: none; }
+.iwr-summary ul li::before { content: "→ "; color: var(--green); font-weight: 700; }
+</style>
+
+
+<h1>설계 결정과 트레이드오프 회고 — Indexing &amp; WaterRide</h1>
+
+<div class="card" style="text-align:center; background: linear-gradient(135deg, var(--surface), var(--surface2));">
+  <span class="badge badge-tag">Side Project</span>
+  <span class="badge badge-tag">Retrospective</span>
+  <span class="badge badge-tag">Spring Boot</span>
+  <span class="badge badge-date">2026-06-22</span>
+  <p style="margin-top:14px; color:var(--text-muted); font-size:14px;">
+    Indexing &amp; WaterRide — 기능 구현이 끝난 뒤에도 "왜 그렇게 했는가"를 잊지 않기 위한 기록
+  </p>
+</div>
+
+
+<!-- Chapter 1 -->
+<div class="card" id="ch1">
+  <div class="iwr-chapter-label">
+    <span class="iwr-ch-badge">Chapter 1</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">데이터 저장소 선택</h2>
+  </div>
+
+  <h3>Member / Reminder 를 Notion DB 로 선택한 이유</h3>
+  <ul>
+    <li><strong>트레이드오프</strong>: Postgres 테이블/마이그레이션을 직접 관리하는 비용 vs Notion API 호출 지연 및 비공식 사용량 제한</li>
+    <li><strong>선택 이유 1</strong>: 개인 규모 운영에서는 스키마 마이그레이션 부담을 줄이는 게 더 중요했음</li>
+    <li><strong>선택 이유 2</strong>: 내 Notion을 통해서 사용자를 직접 선별하고 싶었음</li>
+  </ul>
+
+  <p class="iwr-sub-title">물타기 포지션은 Postgres 사용</p>
+  <ul>
+    <li>Member/Reminder와 달리 <code>AveragingPosition</code>은 JPA로 PostgreSQL에 직접 CRUD</li>
+    <li><strong>선택 이유</strong>: 매수 단가·수량처럼 정밀도가 중요하고 조회 빈도가 높은 금융 데이터를 외부 API(Notion) 지연·레이트리밋에 노출시키고 싶지 않았음</li>
+  </ul>
+  <div class="iwr-callout ok">
+    <strong>기준</strong>
+    "스키마 안정성이 더 중요한가, 정밀도·조회속도가 더 중요한가"로 저장소를 나눠서 선택했다.
+  </div>
+</div>
+
+
+<!-- Chapter 2 -->
+<div class="card" id="ch2">
+  <div class="iwr-chapter-label">
+    <span class="iwr-ch-badge">Chapter 2</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">외부 API 연동</h2>
+  </div>
+
+  <h3>비공식 외부 API(KRX, Naver, Yahoo, FRED) 사용</h3>
+  <ul>
+    <li><strong>트레이드오프</strong>: 무료·즉시 사용 가능 vs 공식 스펙이 없어 응답 포맷이 예고 없이 바뀔 수 있음</li>
+    <li><strong>실제로 겪은 문제</strong>: KRX가 JSON을 내려주면서 <code>Content-Type</code>을 <code>text/html</code>로 받아서 WebClient deserialize가 실패했고, 응답 크기도 기본 버퍼 한도(256KB)를 넘어서 따로 안 늘리면 버퍼가 터져버림</li>
+    <li><strong>해결 방식</strong>: 추측으로 고치지 않고 실제 curl 호출과 로그로 원인을 재현한 뒤 수정</li>
+  </ul>
+  <div class="iwr-callout warn">
+    <strong>비공식 API의 본질적 위험</strong>
+    스펙 문서가 없다는 건 "오늘 동작했다"가 "내일도 동작한다"를 보장하지 않는다는 뜻이다.
+    Content-Type 불일치, 버퍼 한도 같은 문제는 코드 리뷰로는 안 보이고 실제 호출로만 드러난다.
+  </div>
+</div>
+
+
+<!-- Chapter 3 -->
+<div class="card" id="ch3">
+  <div class="iwr-chapter-label">
+    <span class="iwr-ch-badge">Chapter 3</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">캐싱 전략</h2>
+  </div>
+
+  <h3>Eager preload vs Lazy cache-aside</h3>
+  <ul>
+    <li>국내 종목(KRX 전체 목록)은 "전체 목록"을 한 번에 받을 수 있는 API가 있어서 기동 시 전부 캐시에 적재(eager)</li>
+    <li>해외 종목은 그런 전체 목록 API가 없어서, 검색에 성공한 키워드만 캐시에 적재하고 실패 결과는 캐시하지 않는 lazy cache-aside로 설계</li>
+    <li><strong>트레이드오프</strong>: lazy 전략은 첫 조회가 항상 외부 API를 거치지만, 안 쓰는 데이터를 무한정 메모리에 들고 있지 않음</li>
+  </ul>
+
+  <table>
+    <tr><th>구분</th><th>국내 종목</th><th>해외 종목</th></tr>
+    <tr><td>전체 목록 API</td><td><span class="iwr-tag iwr-tag-green">있음</span></td><td><span class="iwr-tag iwr-tag-red">없음</span></td></tr>
+    <tr><td>적재 전략</td><td>Eager preload (기동 시 전부)</td><td>Lazy cache-aside (성공한 키워드만)</td></tr>
+    <tr><td>첫 조회 비용</td><td>없음 (이미 캐시됨)</td><td>외부 API 호출 1회</td></tr>
+    <tr><td>메모리 사용</td><td>전체 목록만큼 고정</td><td>실제 쓰는 만큼만 증가</td></tr>
+  </table>
+</div>
+
+
+<!-- Chapter 4 -->
+<div class="card" id="ch4">
+  <div class="iwr-chapter-label">
+    <span class="iwr-ch-badge">Chapter 4</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">JPA / 트랜잭션</h2>
+  </div>
+
+  <h3>JPA 트랜잭션 함정</h3>
+  <ul>
+    <li><code>deleteByIdAndTelegramId</code>처럼 커스텀 derived delete 메서드는 상속받은 CRUD 메서드(<code>deleteById</code>)와 달리 자동으로 트랜잭션이 걸리지 않아서, 포지션 삭제가 조용히 실패하는 버그로 나타남</li>
+    <li>실제 <code>TransactionRequiredException</code>을 재현하는 테스트를 먼저 작성해 원인을 확정한 뒤 <code>@Transactional</code>을 추가하고, 같은 테스트로 수정을 검증</li>
+  </ul>
+  <div class="iwr-callout bad">
+    <strong>함정</strong>
+    Spring Data JPA의 derived delete 메서드는 기본 CRUD 메서드와 같은 인터페이스에 있어도 트랜잭션이 자동으로 안 걸린다.
+    "조용히 실패"하는 버그라 알아채기 어렵고, 재현 테스트를 먼저 작성하는 게 원인 확정에 제일 빨랐다.
+  </div>
+</div>
+
+
+<!-- Chapter 5 -->
+<div class="card" id="ch5">
+  <div class="iwr-chapter-label">
+    <span class="iwr-ch-badge">Chapter 5</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">텔레그램 봇 UX</h2>
+  </div>
+
+  <h3>자동 진행(auto-skip) 대신 항상 버튼 확인</h3>
+  <ul>
+    <li>검색 결과가 1개거나 정확히 일치해도 자동으로 다음 단계로 넘기지 않고, 항상 버튼으로 확인받도록 설계</li>
+    <li><strong>트레이드오프</strong>: 사용자가 눌러야 하는 횟수는 늘지만, 의도하지 않은 종목이 실수로 선택되는 사고를 막음 — 포지션(돈)을 다루는 도구라 안전을 편의보다 우선</li>
+  </ul>
+
+  <p class="iwr-sub-title">"계산기"와 "실제 매수"의 분리</p>
+  <ul>
+    <li>계산기(물타기 what-if, % 계산기)는 절대 DB에 반영하지 않고, 순수 계산 로직만 호출하도록 실제 매수 플로우와 코드 경로를 분리</li>
+    <li><strong>트레이드오프</strong>: 코드 경로가 두 개로 나뉘어 약간의 중복이 생기지만, "미리보기였는데 실수로 실제 포지션이 바뀌는" 사고를 원천 차단</li>
+  </ul>
+
+  <p class="iwr-sub-title">포지션 수정 UX: 한 번에 입력 vs 단계별 입력</p>
+  <ul>
+    <li>처음엔 <code>"평단가,수량"</code> 쉼표 구분 한 줄 입력으로 설계했다가, 평단가 → 수량 → (해외는 환율까지) 단계별 입력으로 다시 변경</li>
+    <li><strong>트레이드오프</strong>: 대화 턴 수는 늘지만, 포맷 실수(쉼표 누락, 순서 혼동) 가능성이 줄고 기존 포지션 생성 플로우와 UX가 일관됨</li>
+  </ul>
+
+  <p class="iwr-sub-title">종목 검색 결과 정렬: 완전일치 &gt; 접두일치 &gt; 부분일치 &gt; 길이순</p>
+  <p>
+    종목명 검색(국내: <code>StockMasterService.search</code>)은 입력값과 완전히 같은 이름을 최우선,
+    그다음 입력값으로 시작하는 이름, 그다음 단순 포함만 하는 이름 순으로 정렬하고,
+    동일 등급 내에서는 이름이 짧은(=입력값에 더 가까운) 종목을 먼저 보여준다.
+  </p>
+  <table>
+    <tr><th>순위</th><th>등급</th><th>종목명</th></tr>
+    <tr><td>1</td><td><span class="iwr-tag iwr-tag-green">완전일치</span></td><td>SK하이닉스</td></tr>
+    <tr><td>2</td><td><span class="iwr-tag iwr-tag-blue">접두일치</span></td><td>SK하이닉스레버리지</td></tr>
+    <tr><td>3</td><td><span class="iwr-tag iwr-tag-orange">부분일치</span></td><td>Kodex SK하이닉스레버리지</td></tr>
+  </table>
+  <div class="iwr-callout ok">
+    <strong>트레이드오프</strong>
+    정렬 로직이 한 단계 더 늘지만, 사용자가 의도한 종목이 후보 목록 상단에 오도록 보장해
+    잘못된 종목을 실수로 선택할 위험을 줄인다.
+  </div>
+</div>
+
+
+<!-- Chapter 6 -->
+<div class="card" id="ch6">
+  <div class="iwr-chapter-label">
+    <span class="iwr-ch-badge">Chapter 6</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">인프라 / CI·CD</h2>
+  </div>
+
+  <h3>GitHub 클라우드 러너(inbound SSH) vs self-hosted runner(outbound polling)</h3>
+  <ul>
+    <li>홈서버는 공유기 포트포워딩을 열지 않아 외부에서 inbound 접속이 원천적으로 불가능한 환경</li>
+    <li>처음엔 GitHub 클라우드 러너 + <code>scp-action</code>/<code>ssh-action</code>으로 설계했으나, 이 전제 자체가 깨져서 self-hosted runner(홈서버가 GitHub로 outbound polling)로 전환</li>
+    <li><strong>트레이드오프</strong>: SSH 키 발급/등록, 포트포워딩, DDNS 같은 인바운드 노출 설정이 전부 사라지고 빌드 산출물도 <code>cp</code>로 바로 옮길 수 있어 더 단순하고 안전해지지만, 홈서버에 runner 프로세스를 항상 띄워두고 직접 관리해야 하는 책임이 생김</li>
+  </ul>
+  <div class="iwr-callout warn">
+    <strong>TODO로 남긴 것</strong>
+    같은 홈서버에 다른 프로젝트가 추가될 가능성을 고려해, runner를 프로젝트당 1개씩
+    별도 디렉토리/서비스/레이블(<code>iwr-home-server</code>)로 분리했다.
+    레포 수가 늘어나면 매번 runner를 새로 까는 비용이 커지므로, 그 시점엔 Organization 이전 +
+    org-level runner 공유로 전환할 것을 TODO로 남겨둠.
+  </div>
+</div>
+
+
+<!-- Chapter 7 -->
+<div class="card" id="ch7">
+  <div class="iwr-chapter-label">
+    <span class="iwr-ch-badge">Chapter 7</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">아키텍처 구조의 한계</h2>
+  </div>
+
+  <h3>단일 프로세스 구조의 한계</h3>
+  <ul>
+    <li>Telegram bot polling은 토큰 하나당 프로세스 하나만 가능해, Spring Boot 한 프로세스가 REST API + Bot + 스케줄러를 모두 담당</li>
+    <li>비용·운영은 단순해지지만, 그 프로세스가 죽으면 전체 기능이 동시에 멈추는 단일 장애점(SPOF)이 됨</li>
+  </ul>
+  <div class="iwr-callout bad">
+    <strong>인지하고 있는 것</strong>
+    개인 규모에서는 이 SPOF를 감수하는 게 합리적인 선택이었지만,
+    운영 부하나 사용자 수가 늘어나면 봇/스케줄러/API를 프로세스 단위로 분리해야 할 지점이다.
+  </div>
+</div>
+
+
+<!-- Summary -->
+<div class="iwr-summary" id="summary">
+  <h3>한 줄 정리</h3>
+  <ul>
+    <li>스키마 안정성 vs 정밀도/속도 — 데이터 성격에 따라 저장소를 분리했다</li>
+    <li>비공식 API는 추측이 아니라 실제 호출 재현으로 디버깅했다</li>
+    <li>전체 목록이 있으면 eager, 없으면 lazy cache-aside</li>
+    <li>derived delete 메서드는 트랜잭션이 자동으로 안 걸린다는 함정을 테스트로 확정 후 수정</li>
+    <li>돈을 다루는 봇이라 편의보다 안전(버튼 확인, 계산기/실매수 분리)을 우선했다</li>
+    <li>인프라 제약(포트포워딩 불가)이 CI/CD 설계 자체를 바꿨다</li>
+    <li>단일 프로세스 SPOF는 알고 있는 채무로 남겨두고 있다</li>
+  </ul>
+</div>
+
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#ch1"    onclick="toggleTOC()">1. 데이터 저장소 선택</a></li>
+    <li><a href="#ch2"    onclick="toggleTOC()">2. 외부 API 연동</a></li>
+    <li><a href="#ch3"    onclick="toggleTOC()">3. 캐싱 전략</a></li>
+    <li><a href="#ch4"    onclick="toggleTOC()">4. JPA / 트랜잭션</a></li>
+    <li><a href="#ch5"    onclick="toggleTOC()">5. 텔레그램 봇 UX</a></li>
+    <li><a href="#ch6"    onclick="toggleTOC()">6. 인프라 / CI·CD</a></li>
+    <li><a href="#ch7"    onclick="toggleTOC()">7. 아키텍처 구조의 한계</a></li>
+    <li><a href="#summary" onclick="toggleTOC()">한 줄 정리</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>

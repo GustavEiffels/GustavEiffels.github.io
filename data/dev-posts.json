@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-06-22",
+    "title": "설계 결정과 트레이드오프 회고 — Indexing & WaterRide",
+    "file": "dev/IndexingWaterRide/architecture_design_tradeoffs",
+    "category": "iwr"
+  },
+  {
     "date": "2026-06-10",
     "title": "[코딩테스트] 프로그래머스 42577 - 전화번호 목록 (해시, Java)",
     "file": "dev/algorithm/programmers_42577_phonebook",
