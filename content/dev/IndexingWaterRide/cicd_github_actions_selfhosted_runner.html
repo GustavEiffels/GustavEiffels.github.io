@@ -1,0 +1,306 @@
+<!-- [2026-06-23] GitHub Actions 기반 Self-hosted CI/CD 구축 — Indexing & WaterRide -->
+<style>
+/* ── TOC ── */
+.report-toc {
+  position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+  background: var(--surface); border-left: 1px solid var(--border);
+  padding: 40px 25px; z-index: 1001;
+  transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+}
+.report-toc.active { right: 0; }
+.report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.report-toc ul { list-style: none; padding: 0; margin: 0; }
+.report-toc li { margin-bottom: 12px; line-height: 1.4; }
+.report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+.report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+.toc-backdrop {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+  z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+}
+.toc-backdrop.active { display: block; opacity: 1; }
+.toc-toggle-btn {
+  position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+  background: var(--accent); color: #fff; border: none; border-radius: 50%;
+  font-size: 1.5rem; cursor: pointer; z-index: 1002;
+  box-shadow: 0 4px 15px var(--accent-glow);
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+}
+.toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); box-shadow: 0 6px 20px var(--accent-glow); }
+@media (max-width: 768px) {
+  .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+}
+
+/* ── Scoped Styles ── */
+.cicd-chapter-label { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.cicd-ch-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--accent); color: #fff; font-size: 11px;
+  font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 6px; flex-shrink: 0;
+}
+.cicd-sub-title { font-size: .95rem; font-weight: 700; color: var(--accent); margin: 22px 0 10px; padding-left: 10px; border-left: 3px solid var(--accent); }
+
+.cicd-callout {
+  border-left: 4px solid var(--accent);
+  background: rgba(94,129,244,0.05);
+  border-radius: 0 10px 10px 0;
+  padding: 14px 18px; margin: 16px 0; font-size: 14px;
+}
+.cicd-callout.warn { border-color: var(--yellow); background: rgba(245,158,11,0.05); }
+.cicd-callout.ok   { border-color: var(--green);  background: rgba(47,179,68,0.05); }
+.cicd-callout.bad  { border-color: var(--red);    background: rgba(214,57,57,0.05); }
+.cicd-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+.cicd-shot {
+  width: 100%; border: 1px solid var(--border); border-radius: 10px;
+  margin: 12px 0; display: block;
+}
+.cicd-shot-caption { text-align: center; font-size: 12px; color: var(--text-muted); margin: -4px 0 16px; }
+
+.cicd-summary {
+  background: linear-gradient(135deg, rgba(94,129,244,0.08), rgba(47,179,68,0.08));
+  border: 1px solid rgba(94,129,244,0.25);
+  border-radius: 12px; padding: 24px 28px; margin-bottom: 24px;
+}
+.cicd-summary h3 { color: var(--green); font-size: 0.85rem; font-weight: 700; margin-bottom: 14px; letter-spacing: 1px; text-transform: uppercase; }
+.cicd-summary ul { padding-left: 0; list-style: none; }
+.cicd-summary ul li { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text); }
+.cicd-summary ul li:last-child { border-bottom: none; }
+.cicd-summary ul li::before { content: "→ "; color: var(--green); font-weight: 700; }
+</style>
+
+
+<h1>GitHub Actions 기반 Self-hosted CI/CD 구축</h1>
+
+<div class="card" style="text-align:center; background: linear-gradient(135deg, var(--surface), var(--surface2));">
+  <span class="badge badge-tag">CI/CD</span>
+  <span class="badge badge-tag">GitHub Actions</span>
+  <span class="badge badge-tag">Self-hosted Runner</span>
+  <span class="badge badge-date">2026-06-23</span>
+  <p style="margin-top:14px; color:var(--text-muted); font-size:14px;">
+    IndexingWaterRide 배포 자동화 — 포트포워딩이 막힌 홈서버에 outbound polling 방식으로 CI/CD를 구축한 기록
+  </p>
+</div>
+
+
+<!-- Chapter 1 -->
+<div class="card" id="cicd-ch1">
+  <div class="cicd-chapter-label">
+    <span class="cicd-ch-badge">Chapter 1</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">배경 및 환경</h2>
+  </div>
+
+  <h3>프로젝트 환경</h3>
+  <p>
+    IndexingWaterRide는 텔레그램 polling 방식으로 사용자 메시지를 감지하고 응답한다.
+    즉 외부에서 서버로 들어오는(inbound) 연결이 필요 없는 구조다.
+  </p>
+  <p>
+    서버는 집에 있는 개인 서버이며, 보안 취약성 우려로 포트포워딩을 열지 않았다.
+    그 결과 외부에서 인바운드로 서버에 접근할 수 없는 상태다.
+  </p>
+  <div class="cicd-callout warn">
+    <strong>제약 조건</strong>
+    GitHub가 제공하는 클라우드 러너는 해당 서버에 직접 접속해 배포할 방법이 없다.
+    서버가 먼저 GitHub 쪽으로 연결을 거는 방식이 필요하다.
+  </div>
+
+  <p class="cicd-sub-title">기존 배포 방식의 문제</p>
+  <p>
+    배포할 때마다 집 서버에 SSH로 직접 접속해서 빌드 파일을 내렸다 올렸다 하는 수동 작업을 반복했다.
+    사람이 매번 개입해야 하고, 절차가 사람마다/순간마다 달라질 수 있다는 점이 문제였다.
+  </p>
+</div>
+
+
+<!-- Chapter 2 -->
+<div class="card" id="cicd-ch2">
+  <div class="cicd-chapter-label">
+    <span class="cicd-ch-badge">Chapter 2</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">GitHub Actions 기본 개념</h2>
+  </div>
+
+  <h3>GitHub Actions란</h3>
+  <p>
+    레포지토리에 <code>.github/workflows/*.yml</code> 형태로 워크플로우를 정의해두면,
+    push·PR 같은 이벤트가 발생할 때 GitHub가 그 워크플로우를 자동으로 실행해주는 CI/CD 도구다.
+  </p>
+  <p>
+    워크플로우는 하나 이상의 job으로 구성되고, 각 job은 다시 순차적으로 실행되는 step들로 구성된다.
+    각 job은 <code>runs-on</code>에 지정한 실행 환경에서 돈다.
+  </p>
+
+  <p class="cicd-sub-title">클라우드 러너 vs Self-hosted 러너</p>
+  <table>
+    <tr><th>구분</th><th>클라우드 러너</th><th>Self-hosted 러너</th></tr>
+    <tr><td>실행 위치</td><td>GitHub가 제공하는 임시 VM</td><td>직접 등록한 머신(여기서는 홈서버)</td></tr>
+    <tr><td>네트워크 방향</td><td>GitHub → 클라우드 VM 생성</td><td>러너 → GitHub로 outbound polling</td></tr>
+    <tr><td>인바운드 서버 적합성</td><td>부적합 (직접 접속 불가)</td><td>적합 (서버가 먼저 연결을 검)</td></tr>
+  </table>
+  <p>인바운드가 막힌 홈서버에 배포하려면 서버 쪽에서 먼저 GitHub로 연결을 거는 self-hosted runner가 필요한 이유가 여기에 있다.</p>
+</div>
+
+
+<!-- Chapter 3 -->
+<div class="card" id="cicd-ch3">
+  <div class="cicd-chapter-label">
+    <span class="cicd-ch-badge">Chapter 3</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">적용한 방식</h2>
+  </div>
+
+  <h3>Self-hosted Runner 등록</h3>
+  <p>
+    홈서버에 GitHub Actions Runner를 설치하고 레포지토리에 등록했다.
+    레이블은 <code>self-hosted</code>, <code>Linux</code>, <code>X64</code>, <code>iwr-home-server</code>로 지정.
+  </p>
+  <div class="cicd-callout ok">
+    <strong>동작 방식</strong>
+    Runner는 등록 후 GitHub 쪽으로 outbound polling만 하면서 "실행할 job 있어?"를 계속 물어본다.
+    포트포워딩 없이도 GitHub과 통신이 가능한 이유다.
+  </div>
+  <p>레이블을 프로젝트 전용(<code>iwr-home-server</code>)으로 둔 이유는, 같은 서버에 다른 프로젝트 runner가 떠 있어도 job이 섞이지 않게 하기 위함이다.</p>
+
+  <img class="cicd-shot" src="../../../assets/images/iwr_cicd_runner_register.png" alt="Self-hosted runner 등록 화면">
+  <p class="cicd-shot-caption">Self-hosted Runner 등록 화면</p>
+  <img class="cicd-shot" src="../../../assets/images/iwr_cicd_runner_idle.png" alt="iwr-home-server Idle 상태">
+  <p class="cicd-shot-caption">등록된 Runner 상태 — iwr-home-server Idle</p>
+
+  <p class="cicd-sub-title">Repository Variable 설정</p>
+  <p>
+    <code>DEPLOY_PATH</code> 변수로 배포 경로(<code>/home/siuki/IndexingWaterRide/deploy</code>)를 분리 관리한다.
+    yml 파일에 경로를 하드코딩하지 않아, 나중에 경로가 바뀌어도 변수만 수정하면 된다.
+  </p>
+  <table>
+    <tr><th>Name</th><th>Value</th></tr>
+    <tr><td><code>DEPLOY_PATH</code></td><td><code>/home/siuki/IndexingWaterRide/deploy</code></td></tr>
+  </table>
+  <img class="cicd-shot" src="../../../assets/images/iwr_cicd_repo_variable.png" alt="DEPLOY_PATH 변수 설정 화면">
+  <p class="cicd-shot-caption">Repository Variable 설정 화면</p>
+
+  <p class="cicd-sub-title">deploy.yml 워크플로우</p>
+  <p>트리거는 <code>main</code> 브랜치 push. <code>concurrency</code> 그룹으로 묶어서 배포가 동시에 겹치지 않게 막는다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">deploy.yml — 트리거 / 동시성 제어 / 체크아웃 / JDK 세팅</span>
+    </div>
+    <pre><code>name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, iwr-home-server]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'</code></pre>
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">deploy.yml — 테스트 / 빌드 / 배포 파일 교체 / 컨테이너 재기동</span>
+    </div>
+    <pre><code>      - name: Grant execute permission for gradlew
+        working-directory: server
+        run: chmod +x gradlew
+
+      - name: Run tests
+        working-directory: server
+        run: ./gradlew test
+
+      - name: Build jar
+        working-directory: server
+        run: ./gradlew bootJar
+
+      - name: Copy jar into deploy directory
+        working-directory: server
+        run: |
+          JAR=$(ls build/libs/*.jar | grep -v plain | head -n1)
+          cp "$JAR" "${{ vars.DEPLOY_PATH }}/server.jar"
+
+      - name: Restart server container
+        working-directory: ${{ vars.DEPLOY_PATH }}
+        run: docker compose up -d --force-recreate server</code></pre>
+  </div>
+
+  <p class="cicd-sub-title">전체 동작 흐름</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">main push → 배포 완료까지</span>
+    </div>
+    <pre><code style="color:var(--text-muted) !important;">main 브랜치에 push
+  → GitHub Actions가 deploy.yml 트리거 감지
+  → runs-on: [self-hosted, iwr-home-server] 와 일치하는 runner 탐색
+  → 홈서버에서 polling 중이던 runner가 job 수신
+  → 홈서버 위에서 직접 실행:
+       checkout → JDK 17 세팅 → gradlew test
+       → bootJar 빌드 → jar를 DEPLOY_PATH로 복사
+       → docker compose up -d --force-recreate server</code></pre>
+  </div>
+</div>
+
+
+<!-- Chapter 4 -->
+<div class="card" id="cicd-ch4">
+  <div class="cicd-chapter-label">
+    <span class="cicd-ch-badge">Chapter 4</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">결과</h2>
+  </div>
+
+  <h3>Before / After</h3>
+  <table>
+    <tr><th>구분</th><th>이전</th><th>이후</th></tr>
+    <tr><td>배포 트리거</td><td>사람이 직접 SSH 접속</td><td>main 브랜치 push</td></tr>
+    <tr><td>테스트 실행</td><td>수동 또는 생략</td><td>배포 전 자동으로 <code>gradlew test</code></td></tr>
+    <tr><td>빌드/배포</td><td>로컬에서 빌드 후 수동 전송</td><td>홈서버에서 자동 빌드 + 컨테이너 재기동</td></tr>
+    <tr><td>외부 접근 요건</td><td>SSH 인바운드 필요(또는 포트포워딩)</td><td>불필요 (runner가 outbound polling)</td></tr>
+  </table>
+</div>
+
+
+<!-- Summary -->
+<div class="cicd-summary" id="cicd-summary">
+  <h3>핵심 정리</h3>
+  <ul>
+    <li>인바운드가 막힌 홈서버에는 self-hosted runner의 outbound polling 방식이 적합하다</li>
+    <li>runner 레이블을 프로젝트 전용으로 두면 같은 서버의 다른 프로젝트와 job이 섞이지 않는다</li>
+    <li>배포 경로 같은 가변 값은 repository variable로 분리해 워크플로우 파일을 환경에 종속되지 않게 만든다</li>
+    <li>main push 한 번으로 테스트 → 빌드 → jar 교체 → 컨테이너 재기동까지 전 과정이 자동화됐다</li>
+  </ul>
+</div>
+
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#cicd-ch1"      onclick="toggleTOC()">1. 배경 및 환경</a></li>
+    <li><a href="#cicd-ch2"      onclick="toggleTOC()">2. GitHub Actions 기본 개념</a></li>
+    <li><a href="#cicd-ch3"      onclick="toggleTOC()">3. 적용한 방식</a></li>
+    <li><a href="#cicd-ch4"      onclick="toggleTOC()">4. 결과</a></li>
+    <li><a href="#cicd-summary"  onclick="toggleTOC()">핵심 정리</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>

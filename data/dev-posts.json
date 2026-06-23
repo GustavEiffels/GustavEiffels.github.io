@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-06-23",
+    "title": "GitHub Actions 기반 Self-hosted CI/CD 구축 — Indexing & WaterRide",
+    "file": "dev/IndexingWaterRide/cicd_github_actions_selfhosted_runner",
+    "category": "iwr"
+  },
+  {
     "date": "2026-06-22",
     "title": "설계 결정과 트레이드오프 회고 — Indexing & WaterRide",
     "file": "dev/IndexingWaterRide/architecture_design_tradeoffs",
