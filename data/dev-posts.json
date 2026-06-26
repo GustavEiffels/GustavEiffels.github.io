@@ -1,5 +1,17 @@
 [
   {
+    "date": "2026-06-26",
+    "title": "[코딩테스트] LeetCode 338 - Counting Bits (DP, Java)",
+    "file": "dev/algorithm/leetcode_338_countingbits",
+    "category": "algorithm"
+  },
+  {
+    "date": "2026-06-26",
+    "title": "[코딩테스트] LeetCode 1 - Two Sum (배열/해시맵, Java)",
+    "file": "dev/algorithm/leetcode_1_twosum",
+    "category": "algorithm"
+  },
+  {
     "date": "2026-06-23",
     "title": "GitHub Actions 기반 Self-hosted CI/CD 구축 — Indexing & WaterRide",
     "file": "dev/IndexingWaterRide/cicd_github_actions_selfhosted_runner",
