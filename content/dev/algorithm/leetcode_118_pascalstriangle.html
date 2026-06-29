@@ -1,0 +1,246 @@
+<!-- [2026-06-29] LeetCode 118 - Pascal's Triangle -->
+<style>
+  .pt-section-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+  }
+  .pt-section-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .pt-callout {
+    border-left: 4px solid var(--accent);
+    background: rgba(94, 129, 244, 0.05);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 16px 0;
+    font-size: 14px; white-space: pre-line;
+  }
+  .pt-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+  .pt-tag {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 3px 10px; border-radius: 6px; margin-right: 6px;
+  }
+  .pt-tag-green { background: rgba(47, 179, 68, 0.12); color: var(--green); }
+  .pt-tag-blue  { background: rgba(94, 129, 244, 0.12); color: var(--accent); }
+
+  .pt-kw  { color: #c792ea; }
+  .pt-num { color: #f78c6c; }
+</style>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════ -->
+<div class="card">
+  <div style="margin-bottom:8px;">
+    <span class="badge badge-tag">LeetCode · Easy · DP</span>
+  </div>
+  <h1 style="font-size:1.6rem; font-weight:800; margin-bottom:10px;">
+    Pascal's Triangle
+  </h1>
+  <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.7;">
+    결과를 손으로 나열해서 점화식을 찾아낸 뒤, 다시 한 줄짜리 배열로 압축해본 DP 풀이 과정
+  </p>
+  <div class="meta" style="margin-top: 14px; font-size: 12px; color: var(--text-muted);">
+    <span>언어: Java</span>
+    <span style="margin: 0 8px;">분류: 동적 계획법 (DP)</span>
+    <span>핵심 기법: row[i][j] = row[i-1][j-1] + row[i-1][j]</span>
+  </div>
+  <p style="margin-top: 10px;">
+    <a href="https://leetcode.com/problems/pascals-triangle/" target="_blank" rel="noopener" style="color: var(--accent); font-size: 13px; text-decoration: none;">
+      leetcode.com/problems/pascals-triangle
+    </a>
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CH 1. 풀이 회고
+══════════════════════════════════════════ -->
+<div class="pt-section-header" style="margin: 24px 0 16px;">
+  <span class="badge badge-tag">CH 1</span>
+  <h2 style="font-size:1.1rem; font-weight:800; color:#fff; margin:0;">풀이 회고</h2>
+</div>
+
+<!-- ══════════════════════════════════════════
+     1. 문제
+══════════════════════════════════════════ -->
+<div class="card" id="section-overview">
+  <div class="pt-section-header">
+    <div class="pt-section-number">1</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">문제</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    dynamic-programming 태그 목록을 풀다가 만난 문제다.
+  </p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    numRows가 주어지면 파스칼의 삼각형을 그 줄 수만큼 만들어서<br>
+    <code>List&lt;List&lt;Integer&gt;&gt;</code> 형태로 반환하면 된다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     2. 첫 접근 - 답을 직접 나열해봄
+══════════════════════════════════════════ -->
+<div class="card" id="section-enumerate">
+  <div class="pt-section-header">
+    <div class="pt-section-number">2</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">첫 접근 - 답을 직접 나열해봄</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    바로 코드를 짜기보다, 먼저 손으로 결과를 적어보면서 규칙을 찾으려고 했다.
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">손으로 적어본 규칙</span>
+    </div>
+    <pre><code>1
+1, 1
+1, 1+1, 1            -> 1, 2, 1
+1, 1+2, 2+1, 1       -> 1, 3, 3, 1
+1, 1+3, 3+3, 3+1, 1  -> 1, 4, 6, 4, 1</code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    적어보니 양 끝은 항상 1이고, 중간 값은 <span class="point">바로 이전 줄의 인접한 두 값을 더한 것</span>이라는 게 보였다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     3. 패턴 발견 - 점화식
+══════════════════════════════════════════ -->
+<div class="card" id="section-recurrence">
+  <div class="pt-section-header">
+    <div class="pt-section-number">3</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">패턴 발견 - 점화식</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    정리하면 다음과 같은 점화식이다.
+  </p>
+  <div class="pt-callout">
+    <strong>점화식</strong>
+    row[i][j] = row[i-1][j-1] + row[i-1][j]  (단, j가 양 끝이면 항상 1)
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    즉 이전 줄(<code>result.get(i-1)</code>)의 j-1번째와 j번째를 더하면 현재 줄의 j번째 값이 나온다.<br>
+    그래서 이전 결과를 그대로 재사용하는 DP 방식으로 풀 수 있다고 판단했다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     4. 최종 코드
+══════════════════════════════════════════ -->
+<div class="card" id="section-code">
+  <div class="pt-section-header">
+    <div class="pt-section-number">4</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">최종 코드</h2>
+  </div>
+  <p class="sub-title">기본 케이스 처리</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">PascalsTriangle.java</span>
+    </div>
+    <pre><code><span class="pt-kw">public</span> List&lt;List&lt;Integer&gt;&gt; generate(<span class="pt-kw">int</span> numRows) {
+    List&lt;List&lt;Integer&gt;&gt; result = <span class="pt-kw">new</span> ArrayList&lt;&gt;();
+    <span class="pt-kw">if</span> (numRows == <span class="pt-num">1</span>) {
+        result.add(Arrays.asList(<span class="pt-num">1</span>));
+        <span class="pt-kw">return</span> result;
+    }
+    <span class="pt-kw">if</span> (numRows == <span class="pt-num">2</span>) {
+        result.add(Arrays.asList(<span class="pt-num">1</span>));
+        result.add(Arrays.asList(<span class="pt-num">1</span>, <span class="pt-num">1</span>));
+        <span class="pt-kw">return</span> result;
+    }</code></pre>
+  </div>
+
+  <p class="sub-title">일반 케이스 - 점화식 적용</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">PascalsTriangle.java</span>
+    </div>
+    <pre><code>    result.add(Arrays.asList(<span class="pt-num">1</span>));
+    result.add(Arrays.asList(<span class="pt-num">1</span>, <span class="pt-num">1</span>));
+
+    <span class="pt-kw">for</span> (<span class="pt-kw">int</span> i = <span class="pt-num">2</span>; i &lt; numRows; i++) {
+        List&lt;Integer&gt; row = <span class="pt-kw">new</span> ArrayList&lt;&gt;();
+        row.add(<span class="pt-num">1</span>);
+        <span class="pt-kw">for</span> (<span class="pt-kw">int</span> j = <span class="pt-num">1</span>; j &lt; i; j++) {
+            row.add(result.get(i - <span class="pt-num">1</span>).get(j - <span class="pt-num">1</span>) + result.get(i - <span class="pt-num">1</span>).get(j));
+        }
+        row.add(<span class="pt-num">1</span>);
+        result.add(row);
+    }
+    <span class="pt-kw">return</span> result;
+}</code></pre>
+  </div>
+  <div class="pt-callout">
+    <strong>numRows==1 / numRows==2 분기는 왜 있나</strong>
+    루프 진입 전에 0번, 1번 줄을 무조건 미리 넣어두기 때문에, numRows가 1이나 2일 때 더 채워지면 안 되는 줄까지 들어가는 걸 막기 위한 예외 처리다.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CH 2. 더 짧게 만들기
+══════════════════════════════════════════ -->
+<div class="pt-section-header" style="margin: 24px 0 16px;">
+  <span class="badge badge-tag">CH 2</span>
+  <h2 style="font-size:1.1rem; font-weight:800; color:#fff; margin:0;">더 짧게 만들기</h2>
+</div>
+
+<!-- ══════════════════════════════════════════
+     5. in-place 재사용
+══════════════════════════════════════════ -->
+<div class="card" id="section-inplace">
+  <div class="pt-section-header">
+    <div class="pt-section-number">5</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">방법 - 배열 하나만 재사용 (in-place)</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    이전 줄을 별도로 저장하지 않고, row 하나를 계속 갈아 끼우면서<br>
+    앞에 1을 끼워넣고 왼쪽에서 오른쪽으로 더해나가는 방식이다. 같은 점화식, 다른 구현이다.
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">PascalsTriangle.java</span>
+    </div>
+    <pre><code><span class="pt-kw">public</span> List&lt;List&lt;Integer&gt;&gt; generate(<span class="pt-kw">int</span> numRows) {
+    List&lt;List&lt;Integer&gt;&gt; result = <span class="pt-kw">new</span> ArrayList&lt;&gt;();
+    List&lt;Integer&gt; row = <span class="pt-kw">new</span> ArrayList&lt;&gt;();
+    <span class="pt-kw">for</span> (<span class="pt-kw">int</span> i = <span class="pt-num">0</span>; i &lt; numRows; i++) {
+        row.add(<span class="pt-num">0</span>, <span class="pt-num">1</span>);
+        <span class="pt-kw">for</span> (<span class="pt-kw">int</span> j = <span class="pt-num">1</span>; j &lt; row.size() - <span class="pt-num">1</span>; j++) {
+            row.set(j, row.get(j) + row.get(j + <span class="pt-num">1</span>));
+        }
+        result.add(<span class="pt-kw">new</span> ArrayList&lt;&gt;(row));
+    }
+    <span class="pt-kw">return</span> result;
+}</code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    <code>row.get(j+1)</code>이 아직 갱신 전 값이라, 왼쪽부터 순서대로 덮어써도 안전하다.<br>
+    <code>result.get(i-1)</code>처럼 이전 줄을 따로 참조할 필요가 없어진다.
+  </p>
+  <span class="pt-tag pt-tag-green">O(n^2)</span>
+  <span class="pt-tag pt-tag-blue">In-place DP</span>
+</div>
+
+<!-- ══════════════════════════════════════════
+     6. Takeaway
+══════════════════════════════════════════ -->
+<div class="card" id="section-takeaway">
+  <div class="pt-section-header">
+    <div class="pt-section-number">6</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">Takeaway</h2>
+  </div>
+  <ul style="padding-left: 20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li>먼저 결과를 손으로 나열해서 규칙을 찾는 접근이 점화식 발견에 효과적이었다.</li>
+    <li>row[i][j] = row[i-1][j-1] + row[i-1][j], 양 끝은 항상 1.</li>
+    <li>기본 풀이는 result 리스트 전체를 쌓아가며 이전 줄을 참조하는 방식이다.</li>
+    <li>개선판은 row 하나만 재사용하는 in-place 갱신으로 코드를 줄였다.</li>
+  </ul>
+</div>
