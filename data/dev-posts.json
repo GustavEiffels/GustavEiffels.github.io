@@ -108,6 +108,12 @@
     "category": "record"
   },
   {
+    "date": "2026-04-24",
+    "title": "Stock Favorite List — 개인 주식 트래커 프로젝트 소개",
+    "file": "dev/StockFavoriteList/intro",
+    "category": "stockapp"
+  },
+  {
     "date": "2026-04-23",
     "title": "Spring Boot · SSE & ASYNC Dispatch - Spring Security 인가 심층 분석",
     "file": "dev/springboot_sse_async_security",

@@ -1,0 +1,241 @@
+<!-- [2026-04-24] Stock Favorite List — 개인 주식 트래커 프로젝트 소개 -->
+<style>
+/* ── TOC ── */
+.report-toc {
+  position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+  background: var(--surface); border-left: 1px solid var(--border);
+  padding: 40px 25px; z-index: 1001;
+  transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+}
+.report-toc.active { right: 0; }
+.report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.report-toc ul { list-style: none; padding: 0; margin: 0; }
+.report-toc li { margin-bottom: 12px; line-height: 1.4; }
+.report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+.report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+.toc-backdrop {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+  z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+}
+.toc-backdrop.active { display: block; opacity: 1; }
+.toc-toggle-btn {
+  position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+  background: var(--accent); color: #fff; border: none; border-radius: 50%;
+  font-size: 1.5rem; cursor: pointer; z-index: 1002;
+  box-shadow: 0 4px 15px var(--accent-glow);
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+}
+.toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); box-shadow: 0 6px 20px var(--accent-glow); }
+@media (max-width: 768px) {
+  .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+}
+
+/* ── Scoped Styles ── */
+.sfl-chapter-label { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.sfl-ch-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--accent); color: #fff; font-size: 11px;
+  font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 6px; flex-shrink: 0;
+}
+.sfl-sub-title { font-size: .95rem; font-weight: 700; color: var(--accent); margin: 22px 0 10px; padding-left: 10px; border-left: 3px solid var(--accent); }
+
+.sfl-callout {
+  border-left: 4px solid var(--accent);
+  background: rgba(94,129,244,0.05);
+  border-radius: 0 10px 10px 0;
+  padding: 14px 18px; margin: 16px 0; font-size: 14px;
+}
+.sfl-callout.warn { border-color: var(--yellow); background: rgba(245,158,11,0.05); }
+.sfl-callout.ok   { border-color: var(--green);  background: rgba(47,179,68,0.05); }
+.sfl-callout.bad  { border-color: var(--red);    background: rgba(214,57,57,0.05); }
+.sfl-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+.sfl-summary {
+  background: linear-gradient(135deg, rgba(94,129,244,0.08), rgba(47,179,68,0.08));
+  border: 1px solid rgba(94,129,244,0.25);
+  border-radius: 12px; padding: 24px 28px; margin-bottom: 24px;
+}
+.sfl-summary h3 { color: var(--green); font-size: 0.85rem; font-weight: 700; margin-bottom: 14px; letter-spacing: 1px; text-transform: uppercase; }
+.sfl-summary ul { padding-left: 0; list-style: none; }
+.sfl-summary ul li { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text); }
+.sfl-summary ul li:last-child { border-bottom: none; }
+.sfl-summary ul li::before { content: "→ "; color: var(--green); font-weight: 700; }
+</style>
+
+
+<h1>Stock Favorite List — 개인 주식 트래커 프로젝트 소개</h1>
+
+<div class="card" style="text-align:center; background: linear-gradient(135deg, var(--surface), var(--surface2));">
+  <span class="badge badge-tag">Side Project</span>
+  <span class="badge badge-tag">Spring Boot</span>
+  <span class="badge badge-tag">React</span>
+  <span class="badge badge-tag">WebSocket</span>
+  <span class="badge badge-tag">Telegram Bot</span>
+  <span class="badge badge-date">2026-02-26 ~ 2026-04-24</span>
+  <p style="margin-top:14px; color:var(--text-muted); font-size:14px;">
+    혼자 쓸 주식 즐겨찾기·평단가·알람 도구가 필요해서 시작한 1인 풀스택 프로젝트.
+    약 2개월 동안 기능을 추가할 때마다 작업 보고서를 남겼고, 여기서는 그 기록을 모아 무엇을 만들었는지 소개한다.
+  </p>
+</div>
+
+<div class="card">
+  <h2>기술 스택</h2>
+  <table>
+    <tr><th>영역</th><th>구성</th></tr>
+    <tr><td>Backend</td><td>Java 17, Spring Boot, Spring Data JPA, Querydsl, MySQL/PostgreSQL</td></tr>
+    <tr><td>Frontend</td><td>React, Vite, TailwindCSS, CSS Modules</td></tr>
+    <tr><td>실시간</td><td>WebSocket / STOMP, KIS 실시간 시세, Yahoo Finance 폴링 fallback</td></tr>
+    <tr><td>Bot</td><td>Telegram Bot API (Polling, 인라인 키보드)</td></tr>
+    <tr><td>배포</td><td>Backend+Frontend 단일 jar 통합 서빙, Docker Compose</td></tr>
+  </table>
+</div>
+
+
+<!-- Chapter 1 -->
+<div class="card" id="ch1">
+  <div class="sfl-chapter-label">
+    <span class="sfl-ch-badge">Chapter 1</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">즐겨찾기 & 평단가 관리</h2>
+  </div>
+
+  <p class="sfl-sub-title">드래그 앤 드롭 순서 변경 (2/26)</p>
+  <ul>
+    <li>드롭 시 프론트엔드 상태를 먼저 갱신(낙관적 UI)하고 500ms debounce 후 서버에 저장 — 매번 호출하지 않고 사용자가 정렬을 끝낸 시점에만 API를 호출</li>
+    <li>등락에 따라 종목 카드 테두리 색을 동적으로 표시</li>
+  </ul>
+
+  <p class="sfl-sub-title">평단가(Cost Price) 관리 — 2단계 확장</p>
+  <ul>
+    <li><strong>1차(2/26)</strong>: 종목당 최대 5개 평단가 등록, 현재가 대비 수익률 색상 표시</li>
+    <li><strong>2차(4/24)</strong>: <code>quantity</code>·<code>avgExchangeRate</code>·<code>brokerageFeePercent</code> 필드를 추가해 수량·환율·수수료까지 반영한 실질 손익으로 확장. 이를 위해 Yahoo USD/KRW 환율을 1분마다 폴링해 Caffeine 캐시에 적재하는 실시간 환율 도메인을 신설</li>
+  </ul>
+
+  <p class="sfl-sub-title">주식 메모(Comment)</p>
+  <ul>
+    <li>종목당 최대 5개, 평단가 기능과 동일한 4-Layer 아키텍처 패턴 재사용</li>
+    <li>메모 작성/수정 시 현재가·등락률을 본문에 자동 삽입 — 신규 작성은 맨 앞 prepend, append 편집은 경계에 삽입, 내용 수정 시 기존 태그 제거 후 새 태그로 교체(4/14)</li>
+  </ul>
+</div>
+
+
+<!-- Chapter 2 -->
+<div class="card" id="ch2">
+  <div class="sfl-chapter-label">
+    <span class="sfl-ch-badge">Chapter 2</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">실시간 알람 시스템</h2>
+  </div>
+
+  <p class="sfl-sub-title">최초 구현 (3/3)</p>
+  <p>기술적 지표(EMA, SMA, RSI) 또는 가격 조건을 기준으로 알림을 발송. 중첩 조건 최대 5개, 재알림 주기 설정, 차트 모달과 연동.</p>
+
+  <p class="sfl-sub-title">조건 강화 (3/24)</p>
+  <ul>
+    <li>전일 종가 대비 % 알람 조건 추가</li>
+    <li>알람이 작동할 마켓 세션(Pre-Market / 정규장 / After-Hours / 전체) 선택</li>
+    <li>텔레그램 ID 프로필 등록 UI/API</li>
+  </ul>
+
+  <p class="sfl-sub-title">구조 전환 — 브라우저 의존성 제거 (3/27)</p>
+  <p>
+    기존엔 브라우저(프론트엔드)에서만 알람 조건을 평가했기 때문에 브라우저를 닫으면 알람이 멈췄다.
+    이를 서버사이드 평가로 옮기고, 동시에 사용자별 KIS API 키를 등록받아 실시간 WebSocket 시세를 쓰고,
+    미등록 사용자는 Yahoo Finance 폴링으로 자동 fallback하는 구조로 전환했다.
+  </p>
+
+  <p class="sfl-sub-title">"조용히 실패"하던 버그 4가지 (3/27)</p>
+  <ul>
+    <li><code>AlarmPriceScheduler</code>가 STOMP 구독을 "이미 처리 중"으로 간주해 Yahoo 폴링을 스킵</li>
+    <li>STOMP disconnect 시 <code>subscriberCounts</code>가 정리되지 않아 유령 구독이 영구히 남음</li>
+    <li>스케줄러 스레드에서 <code>LazyInitializationException</code>이 발생했지만 조용히 삼켜짐</li>
+    <li><code>@Transactional</code> self-invocation — 같은 클래스 내부 호출이라 트랜잭션이 적용되지 않음</li>
+  </ul>
+  <div class="sfl-callout bad">
+    <strong>공통점</strong>
+    네 버그 모두 "겉으로는 정상 동작하는 것처럼 보이지만 조용히 실패"하는 유형이었다.
+    추측으로 고치지 않고 매번 재현 테스트를 먼저 작성해 원인을 확정한 뒤 수정했다.
+  </div>
+</div>
+
+
+<!-- Chapter 3 -->
+<div class="card" id="ch3">
+  <div class="sfl-chapter-label">
+    <span class="sfl-ch-badge">Chapter 3</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">차트 & 기술적 지표</h2>
+  </div>
+
+  <ul>
+    <li><strong>ChartLine(3/7)</strong> — 차트에 수평선/추세선을 그려서 서버에 저장·수정·삭제하는 기능을 풀스택으로 구현</li>
+    <li><strong>캔들 비교 & range 버그(3/8)</strong> — 여러 차트 인스턴스 간 캔들 등락률 비교 기능 추가, 초기 30개 캔들만 보여줘야 하는데 첫 진입 시에만 적용이 안 되던 race condition 수정</li>
+    <li><strong>조건 필터 & StochasticRSI(4/3)</strong> — 알람 조건 기준 캔들 마커 필터, %K/%D 보조 지표 추가, dayHigh/dayLow/openPrice를 활용해 실시간 캔들 OHLC 정확도 개선</li>
+  </ul>
+</div>
+
+
+<!-- Chapter 4 -->
+<div class="card" id="ch4">
+  <div class="sfl-chapter-label">
+    <span class="sfl-ch-badge">Chapter 4</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">텔레그램 봇 — 웹과 동등한 기능 이식</h2>
+  </div>
+
+  <ul>
+    <li><strong>알림 + 인라인 관리(3/26)</strong> — 알람 조건 충족 시 Telegram 발송, 인라인 키보드로 알람 조회/추가/수정/삭제(웹과 동일 옵션)</li>
+    <li><strong>지표 조회 + 가격 라벨(4/14)</strong> — 티커별 RSI/StochRSI/SMA·EMA(9개 기간)/다중 세션 가격을 한 번에 조회, 웹의 CostPrice 기능을 봇 플로우로 이식</li>
+  </ul>
+  <div class="sfl-callout ok">
+    <strong>설계 원칙</strong>
+    웹과 텔레그램 봇이 같은 Facade 레이어를 재사용하도록 설계해, 기능을 추가할 때마다
+    두 클라이언트의 로직이 갈라지지 않고 동일한 데이터 소스를 공유하게 했다.
+  </div>
+</div>
+
+
+<!-- Chapter 5 -->
+<div class="card" id="ch5">
+  <div class="sfl-chapter-label">
+    <span class="sfl-ch-badge">Chapter 5</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">인프라 & 배포</h2>
+  </div>
+  <ul>
+    <li>Backend + Frontend를 Docker/Nginx 없이 Spring Boot 단일 jar로 통합 서빙, 빌드/배포/종료 스크립트 제공(3/26)</li>
+    <li>로컬 PostgreSQL + Backend + Frontend를 한 번에 띄우고 종료하는 개발 환경 스크립트</li>
+    <li>Per-user KIS WebSocket(등록 사용자) / Yahoo 폴링(미등록 사용자) fallback 구조로 외부 API 의존도를 분산</li>
+  </ul>
+</div>
+
+
+<!-- Summary -->
+<div class="sfl-summary" id="summary">
+  <h3>한 줄 정리</h3>
+  <ul>
+    <li>약 2개월, 15개 기능 단위 작업, 매번 "왜 이렇게 했는가"를 기록으로 남김</li>
+    <li>평단가 기능은 단순 입력에서 환율·수수료까지 반영한 실질 손익 계산으로 점진 확장</li>
+    <li>알람은 프론트엔드 평가 → 서버사이드 평가로 구조 자체를 바꿔 브라우저 의존성을 제거</li>
+    <li>"조용히 실패"하는 버그(Lazy 로딩, self-invocation 트랜잭션, 유령 구독)는 재현 테스트로 원인을 확정한 뒤 고쳤다</li>
+    <li>웹과 텔레그램 봇이 같은 Facade를 공유해, 기능이 늘어도 로직이 두 갈래로 갈라지지 않게 했다</li>
+  </ul>
+</div>
+
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#ch1"    onclick="toggleTOC()">1. 즐겨찾기 & 평단가 관리</a></li>
+    <li><a href="#ch2"    onclick="toggleTOC()">2. 실시간 알람 시스템</a></li>
+    <li><a href="#ch3"    onclick="toggleTOC()">3. 차트 & 기술적 지표</a></li>
+    <li><a href="#ch4"    onclick="toggleTOC()">4. 텔레그램 봇</a></li>
+    <li><a href="#ch5"    onclick="toggleTOC()">5. 인프라 & 배포</a></li>
+    <li><a href="#summary" onclick="toggleTOC()">한 줄 정리</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>
