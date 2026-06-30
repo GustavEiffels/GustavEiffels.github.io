@@ -1,0 +1,771 @@
+<style>
+.tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-right: 6px; }
+.tag-stw  { background: #3d1a1a; color: var(--red); }
+.tag-key  { background: #1e2a4a; color: var(--accent); }
+.tag-warn { background: #3d2e10; color: var(--yellow); }
+
+.gc-flow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 14px 0; }
+.gc-flow-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-size: 13px; color: var(--text); }
+.gc-flow-arrow { color: var(--text-muted); font-size: 16px; }
+
+.jvm-sub { font-size: 1rem; font-weight: 700; color: var(--accent); margin: 22px 0 12px; border-left: 3px solid var(--accent); padding-left: 10px; }
+.jvm-sub:first-child { margin-top: 0; }
+
+.ch-wrap { display: flex; align-items: center; gap: 14px; margin: 52px 0 22px; padding-bottom: 12px; border-bottom: 2px solid var(--border); }
+.ch-wrap:first-of-type { margin-top: 0; }
+.ch-badge { display: inline-flex; align-items: center; background: var(--accent); color: #fff; font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; padding: 4px 12px; border-radius: 6px; }
+.ch-wrap h2 { font-size: 1.1rem; font-weight: 800; color: var(--text); }
+
+table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+th { background: var(--surface2); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); }
+td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text); vertical-align: top; }
+
+.quiz-q { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 16px; }
+.quiz-options { display: flex; flex-direction: column; gap: 9px; margin-bottom: 4px; }
+.quiz-btn {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 11px 16px; text-align: left;
+  color: var(--text); font-size: 14px; cursor: pointer; line-height: 1.5;
+  transition: background .15s, border-color .15s;
+}
+.quiz-btn:hover:not([disabled]) { border-color: var(--accent); background: #1e2240; }
+.quiz-btn.correct { background: #1a3020; border-color: var(--green); color: #7ee87e; font-weight: 700; }
+.quiz-btn.wrong   { background: #3d1a1a; border-color: var(--red);  color: #ff8888; }
+.quiz-explain {
+  background: #141e14; border-left: 3px solid var(--green);
+  border-radius: 0 8px 8px 0; padding: 12px 16px;
+  font-size: 14px; color: var(--text); margin-top: 14px; display: none;
+}
+.quiz-explain.show { display: block; }
+
+.report-toc {
+  position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+  background: var(--surface); border-left: 1px solid var(--border);
+  padding: 40px 25px; z-index: 1001;
+  transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+}
+.report-toc.active { right: 0; }
+.report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.report-toc ul { list-style: none; padding: 0; margin: 0; }
+.report-toc li { margin-bottom: 12px; line-height: 1.4; }
+.report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+.report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+.toc-backdrop {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+  z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+}
+.toc-backdrop.active { display: block; opacity: 1; }
+.toc-toggle-btn {
+  position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+  background: var(--accent); color: #fff; border: none; border-radius: 50%;
+  font-size: 1.5rem; cursor: pointer; z-index: 1002;
+  box-shadow: 0 4px 15px rgba(94,129,244,0.4);
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+}
+.toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); }
+@media (max-width: 768px) {
+  .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+  table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .ch-wrap { margin: 32px 0 14px; }
+  .gc-flow-item { font-size: 12px; padding: 6px 10px; }
+  .quiz-btn { font-size: 13px; padding: 9px 12px; }
+  .quiz-q { font-size: 0.95rem; }
+}
+</style>
+
+<!-- Header -->
+<div style="margin-bottom: 28px;">
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom: 14px;">
+    <span class="badge badge-tag">Java</span>
+    <span class="badge badge-tag">JVM</span>
+    <span class="badge badge-tag">GC</span>
+    <span class="badge badge-date">2026-06-30</span>
+  </div>
+  <h1 style="font-size:1.8rem; font-weight:800; color:#fff; margin-bottom:10px;">
+    JVM 메모리 / GC 기초
+  </h1>
+  <p style="color:var(--text-muted); font-size:14px;">
+    메모리 구조 + 가비지 컬렉션 동작 원리 + GC 종류별 비교 (Serial · Parallel · G1 · ZGC)
+  </p>
+</div>
+
+<!-- Ch 1 -->
+<div class="ch-wrap" id="ch1">
+  <span class="ch-badge">Ch 1</span>
+  <h2>JVM 메모리 구조</h2>
+</div>
+
+<div class="card" id="sec-memory">
+  <div class="jvm-sub">1. Method Area (Metaspace)</div>
+  <ul>
+    <li>클래스 정보(메서드, 필드, 상수풀), <code>static</code> 변수가 저장되는 곳</li>
+    <li>클래스 로더가 클래스를 읽어들일 때 여기에 적재됨</li>
+    <li>Java 8부터 PermGen이 사라지고 <strong>Metaspace</strong>로 대체됨 — 네이티브 메모리 사용, OS 메모리 한도까지 확장 가능</li>
+  </ul>
+
+  <div class="jvm-sub">2. Heap</div>
+  <ul>
+    <li><code>new</code>로 생성한 객체가 실제로 저장되는 공간</li>
+    <li>모든 스레드가 공유</li>
+    <li><strong>GC가 관리하는 핵심 대상</strong> — Stack과 달리 자동 해제되지 않으므로</li>
+  </ul>
+
+  <div class="jvm-sub">3. Stack</div>
+  <ul>
+    <li>스레드마다 1개씩 생성 (스레드 개별 소유, 공유 안 됨)</li>
+    <li>메서드 호출 시 스택 프레임이 쌓임 — 지역변수, 매개변수, 연산 중간값 저장</li>
+    <li>메서드 종료 시 프레임 pop으로 자동 해제 (GC 대상 아님)</li>
+  </ul>
+
+  <div class="jvm-sub">4. PC Register</div>
+  <ul>
+    <li>스레드마다 하나씩 존재, 현재 실행 중인 명령어 주소를 가리킴</li>
+  </ul>
+
+  <div class="jvm-sub">5. Native Method Stack</div>
+  <ul>
+    <li>Java가 아닌 네이티브 코드(C/C++) 호출 시 사용하는 스택</li>
+  </ul>
+
+  <blockquote>
+    <strong>핵심 정리</strong><br>
+    GC가 실제로 관리하는 영역은 <strong>Heap 하나뿐</strong>이다. Stack의 지역변수는 메서드 종료 시 자동으로 사라지므로 GC 대상이 아니다.
+  </blockquote>
+</div>
+
+<!-- Ch 2 -->
+<div class="ch-wrap" id="ch2">
+  <span class="ch-badge">Ch 2</span>
+  <h2>GC (가비지 컬렉션)</h2>
+</div>
+
+<div class="card" id="heap-internal">
+  <h3 style="font-size:1rem; font-weight:700; margin-bottom:14px;">Heap 내부 구조 — Young / Old Generation (공통 기초 개념)</h3>
+  <p>Heap은 <strong>세대(Generation)</strong> 별로 나뉘어 있다. "대부분의 객체는 생성된 직후 금방 죽는다(weak generational hypothesis)"는 경험칙 때문 — 오래 살아남는 객체와 금방 죽는 객체를 같은 방식으로 검사하면 비효율적이라 영역을 나눠서 관리한다.</p>
+  <p>Young/Old 개념은 G1만의 것이 아니라 <strong>Serial GC 시절부터 내려온 HotSpot의 공통 모델</strong>이며, GC 종류마다 이를 물리적으로 구현하는 방식만 다르다.</p>
+  <table>
+    <thead><tr><th>영역</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Eden</strong></td><td>새로 생성된 객체가 최초로 할당되는 영역</td></tr>
+      <tr><td><strong>Survivor (S0, S1)</strong></td><td>Eden에서 살아남은 객체가 옮겨지는 곳. 둘 중 하나는 항상 비어 있고, GC 때마다 살아남은 객체가 한쪽 Survivor로 모이고 역할이 서로 교대됨</td></tr>
+      <tr><td><strong>Old Generation</strong></td><td>Young에서 일정 횟수(age threshold) 이상 살아남은 객체가 승격(promotion)되는 곳. 검사 빈도가 낮음</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card" id="gc-target">
+  <h3 style="font-size:1rem; font-weight:700; margin-bottom:14px;">GC 수거 대상 기준</h3>
+  <p>수거 대상 기준은 하나다 — <strong>GC Root에서 도달 불가능(unreachable)한 객체</strong>.</p>
+
+  <div class="jvm-sub">GC Root란?</div>
+  <p>Mark 단계의 시작점. 아래 항목들이 GC Root에 해당한다.</p>
+  <ul>
+    <li>Stack의 지역변수 (현재 실행 중인 메서드의 변수)</li>
+    <li>Method Area의 static 변수</li>
+    <li>JNI(Native) 참조</li>
+    <li>실행 중인 스레드 자체</li>
+  </ul>
+  <p>GC Root에서 출발해 참조를 따라갈 수 있는 객체 = reachable = 살아있는 객체. 어떤 경로로도 닿지 않는 객체 = unreachable = 수거 대상.</p>
+
+  <div class="jvm-sub">Java는 참조 카운팅 방식이 아니다</div>
+  <p>"이 객체를 가리키는 참조가 0개면 수거"하는 방식(Python 등)을 쓰지 않는다. 이유는 순환 참조 문제 때문이다.</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">순환 참조 문제</span>
+    </div>
+    <pre><code>A -> B
+B -> A  (서로 참조)
+
+두 객체 모두 GC Root에서 닿지 않아도
+참조 카운트는 각각 1 -> 참조 카운팅 방식으로는 영원히 수거 못 함</code></pre>
+  </div>
+  <p>Java는 GC Root에서의 도달 가능성으로 판단하므로, 순환 참조여도 GC Root에서 닿지 않으면 둘 다 수거한다.</p>
+
+  <div class="jvm-sub">참조가 끊기는 대표 케이스</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">참조 해제 예시</span>
+    </div>
+    <pre><code>void method() {
+    Object obj = new Object();  // GC Root(Stack 지역변수)에서 참조
+    obj = null;                 // 참조 끊김 -> 다음 GC 때 수거 대상
+}                               // 메서드 종료 -> 지역변수 사라짐 -> 수거 대상</code></pre>
+  </div>
+
+  <div class="jvm-sub">참조 종류에 따른 수거 시점 차이</div>
+  <table>
+    <thead><tr><th>참조 종류</th><th>선언 방식</th><th>수거 시점</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Strong Reference</strong></td><td><code>Object obj = new Object()</code></td><td>GC Root에서 닿는 한 절대 수거 안 됨 (일반적인 참조)</td></tr>
+      <tr><td><strong>Soft Reference</strong></td><td><code>new SoftReference&lt;&gt;(obj)</code></td><td>메모리 부족 시 수거. 캐시 구현에 활용</td></tr>
+      <tr><td><strong>Weak Reference</strong></td><td><code>new WeakReference&lt;&gt;(obj)</code></td><td>다음 GC 때 무조건 수거. WeakHashMap에서 사용</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card" id="gc-behavior">
+  <h3 style="font-size:1rem; font-weight:700; margin-bottom:14px;">GC 동작 방식</h3>
+  <ul>
+    <li><span class="tag tag-stw">STW</span> <strong>Minor GC</strong>: Young Generation(Eden+Survivor)만 청소. 자주 일어나지만 대상 영역이 작아서 빠름. Minor GC도 STW다 — 대상 영역이 작아 짧을 뿐, 그 순간 모든 애플리케이션 스레드는 멈춤</li>
+    <li><span class="tag tag-stw">STW</span> <strong>Major GC / Full GC</strong>: Old Generation까지 포함해서 청소. 대상 영역이 크고 빈도는 낮지만 STW가 훨씬 오래 걸림</li>
+    <li><strong>Stop-the-world(STW)</strong>: GC가 동작하는 동안 GC 스레드를 제외한 모든 애플리케이션 스레드가 멈춤. 객체 그래프가 GC 도중 바뀌면 안 되기 때문에 발생</li>
+  </ul>
+  <blockquote>
+    <strong>핵심</strong>: G1/ZGC가 concurrent 방식으로 일부 단계(marking 등)의 STW를 없앤 것이지, GC 자체가 STW 없이 동작하는 건 아니다. GC 튜닝의 핵심 목표는 결국 "STW 시간을 얼마나 줄이느냐"
+  </blockquote>
+</div>
+
+<div class="card" id="stw-trigger">
+  <h3 style="font-size:1rem; font-weight:700; margin-bottom:14px;">STW 발생 기준</h3>
+  <div class="gc-flow">
+    <div class="gc-flow-item">Eden 꽉 참</div>
+    <div class="gc-flow-arrow">&gt;&gt;</div>
+    <div class="gc-flow-item">Old Gen 가득</div>
+    <div class="gc-flow-arrow">&gt;</div>
+    <div class="gc-flow-item">Promotion Failure</div>
+    <div class="gc-flow-arrow">/</div>
+    <div class="gc-flow-item">Evacuation Failure</div>
+    <div class="gc-flow-arrow">&gt;</div>
+    <div class="gc-flow-item">System.gc()</div>
+  </div>
+  <ul>
+    <li><span class="tag tag-key">빈번</span> <strong>Eden 꽉 참 → Minor GC</strong>: 가장 흔한 케이스. 객체 생성 속도(allocation rate)에 따라 빈도가 결정됨</li>
+    <li><span class="tag tag-stw">STW 김</span> <strong>Old Gen 임계치 초과 → Full GC</strong>: Minor GC보다 훨씬 드물지만 STW가 훨씬 길어 실질적 영향이 큼</li>
+    <li><strong>Promotion Failure</strong>: Minor GC 중 Young→Old 승격할 공간이 Old Gen에 없으면 Minor GC가 Full GC로 격상</li>
+    <li><strong>Metaspace 가득 참</strong>: 클래스 로딩이 과도하게 발생해 Metaspace가 꽉 차면 Full GC 유발 가능</li>
+    <li><strong>System.gc() 명시 호출</strong>: 코드에서 직접 GC 요청. JVM이 반드시 따를 의무는 없지만 대부분 Full GC 실행</li>
+    <li><span class="tag tag-warn">G1 주의</span> <strong>Evacuation Failure</strong>: concurrent 진행 중 살아있는 객체를 옮길 빈 Region이 없으면 STW Full GC로 fallback — G1 환경에서 갑작스러운 Full GC의 주요 원인</li>
+  </ul>
+  <blockquote>
+    <strong>튜닝 방향</strong>: "Minor GC를 줄이려면 Eden을 키워라" / "Full GC를 줄이려면 Old Gen이 차는 속도를 늦춰라"
+  </blockquote>
+</div>
+
+<div class="card" id="gc-algo">
+  <h3 style="font-size:1rem; font-weight:700; margin-bottom:14px;">GC 알고리즘 기본기</h3>
+  <p>Mark 단계는 GC Root에서 출발해 reachable 객체를 표시하는 것이다. Mark 안 된 객체(unreachable)가 아래 단계의 처리 대상이 된다.</p>
+  <table>
+    <thead><tr><th>단계</th><th>설명</th><th>주로 사용</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Mark</strong></td><td>살아있는(reachable) 객체를 GC Root부터 따라가며 표시</td><td>전체 공통</td></tr>
+      <tr><td><strong>Sweep</strong></td><td>Mark 안 된(unreachable) 객체를 메모리에서 제거</td><td>Old Generation</td></tr>
+      <tr><td><strong>Compact</strong></td><td>Sweep 후 남은 객체들을 메모리 한쪽으로 모아 단편화(fragmentation) 방지</td><td>Old Generation</td></tr>
+      <tr><td><strong>Copying</strong></td><td>살아있는 객체를 다른 영역(Eden→Survivor)으로 복사하고 기존 영역은 통째로 비움. 살아남는 객체가 적을 때 효율적</td><td>Young Generation</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card" id="gc-types">
+  <h3 style="font-size:1rem; font-weight:700; margin-bottom:14px;">GC 종류</h3>
+
+  <div class="jvm-sub">Serial GC</div>
+  <ul>
+    <li>가장 단순한 형태 — Minor GC, Major GC 모두 <strong>단일 스레드</strong>로 수행</li>
+    <li>Young(Eden + Survivor)은 Copying, Old는 Mark-Sweep-Compact 알고리즘 사용</li>
+    <li>GC 도중 애플리케이션 스레드는 전부 멈춤(STW) — 힙이 크면 STW 시간이 그만큼 길어짐</li>
+    <li>실제 사용 환경: 임베디드 JVM, 단일 CPU 환경, CLI 도구. 현대 서버 애플리케이션에서는 거의 사용하지 않음</li>
+    <li>옵션: <code>-XX:+UseSerialGC</code></li>
+  </ul>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Serial GC 동작</span>
+    </div>
+    <pre><code>[Minor GC - Eden full]
+  App thread 1  |---STOPPED---|
+  App thread 2  |---STOPPED---|
+  GC thread 1   |mark->copy->sweep| (혼자 전부 처리)
+  App threads   |resumed|
+
+[Major GC - Old Gen full]
+  App thread 1  |----------STOPPED----------|
+  App thread 2  |----------STOPPED----------|
+  GC thread 1   |mark->sweep->compact| (혼자 전부 처리, 더 오래 걸림)
+  App threads   |resumed|</code></pre>
+  </div>
+  <ul>
+    <li>멀티코어 CPU를 전혀 활용하지 못함 — 코어가 몇 개든 GC는 스레드 1개만 동작</li>
+    <li>힙이 클수록 STW 시간이 무제한으로 길어짐, 제어 불가</li>
+    <li>수백 MB 이하 소형 힙 환경에서만 선택할 것</li>
+  </ul>
+
+  <div class="jvm-sub">Parallel GC</div>
+  <ul>
+    <li>Heap 구조와 알고리즘은 Serial GC와 동일 — 차이는 <strong>여러 스레드로 GC를 병렬 수행</strong>한다는 점뿐</li>
+    <li>목표는 지연시간이 아니라 <strong>처리량(throughput)</strong> 최대화. Java 8 기본값</li>
+    <li><code>-XX:MaxGCPauseMillis</code>, <code>-XX:GCTimeRatio</code>로 처리량 vs 지연시간 조정 가능</li>
+    <li>실제 사용 환경: 배치 서버, Spark/Hadoop 데이터 파이프라인, Java 8 기반 레거시 서버</li>
+    <li>옵션: <code>-XX:+UseParallelGC</code></li>
+  </ul>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Parallel GC 동작</span>
+    </div>
+    <pre><code>[Minor GC - Eden full]
+  App thread 1  |---STOPPED---|
+  App thread 2  |---STOPPED---|
+  GC thread 1   |mark+copy: 힙 1/4|  -+
+  GC thread 2   |mark+copy: 힙 2/4|   | 병렬 수행
+  GC thread 3   |mark+copy: 힙 3/4|   |
+  GC thread 4   |mark+copy: 힙 4/4|  -+
+  App threads   |resumed|
+  -> Serial 대비 STW 시간이 짧아짐 (GC 스레드 수만큼 단축)</code></pre>
+  </div>
+  <ul>
+    <li>STW 자체는 힙 전체 대상 — Full GC 시 힙이 클수록 pause가 수 초에 달할 수 있음</li>
+    <li>pause 시간을 예측하거나 제어할 수 없음 (G1처럼 목표치 설정 없음)</li>
+    <li>저지연이 필요한 API 서버에는 부적합. 배치/데이터 파이프라인처럼 처리량 우선 환경에서만 사용</li>
+  </ul>
+
+  <div class="jvm-sub">G1 GC (Garbage First)</div>
+  <ul>
+    <li>Java 9+ 기본 GC. <strong>Region 기반 구조</strong> — Heap을 동일 크기의 작은 Region(보통 1~32MB, 총 2048개 내외)으로 쪼개고, 각 Region에 Eden/Survivor/Old/Humongous 역할을 동적으로 부여. Region 하나는 반드시 하나의 역할만 담당</li>
+    <li>"Garbage First" — 쓰레기가 가장 많은 Region부터 골라서 회수 → 같은 노력으로 가장 많은 메모리 확보</li>
+    <li><strong>Concurrent Marking</strong>: Old Region의 쓰레기 비율을 애플리케이션을 멈추지 않고 백그라운드에서 계산</li>
+    <li><strong>Evacuation</strong>: 선택된 Region의 live 객체를 새 Region으로 복사 — 기존 Region은 통째로 Free Region이 됨</li>
+    <li><strong>Mixed GC</strong>: Young Region + 쓰레기 많은 Old Region을 함께 청소</li>
+    <li><code>-XX:MaxGCPauseMillis=200</code>: G1이 목표 안에 맞게 처리할 Region 개수를 스스로 조절. <strong>예측 가능한 것</strong>이 핵심</li>
+    <li>Evacuation Failure 시 Full GC로 fallback</li>
+    <li>실제 사용 환경: Spring Boot API 서버, 현대 Java 웹 서비스. 힙 4GB 이상에서 유리</li>
+  </ul>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">G1 GC 동작</span>
+    </div>
+    <pre><code>[백그라운드 - STW 없음]
+  App threads   |running|
+  GC thread     |concurrent marking: Region별 쓰레기 비율 계산|
+
+[Young GC (Evacuation pause) - STW]
+  App threads   |--STOPPED--|
+  GC threads    |live 객체를 선택된 Young Region -> 새 Region으로 복사|
+  App threads   |resumed|
+
+[Mixed GC (Evacuation pause) - STW]
+  App threads   |--STOPPED--|
+  GC threads    |Young Region + 쓰레기 많은 Old Region 선택해서 복사|
+  App threads   |resumed|
+  -> pause 시간 목표 안에 맞게 Region 수를 자동 조절, 나머지는 다음으로 미룸</code></pre>
+  </div>
+
+  <div class="jvm-sub">G1 GC 작동 주기 순서</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">G1 GC 주기</span>
+    </div>
+    <pre><code>[1] Young GC (반복)
+    Eden Region 가득 참
+    STW: Eden + Survivor Region에서 live 객체 복사
+    - age 낮은 객체 -> 새 Survivor Region
+    - age >= threshold -> Old Region (승격)
+    - 기존 Eden/Survivor Region -> Free Region
+
+[2] Concurrent Marking 시작
+    Old Region 점유율이 IHOP(기본 45%) 초과 시
+
+    a. Initial Mark   (STW, 짧음)  : Old GC Root 표시. Young GC에 piggybacked
+    b. Root Scanning  (concurrent) : Survivor -> Old 참조 스캔
+    c. Marking        (concurrent) : 전체 Heap live 객체 표시
+    d. Remark         (STW)        : 마킹 마무리. concurrent 중 변경된 참조 처리
+    e. Cleanup        (STW+con)    : 빈 Region 즉시 회수, Region별 쓰레기 비율 계산
+
+[3] Mixed GC (반복)
+    쓰레기 많은 Old Region 선정 후 Young + Old Region 함께 Evacuation
+    MaxGCPauseMillis 목표 안에 맞게 Region 수 자동 조절
+    여러 번 반복하며 Old Region 점진적으로 정리
+
+[4] Full GC (Fallback - 피해야 함)
+    Evacuation 중 빈 Region이 없을 때 발생
+    전체 Heap 대상 Mark-Sweep-Compact (STW, 매우 오래 걸림)</code></pre>
+  </div>
+
+  <div class="jvm-sub">객체 입장에서 G1 GC 처리 순서</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">객체 생명 주기 (G1)</span>
+    </div>
+    <pre><code>[1] 생성
+    new Object() -> Eden Region에 할당
+
+[2] Young GC 발생 (Eden 가득 참, STW)
+    죽은 객체: Eden Region 통째로 버려짐 (Free Region으로 전환)
+    살아있는 객체: Survivor Region으로 복사, age = 1
+
+[3] Survivor에서 반복 생존
+    Young GC 때마다 다른 Survivor Region으로 복사, age 증가
+    age < threshold(기본 15): 계속 Survivor
+    age >= threshold: Old Region으로 승격(Promotion)
+
+[4] Old Region 안착
+    Young GC 대상에서 제외됨
+    Concurrent Marking이 백그라운드에서 live/dead 판별
+
+[5] Old Region에서 죽음 (GC Root 도달 불가 판정)
+    Concurrent Marking에서 unreachable로 표시
+    Mixed GC 때 해당 Region 선택 -> live 객체만 새 Region으로 복사
+    기존 Old Region -> Free Region으로 반환
+
+[예외] Humongous 객체 (Region 크기의 50% 이상)
+    Eden/Survivor 건너뛰고 바로 연속된 Old Region에 직접 할당
+    Concurrent Marking에서 unreachable 확인 즉시 회수</code></pre>
+  </div>
+
+  <div class="jvm-sub">G1 GC — 단점 및 고려사항</div>
+  <ul>
+    <li><strong>Concurrent Marking이 CPU를 나눠 씀</strong> — 백그라운드에서 계속 돌기 때문에 Parallel GC 대비 처리량(throughput)이 낮을 수 있음</li>
+    <li><strong>힙이 작으면 오히려 역효과</strong> — Region 관리 오버헤드로 수백 MB 소형 힙에서는 Serial/Parallel이 더 나음</li>
+    <li><strong>Evacuation Failure 시 Full GC fallback</strong> — 예방 못 하면 갑자기 수 초짜리 STW 발생. 힙을 여유 있게 설정해야 함</li>
+    <li>튜닝 파라미터가 많아(IHOP, MaxGCPauseMillis 등) 잘못 건드리면 오히려 성능 저하</li>
+  </ul>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Evacuation Failure</span>
+    </div>
+    <pre><code>// Evacuation Failure 발생 조건
+Evacuation = 선택된 Region의 live 객체를 빈 Region으로 복사
+복사 진행 중 Free Region이 바닥남
+-> G1 포기 선언 -> Full GC fallback (전체 힙 STW)
+
+// 주요 원인
+Old Generation에 객체 쌓이는 속도 > Mixed GC 처리 속도
+Allocation rate가 너무 빠를 때 / 힙 여유 공간 자체가 부족할 때
+
+// 예방법
+-Xmx를 실제 사용량의 130~150% 수준으로 여유 있게 설정
+IHOP 값을 낮춰 Concurrent Marking을 더 일찍 시작</code></pre>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Humongous 객체 단편화</span>
+    </div>
+    <pre><code>Region 크기 = 4MB, Humongous 객체 = 3MB
+[Eden][Old][Free][Old][Free][Eden][Free]
+Free Region 3개지만 연속으로 붙어있지 않음
+-> 연속 공간 없음 -> 할당 실패 -> GC 강제 발생
+
+// 내부 낭비
+Region 크기 = 4MB, Humongous 객체 = 2.1MB
+-> 4MB Region 전체를 2.1MB 객체 하나가 독점
+-> 나머지 1.9MB는 다른 객체 사용 불가 (낭비)</code></pre>
+  </div>
+
+  <div class="jvm-sub">ZGC</div>
+  <ul>
+    <li>수십~수백 GB, TB급 힙에서도 <strong>STW를 1ms 미만</strong>으로 유지하는 게 목표 (힙 크기에 비례하지 않음)</li>
+    <li>Region 기반이지만 Region 크기가 가변적(ZPage)</li>
+    <li>Marking, Relocation, Reference 업데이트까지 거의 전부 <strong>애플리케이션과 동시에(concurrent)</strong> 수행</li>
+    <li><strong>Colored Pointer</strong>: 객체 참조(포인터) 자체에 별도 비트를 심어서, 객체 이동 여부/marking 상태를 포인터만 보고 파악</li>
+    <li><strong>Load Barrier</strong>: 애플리케이션이 참조를 읽을 때마다 실행되는 짧은 코드 — 객체가 GC 도중 이동했어도 즉시 새 위치로 포인터를 고쳐줌</li>
+    <li>STW는 root 스캔처럼 아주 짧은 동기화 지점에만 발생</li>
+    <li>JDK 21부터 Young/Old를 나누는 generational 모드를 지원해 처리량까지 개선됨</li>
+    <li>실제 사용 환경: 금융 거래 시스템(수 ms 응답 SLA), 실시간 광고 입찰(RTB), 대용량 인메모리 캐시(수백 GB 힙)</li>
+  </ul>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">ZGC 동작</span>
+    </div>
+    <pre><code>[대부분 concurrent - STW 거의 없음]
+  App threads   |running ------------------------------------>|
+  GC threads    |concurrent mark|concurrent relocate|ref upd.|
+                 colored pointer + load barrier로 포인터 실시간 보정
+
+[STW는 root 스캔 구간만 - 수 ms]
+  App threads   |STOP|resumed|         |STOP|resumed|
+  GC threads        |root scan|             |root scan|
+  -> 힙 크기(수백 GB)와 무관하게 pause 시간이 일정하게 유지됨</code></pre>
+  </div>
+  <ul>
+    <li><strong>Load Barrier 비용</strong> — 모든 참조 읽기마다 barrier 코드가 실행되므로 참조를 많이 읽는 코드에서 CPU 오버헤드 발생</li>
+    <li><strong>Java 15 이상 필요</strong> — 이전 버전에서는 experimental 상태</li>
+    <li><strong>JDK 21 이전까지 Generational 미지원</strong> — 단명 객체가 많은 앱에서 처리량 불리. Java 21+ 사용 시 Generational ZGC 권장</li>
+    <li>실전 운영 사례가 G1보다 적어 튜닝 레퍼런스/노하우 부족</li>
+  </ul>
+</div>
+
+<div class="card" id="gc-options">
+  <h3 style="font-size:1rem; font-weight:700; margin-bottom:14px;">실무 옵션</h3>
+  <table>
+    <thead><tr><th>옵션</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td><code>-Xms</code> / <code>-Xmx</code></td><td>힙 초기/최대 크기. 보통 둘을 같게 줘서 힙 리사이징 비용을 없앰</td></tr>
+      <tr><td><code>-XX:MaxGCPauseMillis</code></td><td>G1 GC의 목표 pause 시간 (ms). G1이 이 안에 맞게 Region 수를 조절</td></tr>
+      <tr><td><code>-Xlog:gc*</code></td><td>GC 로그 출력. Minor/Major GC 빈도와 STW 시간 확인 — 튜닝의 출발점</td></tr>
+      <tr><td><code>-XX:+UseSerialGC</code></td><td>Serial GC 강제 지정</td></tr>
+      <tr><td><code>-XX:+UseParallelGC</code></td><td>Parallel GC 강제 지정</td></tr>
+      <tr><td><code>-XX:+UseZGC</code></td><td>ZGC 사용 (Java 15+부터 Production Ready)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Ch 3 -->
+<div class="ch-wrap" id="ch3">
+  <span class="ch-badge">Ch 3</span>
+  <h2>확인 문제</h2>
+</div>
+
+<div class="card">
+  <p class="quiz-q">Q1. JVM 메모리 구조 중 GC가 관리하는 영역은?</p>
+  <div class="quiz-options">
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex1')">(1) Stack</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex1')">(2) Method Area / Metaspace</button>
+    <button class="quiz-btn" data-correct="true" onclick="jvmQ(this,true,'ex1')">(3) Heap</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex1')">(4) PC Register</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex1')">(5) Native Method Stack</button>
+  </div>
+  <div class="quiz-explain" id="ex1">Stack은 메서드 종료 시 자동 pop 해제, Method Area는 클래스 로더가 관리한다. Heap에 할당된 객체만 명시적 해제 주체가 없어 GC가 담당한다.</div>
+</div>
+
+<div class="card">
+  <p class="quiz-q">Q2. Minor GC와 STW의 관계로 올바른 것은?</p>
+  <div class="quiz-options">
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex2')">(1) Minor GC는 STW 없이 백그라운드 스레드가 처리한다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex2')">(2) Minor GC는 Old Gen을 멈추지 않으므로 STW가 없다</button>
+    <button class="quiz-btn" data-correct="true" onclick="jvmQ(this,true,'ex2')">(3) Minor GC도 STW가 발생하지만 Young Gen만 대상이라 짧다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex2')">(4) STW 여부는 Serial/Parallel/G1 등 GC 구현체에 따라 다르다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex2')">(5) Minor GC는 Full GC와 달리 애플리케이션과 동시 실행된다</button>
+  </div>
+  <div class="quiz-explain" id="ex2">Minor GC도 STW는 반드시 발생한다. Young Generation만 대상이라 멈추는 시간이 짧을 뿐이다. "Minor GC = STW 없음"은 흔한 오해다.</div>
+</div>
+
+<div class="card">
+  <p class="quiz-q">Q3. Java GC가 참조 카운팅 방식을 채택하지 않는 이유는?</p>
+  <div class="quiz-options">
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex3')">(1) 카운팅 연산이 너무 느려 JVM 성능에 불리하다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex3')">(2) 멀티스레드 환경에서 카운터 동기화 비용이 너무 크다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex3')">(3) JVM 스펙에서 참조 카운팅을 명시적으로 금지한다</button>
+    <button class="quiz-btn" data-correct="true" onclick="jvmQ(this,true,'ex3')">(4) 순환 참조 시 카운트가 0이 되지 않아 메모리 누수가 발생한다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex3')">(5) Weak Reference와 함께 사용 시 충돌이 발생한다</button>
+  </div>
+  <div class="quiz-explain" id="ex3">A→B, B→A 순환 참조 시 GC Root에서 도달 불가해도 카운트가 0이 되지 않아 영원히 수거 못 한다. Java는 GC Root 도달 가능성(reachability)으로 판단해 순환 참조도 수거한다.</div>
+</div>
+
+<div class="card">
+  <p class="quiz-q">Q4. Serial GC vs Parallel GC — 핵심 차이는?</p>
+  <div class="quiz-options">
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex4')">(1) Heap을 Young/Old로 구분하는 방식이 다르다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex4')">(2) GC 알고리즘(Mark-Sweep-Compact)이 근본적으로 다르다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex4')">(3) Parallel GC는 Old Gen에 STW가 발생하지 않는다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex4')">(4) STW 발생 빈도가 다르다 — Parallel이 더 자주 발생한다</button>
+    <button class="quiz-btn" data-correct="true" onclick="jvmQ(this,true,'ex4')">(5) GC 스레드 수만 다르고 Heap 구조와 알고리즘은 동일하다</button>
+  </div>
+  <div class="quiz-explain" id="ex4">Serial은 단일 스레드, Parallel은 멀티스레드로 GC 작업을 처리한다. Heap 구조(Eden/S0/S1/Old)와 알고리즘(Copying + Mark-Sweep-Compact)은 동일하다.</div>
+</div>
+
+<div class="card">
+  <p class="quiz-q">Q5. G1 GC에서 MaxGCPauseMillis 옵션의 역할은?</p>
+  <div class="quiz-options">
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex5')">(1) GC 스레드의 최대 CPU 점유 시간을 ms 단위로 제한한다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex5')">(2) Full GC의 최대 허용 시간을 설정한다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex5')">(3) GC 실행 주기(interval)를 ms 단위로 설정한다</button>
+    <button class="quiz-btn" data-correct="true" onclick="jvmQ(this,true,'ex5')">(4) STW 목표 시간 — 달성을 위해 처리할 Region 수를 동적으로 조절한다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex5')">(5) Minor GC와 Major GC 사이 최소 간격을 제어한다</button>
+  </div>
+  <div class="quiz-explain" id="ex5">G1은 목표 pause 시간 내에 처리할 Region 수를 스스로 결정한다. 처리 못 한 Region은 다음 Mixed GC로 미룬다. "빠른" GC가 아니라 "예측 가능한" GC가 목표다.</div>
+</div>
+
+<div class="card">
+  <p class="quiz-q">Q6. G1 GC에서 갑작스러운 Full GC의 주요 원인은?</p>
+  <div class="quiz-options">
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex6')">(1) Eden Region이 가득 찼을 때 자동 발동된다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex6')">(2) System.gc() 명시적 호출</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex6')">(3) Metaspace 사용량이 임계값을 초과했을 때</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex6')">(4) IHOP(InitiatingHeapOccupancyPercent) 임계값 초과 시</button>
+    <button class="quiz-btn" data-correct="true" onclick="jvmQ(this,true,'ex6')">(5) Evacuation 도중 live 객체를 옮길 빈 Region이 소진될 때</button>
+  </div>
+  <div class="quiz-explain" id="ex6">Evacuation = 선택 Region의 live 객체를 빈 Region으로 복사. 복사 중 Free Region 소진 → 복사 포기 → STW Full GC fallback. 예방: -Xmx 충분히, IHOP 낮게 설정.</div>
+</div>
+
+<div class="card">
+  <p class="quiz-q">Q7. G1 GC Region의 특징으로 올바른 것은?</p>
+  <div class="quiz-options">
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex7')">(1) 각 Region은 Eden/Survivor/Old 역할을 동시에 가질 수 있다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex7')">(2) Region의 역할은 JVM 시작 시 고정되어 변경되지 않는다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex7')">(3) G1에서도 Eden과 Survivor는 기존처럼 고정 연속 블록으로 존재한다</button>
+    <button class="quiz-btn" data-correct="true" onclick="jvmQ(this,true,'ex7')">(4) 각 Region은 하나의 역할만 가지며 GC 후 동적으로 재배정된다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex7')">(5) Humongous 객체는 여러 Region에 분산 저장된다</button>
+  </div>
+  <div class="quiz-explain" id="ex7">G1 Heap은 동일 크기 Region으로 나뉘고 각 Region은 Eden/Survivor/Old/Humongous/Free 중 하나의 역할만 담당한다. GC 완료 후 역할은 재배정된다.</div>
+</div>
+
+<div class="card">
+  <p class="quiz-q">Q8. ZGC가 STW를 1ms 미만으로 유지하는 핵심 메커니즘은?</p>
+  <div class="quiz-options">
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex8')">(1) Multi-thread GC + Region 기반 힙 분리</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex8')">(2) Mark-Sweep + Compact 동시 실행</button>
+    <button class="quiz-btn" data-correct="true" onclick="jvmQ(this,true,'ex8')">(3) Colored Pointer + Load Barrier</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex8')">(4) IHOP 자동 조정 + Concurrent Marking</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex8')">(5) Eden Copying + Promotion 최소화</button>
+  </div>
+  <div class="quiz-explain" id="ex8">Colored Pointer: 참조 포인터 자체에 GC 상태 비트를 심어 객체 이동 여부 파악. Load Barrier: 참조 읽을 때마다 실행, 이동된 객체 포인터 즉시 보정. 이 둘로 marking과 relocation을 애플리케이션과 동시에 수행한다.</div>
+</div>
+
+<div class="card">
+  <p class="quiz-q">Q9. G1 GC에서 Humongous 객체(Region 크기 50% 이상)의 처리 방식은?</p>
+  <div class="quiz-options">
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex9')">(1) Eden → Survivor → Old 순서로 일반 객체와 동일하게 처리</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex9')">(2) Minor GC 대상에 포함되어 Survivor로 복사된 뒤 승격</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex9')">(3) 객체를 분할해 여러 Region에 나누어 저장</button>
+    <button class="quiz-btn" data-correct="true" onclick="jvmQ(this,true,'ex9')">(4) Eden/Survivor 건너뛰고 연속 Old Region에 직접 할당, Concurrent Marking으로 즉시 회수 가능</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex9')">(5) 별도 Humongous Heap에 저장, Full GC 때만 수거</button>
+  </div>
+  <div class="quiz-explain" id="ex9">Humongous 객체는 Eden/Survivor를 건너뛰고 연속된 Old Region에 직접 할당된다. unreachable 확인 시 Concurrent Marking에서 즉시 회수 가능. 연속 Region이 필요해 단편화 위험이 있다.</div>
+</div>
+
+<div class="card">
+  <p class="quiz-q">Q10. STW 발생 빈도 — Serial GC vs Parallel GC 비교는?</p>
+  <div class="quiz-options">
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex10')">(1) Serial GC가 더 자주 발생한다 — 단일 스레드라 처리 속도가 느리다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex10')">(2) Parallel GC가 더 자주 발생한다 — 병렬 처리로 GC가 잦아진다</button>
+    <button class="quiz-btn" data-correct="true" onclick="jvmQ(this,true,'ex10')">(3) 빈도는 동일하다 — allocation rate에 의존하며 스레드 수와 무관하다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex10')">(4) Parallel GC는 STW 자체가 없다</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex10')">(5) 힙 크기 설정에만 의존하므로 GC 종류와 관계없다</button>
+  </div>
+  <div class="quiz-explain" id="ex10">STW 빈도는 "Eden이 얼마나 빨리 차느냐"(allocation rate)에 달려 있다. 스레드 수가 달라도 allocation rate가 같으면 빈도는 동일하다. 차이는 STW 지속 시간 — Parallel이 멀티스레드라 짧게 끝난다.</div>
+</div>
+
+<div class="card">
+  <p class="quiz-q">Q11. 새로 생성된 일반 객체가 G1 GC 안에서 처리되는 순서로 올바른 것은?</p>
+  <div class="quiz-options">
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex11')">(1) Old Region → Survivor Region → Eden Region 순서로 이동 후 수거</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex11')">(2) Eden Region 할당 → Old Region 직접 승격 → Full GC 수거</button>
+    <button class="quiz-btn" data-correct="true" onclick="jvmQ(this,true,'ex11')">(3) Eden Region 할당 → Minor GC 시 Survivor 이동(age++) → age 임계값 초과 시 Old 승격 → Mixed GC 수거</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex11')">(4) Humongous Region → Survivor Region → Old Region → Mixed GC 수거</button>
+    <button class="quiz-btn" onclick="jvmQ(this,false,'ex11')">(5) Eden Region 할당 → Concurrent Marking 즉시 실행 → 수거</button>
+  </div>
+  <div class="quiz-explain" id="ex11">
+    일반 객체(Region 크기 50% 미만) 기준:<br>
+    Eden Region 할당 → Eden 가득 참 → Minor GC 발동<br>
+    → live 객체 Survivor Region 이동, age+1<br>
+    → Minor GC 반복 → Survivor 간 이동하며 age 누적<br>
+    → age >= 15(기본값) → Old Region으로 Promotion<br>
+    → Old Region이 IHOP 임계값 초과 → Concurrent Marking → Mixed GC → 수거
+  </div>
+</div>
+
+<!-- Ch 4 -->
+<div class="ch-wrap" id="ch4">
+  <span class="ch-badge" style="background:var(--yellow); color:#1a1400;">Ch 4</span>
+  <h2>참고 자료</h2>
+</div>
+
+<div class="card">
+  <div class="jvm-sub">공식 문서</div>
+  <table>
+    <thead><tr><th>문서</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td>Oracle GC Tuning Guide (Java 21)</td><td>G1, ZGC 공식 튜닝 옵션 전체</td></tr>
+      <tr><td>OpenJDK ZGC Wiki</td><td>ZGC 내부 동작 상세</td></tr>
+      <tr><td>JEP 439 — Generational ZGC</td><td>Java 21 Generational ZGC 도입 배경</td></tr>
+    </tbody>
+  </table>
+
+  <div class="jvm-sub">블로그 / 아티클</div>
+  <table>
+    <thead><tr><th>출처</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Aleksey Shipilev 블로그</strong></td><td>JVM GC 핵심 개발자 직접 작성. G1/ZGC 내부 구조 가장 깊이 다룸</td></tr>
+      <tr><td>Plumbr Blog</td><td>GC 트러블슈팅 실사례 중심. 운영 환경 GC 문제 패턴 파악에 좋음</td></tr>
+      <tr><td>Baeldung JVM 시리즈</td><td>개념 입문용. 빠른 정리에 적합</td></tr>
+    </tbody>
+  </table>
+
+  <div class="jvm-sub">책</div>
+  <table>
+    <thead><tr><th>책</th><th>포인트</th></tr></thead>
+    <tbody>
+      <tr><td><em>Java Performance</em> — Scott Oaks</td><td>GC 튜닝 실무 기준서. G1 챕터 특히 좋음</td></tr>
+      <tr><td><em>JVM 밑바닥까지 파헤치기</em></td><td>내부 구조 심화. 중국 원서 / 번역판 존재</td></tr>
+      <tr><td><em>이펙티브 자바</em> — Joshua Bloch</td><td>참조 타입 / 메모리 누수 관련 아이템</td></tr>
+    </tbody>
+  </table>
+
+  <div class="jvm-sub">실습 도구</div>
+  <table>
+    <thead><tr><th>도구</th><th>용도</th></tr></thead>
+    <tbody>
+      <tr><td><strong>GCEasy.io</strong></td><td>GC 로그 웹 업로드 분석 — 무료, 시각화 좋음. 가장 먼저 써볼 것</td></tr>
+      <tr><td>GCViewer</td><td>로컬 GUI GC 로그 분석</td></tr>
+      <tr><td>VisualVM</td><td>실시간 힙 / GC 모니터링</td></tr>
+      <tr><td>jmap / jstat</td><td>힙 덤프 수집, GC 통계 CLI</td></tr>
+      <tr><td>async-profiler</td><td>CPU / 메모리 allocation 프로파일링</td></tr>
+    </tbody>
+  </table>
+
+  <div class="jvm-sub">GC 로그 수집 명령</div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">GC 로그 / 힙 덤프</span>
+    </div>
+    <pre><code>// Java 9+ 통합 로그 플래그
+-Xlog:gc*:file=gc.log:time,uptime,level,tags
+
+// 힙 덤프 자동 수집 (OOM 발생 시)
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/var/log/heap.hprof
+
+// 힙 덤프 수동 수집
+jmap -dump:live,format=b,file=heap.hprof &lt;pid&gt;
+
+// GC 통계 실시간 확인 (1초 간격)
+jstat -gcutil &lt;pid&gt; 1000</code></pre>
+  </div>
+
+  <blockquote>
+    <strong>입문</strong> — Baeldung JVM 시리즈 + 이 문서<br>
+    <strong>개념 정착</strong> — Oracle GC Tuning Guide (G1, ZGC 챕터만)<br>
+    <strong>실전 감각</strong> — GCEasy.io 로 실제 GC 로그 분석 1~2회<br>
+    <strong>심화</strong> — Aleksey Shipilev 블로그
+  </blockquote>
+</div>
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#ch1" onclick="toggleTOC()">Ch 1. JVM 메모리 구조</a></li>
+    <li><a href="#sec-memory" onclick="toggleTOC()">— Method Area / Heap / Stack</a></li>
+    <li><a href="#ch2" onclick="toggleTOC()">Ch 2. GC</a></li>
+    <li><a href="#heap-internal" onclick="toggleTOC()">— Heap 내부 구조</a></li>
+    <li><a href="#gc-target" onclick="toggleTOC()">— 수거 대상 기준</a></li>
+    <li><a href="#gc-behavior" onclick="toggleTOC()">— GC 동작 방식</a></li>
+    <li><a href="#stw-trigger" onclick="toggleTOC()">— STW 발생 기준</a></li>
+    <li><a href="#gc-algo" onclick="toggleTOC()">— GC 알고리즘</a></li>
+    <li><a href="#gc-types" onclick="toggleTOC()">— GC 종류 (Serial/Parallel/G1/ZGC)</a></li>
+    <li><a href="#gc-options" onclick="toggleTOC()">— 실무 옵션</a></li>
+    <li><a href="#ch3" onclick="toggleTOC()">Ch 3. 확인 문제 (Q1~Q11)</a></li>
+    <li><a href="#ch4" onclick="toggleTOC()">Ch 4. 참고 자료</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>
+
+<script>
+function jvmQ(btn, isCorrect, explainId) {
+  var card = btn.closest('.card');
+  card.querySelectorAll('.quiz-btn').forEach(function(b) { b.disabled = true; });
+  btn.classList.add(isCorrect ? 'correct' : 'wrong');
+  if (!isCorrect) {
+    card.querySelectorAll('.quiz-btn').forEach(function(b) {
+      if (b.dataset.correct === 'true') b.classList.add('correct');
+    });
+  }
+  var el = document.getElementById(explainId);
+  if (el) el.classList.add('show');
+}
+</script>

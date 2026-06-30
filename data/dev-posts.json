@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-06-30",
+    "title": "[Java] JVM 메모리 구조 / GC 기초 (Serial·Parallel·G1·ZGC)",
+    "file": "dev/jvm-memory-gc-basics",
+    "category": "record"
+  },
+  {
     "date": "2026-06-29",
     "title": "[코딩테스트] LeetCode 118 - Pascal's Triangle (DP, Java)",
     "file": "dev/algorithm/leetcode_118_pascalstriangle",
