@@ -1,0 +1,663 @@
+<!-- [2026-07-02] 포트포워딩 없이 홈서버 배포 — Cloudflare Tunnel 완전 가이드 -->
+<style>
+/* ── TOC ── */
+.report-toc {
+  position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+  background: var(--surface); border-left: 1px solid var(--border);
+  padding: 40px 25px; z-index: 1001;
+  transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+}
+.report-toc.active { right: 0; }
+.report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.report-toc ul { list-style: none; padding: 0; margin: 0; }
+.report-toc li { margin-bottom: 12px; line-height: 1.4; }
+.report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+.report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+.toc-backdrop {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+  z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+}
+.toc-backdrop.active { display: block; opacity: 1; }
+.toc-toggle-btn {
+  position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+  background: var(--accent); color: #fff; border: none; border-radius: 50%;
+  font-size: 1.5rem; cursor: pointer; z-index: 1002;
+  box-shadow: 0 4px 15px var(--accent-glow);
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+}
+.toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); box-shadow: 0 6px 20px var(--accent-glow); }
+@media (max-width: 768px) {
+  .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+}
+
+/* ── Scoped Styles ── */
+.cft-chapter-label { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.cft-ch-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--accent); color: #fff; font-size: 11px;
+  font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 6px; flex-shrink: 0;
+}
+.cft-sub-title {
+  font-size: .95rem; font-weight: 700; color: var(--accent);
+  margin: 22px 0 10px; padding-left: 10px; border-left: 3px solid var(--accent);
+}
+.cft-callout {
+  border-left: 4px solid var(--accent);
+  background: rgba(94,129,244,0.05);
+  border-radius: 0 10px 10px 0;
+  padding: 14px 18px; margin: 16px 0; font-size: 14px;
+}
+.cft-callout.warn { border-color: var(--yellow); background: rgba(245,158,11,0.05); }
+.cft-callout.ok   { border-color: var(--green);  background: rgba(47,179,68,0.05); }
+.cft-callout.bad  { border-color: var(--red);    background: rgba(214,57,57,0.05); }
+.cft-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+.cft-shot {
+  width: 100%; border: 1px solid var(--border); border-radius: 10px;
+  margin: 12px 0; display: block;
+}
+.cft-shot-caption { text-align: center; font-size: 12px; color: var(--text-muted); margin: -4px 0 16px; }
+.cft-summary {
+  background: linear-gradient(135deg, rgba(94,129,244,0.08), rgba(47,179,68,0.08));
+  border: 1px solid rgba(94,129,244,0.25);
+  border-radius: 12px; padding: 24px 28px; margin-bottom: 24px;
+}
+.cft-summary h3 { color: var(--green); font-size: 0.85rem; font-weight: 700; margin-bottom: 14px; letter-spacing: 1px; text-transform: uppercase; }
+.cft-summary ul { padding-left: 0; list-style: none; }
+.cft-summary ul li { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text); }
+.cft-summary ul li:last-child { border-bottom: none; }
+.cft-summary ul li::before { content: "-> "; color: var(--green); font-weight: 700; }
+.cft-flow {
+  display: flex; flex-direction: column; gap: 0; margin: 16px 0;
+}
+.cft-flow-item {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 14px 0; border-bottom: 1px solid var(--border);
+}
+.cft-flow-item:last-child { border-bottom: none; }
+.cft-flow-num {
+  min-width: 28px; height: 28px;
+  background: var(--accent); color: #fff;
+  border-radius: 50%; font-size: 12px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;
+}
+.cft-flow-content p { margin: 4px 0 0; font-size: 13px; color: var(--text-muted); }
+</style>
+
+<!-- TOC -->
+<nav class="report-toc" id="cft-toc">
+  <h3>Contents</h3>
+  <ul>
+    <li><a href="#cft-ch1" onclick="closeToc()">Ch.1 배경 및 문제</a></li>
+    <li><a href="#cft-ch2" onclick="closeToc()">Ch.2 Cloudflare 도메인 등록</a></li>
+    <li><a href="#cft-ch3" onclick="closeToc()">Ch.3 cloudflared 설치</a></li>
+    <li><a href="#cft-ch4" onclick="closeToc()">Ch.4 터널 생성 및 인증</a></li>
+    <li><a href="#cft-ch5" onclick="closeToc()">Ch.5 config.yml 및 DNS 라우팅</a></li>
+    <li><a href="#cft-ch6" onclick="closeToc()">Ch.6 서비스 등록 및 실행</a></li>
+    <li><a href="#cft-ch7" onclick="closeToc()">Ch.7 Spring Boot CORS / WebSocket 설정</a></li>
+    <li><a href="#cft-ch8" onclick="closeToc()">Ch.8 SSL/TLS 모드 설정</a></li>
+    <li><a href="#cft-summary" onclick="closeToc()">Summary</a></li>
+  </ul>
+</nav>
+<div class="toc-backdrop" id="cft-backdrop" onclick="closeToc()"></div>
+<button class="toc-toggle-btn" onclick="toggleToc()" title="목차 열기">&#9776;</button>
+
+<script>
+function toggleToc() {
+  document.getElementById('cft-toc').classList.toggle('active');
+  document.getElementById('cft-backdrop').classList.toggle('active');
+}
+function closeToc() {
+  document.getElementById('cft-toc').classList.remove('active');
+  document.getElementById('cft-backdrop').classList.remove('active');
+}
+</script>
+
+<h1>포트포워딩 없이 홈서버 배포</h1>
+
+<div class="card" style="text-align:center; background: linear-gradient(135deg, var(--surface), var(--surface2));">
+  <span class="badge badge-tag">Cloudflare Tunnel</span>
+  <span class="badge badge-tag">홈서버</span>
+  <span class="badge badge-tag">Spring Boot</span>
+  <span class="badge badge-tag">배포</span>
+  <span class="badge badge-date">2026-07-02</span>
+  <p style="margin-top:14px; color:var(--text-muted); font-size:14px;">
+    집 공유기 설정을 건드리지 않고 Cloudflare Tunnel(cloudflared)로 홈서버 Spring Boot 앱을 외부에 공개한 기록.
+    CORS / WebSocket 403 트러블슈팅까지 포함.
+  </p>
+</div>
+
+
+<!-- Chapter 1 -->
+<div class="card" id="cft-ch1">
+  <div class="cft-chapter-label">
+    <span class="cft-ch-badge">Chapter 1</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">배경 및 문제</h2>
+  </div>
+
+  <h3>왜 포트포워딩을 안 하는가</h3>
+  <p>
+    집 공유기에서 포트포워딩을 설정하면 외부 인터넷 → 내부 서버로 직접 inbound 접근이 가능해진다.
+    하지만 보안 취약점이 생기고, ISP에 따라 외부 IP가 수시로 바뀌거나 아예 막혀 있는 경우도 있다.
+  </p>
+  <div class="cft-callout warn">
+    <strong>문제 요약</strong>
+    포트포워딩 없이 홈서버를 외부에 공개하고 싶다 — 도메인 + HTTPS 까지.
+  </div>
+
+  <p class="cft-sub-title">Cloudflare Tunnel이 해결하는 방식</p>
+  <p>
+    Cloudflare Tunnel(구 Argo Tunnel)은 <strong>서버가 Cloudflare로 outbound 연결을 먼저 맺는</strong> 구조다.
+    외부 사용자 요청은 Cloudflare 엣지를 통해 그 tunnel로 역방향 전달된다.
+    공유기 설정이나 방화벽 인바운드 규칙을 건드릴 필요가 없다.
+  </p>
+
+  <table>
+    <tr><th>방식</th><th>공유기 설정</th><th>보안</th><th>고정 IP 필요</th></tr>
+    <tr><td>포트포워딩</td><td>필요</td><td>취약 (포트 노출)</td><td>필요</td></tr>
+    <tr><td>Cloudflare Tunnel</td><td>불필요</td><td>Cloudflare가 앞단 차단</td><td>불필요</td></tr>
+  </table>
+
+  <p class="cft-sub-title">전체 흐름</p>
+  <div class="cft-flow">
+    <div class="cft-flow-item">
+      <div class="cft-flow-num">1</div>
+      <div class="cft-flow-content">
+        <strong>Cloudflare에서 도메인 등록</strong>
+        <p>DNS 관리를 Cloudflare로 이전하거나, Cloudflare Registrar에서 직접 구매</p>
+      </div>
+    </div>
+    <div class="cft-flow-item">
+      <div class="cft-flow-num">2</div>
+      <div class="cft-flow-content">
+        <strong>홈서버에 cloudflared 설치</strong>
+        <p>공식 .deb 패키지 설치 — Ubuntu/Debian 기준</p>
+      </div>
+    </div>
+    <div class="cft-flow-item">
+      <div class="cft-flow-num">3</div>
+      <div class="cft-flow-content">
+        <strong>터널 생성 + 인증</strong>
+        <p>cloudflared tunnel login / create 로 자격증명 발급</p>
+      </div>
+    </div>
+    <div class="cft-flow-item">
+      <div class="cft-flow-num">4</div>
+      <div class="cft-flow-content">
+        <strong>config.yml 작성 + DNS CNAME 등록</strong>
+        <p>어떤 도메인을 어떤 로컬 포트로 연결할지 정의</p>
+      </div>
+    </div>
+    <div class="cft-flow-item">
+      <div class="cft-flow-num">5</div>
+      <div class="cft-flow-content">
+        <strong>systemd 서비스 등록</strong>
+        <p>서버 재부팅 후에도 자동으로 tunnel이 올라오도록 설정</p>
+      </div>
+    </div>
+    <div class="cft-flow-item">
+      <div class="cft-flow-num">6</div>
+      <div class="cft-flow-content">
+        <strong>애플리케이션 CORS / WebSocket 허용 도메인 추가</strong>
+        <p>Spring Boot는 Origin 헤더를 검증하므로 Cloudflare 도메인 추가 필요</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Chapter 2 -->
+<div class="card" id="cft-ch2">
+  <div class="cft-chapter-label">
+    <span class="cft-ch-badge">Chapter 2</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">Cloudflare 도메인 등록</h2>
+  </div>
+
+  <h3>도메인 구매</h3>
+  <p>
+    Cloudflare Registrar(<code>dash.cloudflare.com</code> → Domains → Registrations)에서 도메인을 구매하면
+    DNS nameserver가 자동으로 Cloudflare로 설정되어 추가 작업이 없다.
+  </p>
+  <p>
+    기존 도메인을 다른 레지스트라에서 구매했다면 Cloudflare로 Transfer하거나
+    nameserver를 Cloudflare NS로 변경해야 한다.
+  </p>
+
+  <div class="cft-callout ok">
+    <strong>이 설정의 이점</strong>
+    Cloudflare가 DNS를 관리하므로 터널 DNS CNAME 레코드를 cloudflared 명령어 한 줄로 자동 추가할 수 있다.
+  </div>
+
+  <p class="cft-sub-title">등록 전 — 빈 상태</p>
+  <img class="cft-shot" src="../../assets/images/cft_domain_empty.png" alt="도메인 등록 전 빈 상태">
+  <p class="cft-shot-caption">처음 Registrations 진입 시 — No domains registered</p>
+
+  <p class="cft-sub-title">도메인 검색 및 구매</p>
+  <img class="cft-shot" src="../../assets/images/cft_domain_purchase.png" alt="도메인 구매 화면">
+  <p class="cft-shot-caption">Domain purchase — "gustav-dev" 검색 결과 및 가격</p>
+
+  <p class="cft-sub-title">등록 확인</p>
+  <p>
+    Registrations 목록에 도메인이 <code>Active</code> 상태로 보이면 완료.
+    Auto-renew 켜두는 것을 권장한다.
+  </p>
+  <img class="cft-shot" src="../../assets/images/cft_domain_registered.png" alt="도메인 등록 완료 화면">
+  <p class="cft-shot-caption">gustav-dev.com Active 상태 확인 — Expires Jul 1, 2027</p>
+</div>
+
+
+<!-- Chapter 3 -->
+<div class="card" id="cft-ch3">
+  <div class="cft-chapter-label">
+    <span class="cft-ch-badge">Chapter 3</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">cloudflared 설치</h2>
+  </div>
+
+  <h3>홈서버에 cloudflared 설치 (Ubuntu / Debian)</h3>
+  <p>
+    공식 GitHub Releases에서 <code>.deb</code> 패키지를 내려받아 설치한다.
+    패키지 매니저 등록 없이 직접 설치하는 방식이라 폐쇄망에서도 .deb 파일만 옮기면 동일하게 사용할 수 있다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">cloudflared 다운로드 및 설치</span>
+    </div>
+    <pre><code>curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb \
+  -o cloudflared.deb
+
+sudo dpkg -i cloudflared.deb</code></pre>
+  </div>
+
+  <img class="cft-shot" src="../../assets/images/cft_cloudflared_install.png" alt="cloudflared 설치 터미널">
+  <p class="cft-shot-caption">cloudflared .deb 설치 완료 — version 2026.6.1</p>
+
+  <p class="cft-sub-title">설치 확인</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">버전 확인</span>
+    </div>
+    <pre><code>cloudflared --version
+# cloudflared version 2026.x.x</code></pre>
+  </div>
+
+  <div class="cft-callout">
+    <strong>참고</strong>
+    RHEL / CentOS 계열은 <code>.rpm</code> 패키지를 사용한다.
+    <code>cloudflared-linux-amd64.rpm</code> 으로 파일명만 바꿔서 <code>sudo rpm -i cloudflared.rpm</code> 으로 설치.
+  </div>
+</div>
+
+
+<!-- Chapter 4 -->
+<div class="card" id="cft-ch4">
+  <div class="cft-chapter-label">
+    <span class="cft-ch-badge">Chapter 4</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">터널 생성 및 인증</h2>
+  </div>
+
+  <h3>Cloudflare 계정 인증</h3>
+  <p>
+    아래 명령어를 실행하면 브라우저가 열리며 Cloudflare 로그인 화면이 뜬다.
+    로그인 후 연결할 zone(도메인)을 선택하면 자격증명 파일이 홈 디렉토리에 저장된다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Cloudflare 계정 인증</span>
+    </div>
+    <pre><code>cloudflared tunnel login
+# 브라우저 열림 -> Cloudflare 로그인 -> zone 선택 -> Success 메시지
+# ~/.cloudflared/cert.pem 생성됨</code></pre>
+  </div>
+
+  <div class="cft-callout ok">
+    <strong>Success 메시지 확인</strong>
+    "Cloudflared has installed a certificate allowing your origin to create a Tunnel on this zone."
+    이 메시지가 뜨면 인증 완료. 브라우저 창 닫아도 된다.
+  </div>
+  <img class="cft-shot" src="../../assets/images/cft_tunnel_auth_success.png" alt="Cloudflare Tunnel 인증 성공">
+  <p class="cft-shot-caption">tunnel login 성공 — "You may now close this window and start your Cloudflare Tunnel!"</p>
+
+  <p class="cft-sub-title">터널 생성</p>
+  <p>
+    터널 이름은 앱/프로젝트를 식별하는 임의의 문자열이다.
+    생성하면 UUID 기반 자격증명 파일(<code>~/.cloudflared/&lt;UUID&gt;.json</code>)이 생성된다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">터널 생성</span>
+    </div>
+    <pre><code>cloudflared tunnel create my-app
+# Tunnel credentials written to /home/siuki/.cloudflared/&lt;UUID&gt;.json
+# Created tunnel my-app with id &lt;UUID&gt;</code></pre>
+  </div>
+
+  <p class="cft-sub-title">터널 목록 확인</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">터널 목록</span>
+    </div>
+    <pre><code>cloudflared tunnel list
+# NAME     ID                                   CREATED
+# my-app   xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx  2026-xx-xx</code></pre>
+  </div>
+</div>
+
+
+<!-- Chapter 5 -->
+<div class="card" id="cft-ch5">
+  <div class="cft-chapter-label">
+    <span class="cft-ch-badge">Chapter 5</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">config.yml 및 DNS 라우팅</h2>
+  </div>
+
+  <h3>config.yml 작성</h3>
+  <p>
+    cloudflared가 참조할 설정 파일이다.
+    <code>tunnel</code>에는 생성된 UUID를, <code>credentials-file</code>에는 절대 경로를 정확히 입력해야 한다.
+  </p>
+  <div class="cft-callout warn">
+    <strong>자주 하는 실수</strong>
+    credentials-file 경로를 <code>/root/...</code> 로 쓰는 경우가 있다.
+    실제 사용자 홈 디렉토리(<code>/home/사용자명/</code>)를 확인하고 입력할 것.
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">~/.cloudflared/config.yml</span>
+    </div>
+    <pre><code>tunnel: &lt;UUID&gt;
+credentials-file: /home/siuki/.cloudflared/&lt;UUID&gt;.json
+
+ingress:
+  - hostname: gustav-dev.com
+    service: http://localhost:8080
+  - service: http_status:404</code></pre>
+  </div>
+
+  <p>
+    <code>ingress</code> 마지막에 반드시 catch-all 규칙(<code>http_status:404</code>)을 추가해야 한다.
+    없으면 cloudflared가 시작 시 오류를 낸다.
+  </p>
+
+  <p class="cft-sub-title">서브도메인 추가 (선택)</p>
+  <p>여러 서비스를 한 터널에서 처리하려면 ingress에 항목을 추가한다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">서브도메인 추가 예시</span>
+    </div>
+    <pre><code>ingress:
+  - hostname: api.gustav-dev.com
+    service: http://localhost:8080
+  - hostname: gustav-dev.com
+    service: http://localhost:8080
+  - service: http_status:404</code></pre>
+  </div>
+
+  <p class="cft-sub-title">DNS CNAME 자동 등록</p>
+  <p>
+    아래 명령어 한 줄로 Cloudflare DNS에 CNAME 레코드가 자동 생성된다.
+    <code>my-app</code>은 터널 이름, 두 번째 인수는 공개할 도메인이다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">DNS 라우팅 등록</span>
+    </div>
+    <pre><code>cloudflared tunnel route dns my-app gustav-dev.com
+# 성공 시: Added CNAME record for gustav-dev.com</code></pre>
+  </div>
+
+  <div class="cft-callout">
+    <strong>CNAME 동작 원리</strong>
+    <code>gustav-dev.com</code> CNAME -> <code>&lt;UUID&gt;.cfargotunnel.com</code> 으로 등록된다.
+    브라우저 요청이 Cloudflare 엣지로 가고, 엣지가 터널을 통해 홈서버로 전달한다.
+  </div>
+</div>
+
+
+<!-- Chapter 6 -->
+<div class="card" id="cft-ch6">
+  <div class="cft-chapter-label">
+    <span class="cft-ch-badge">Chapter 6</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">서비스 등록 및 실행</h2>
+  </div>
+
+  <h3>systemd 서비스로 등록</h3>
+  <p>
+    서버 재부팅 후에도 자동으로 터널이 올라오도록 systemd 서비스로 등록한다.
+    config 파일 경로를 명시적으로 지정해야 정상 인식된다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">서비스 설치 및 시작</span>
+    </div>
+    <pre><code>sudo cloudflared --config /home/siuki/.cloudflared/config.yml service install
+
+sudo systemctl enable cloudflared
+sudo systemctl start cloudflared
+sudo systemctl status cloudflared</code></pre>
+  </div>
+
+  <div class="cft-callout ok">
+    <strong>정상 상태 확인</strong>
+    <code>systemctl status cloudflared</code> 출력에서 <code>active (running)</code> 과
+    "Connection established" 로그가 보이면 터널이 정상 동작 중이다.
+  </div>
+
+  <p class="cft-sub-title">테스트 실행 (서비스 미사용 시)</p>
+  <p>서비스 등록 전에 임시로 터널을 직접 실행해 동작을 확인할 수 있다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">터널 직접 실행 (테스트용)</span>
+    </div>
+    <pre><code>cloudflared tunnel --config /home/siuki/.cloudflared/config.yml run my-app</code></pre>
+  </div>
+
+  <p class="cft-sub-title">서비스 재시작 / 로그 확인</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">서비스 관리 명령어</span>
+    </div>
+    <pre><code>sudo systemctl restart cloudflared
+sudo journalctl -u cloudflared -f</code></pre>
+  </div>
+</div>
+
+
+<!-- Chapter 7 -->
+<div class="card" id="cft-ch7">
+  <div class="cft-chapter-label">
+    <span class="cft-ch-badge">Chapter 7</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">Spring Boot CORS / WebSocket 설정</h2>
+  </div>
+
+  <h3>왜 403이 뜨는가</h3>
+  <p>
+    터널이 정상이고 Spring Boot 앱이 정상이어도, 브라우저 Network 탭에서
+    <code>/assets/*.js</code>, <code>/assets/*.css</code> 같은 정적 자원이 <code>403</code>을 반환하는 경우가 있다.
+  </p>
+  <p>
+    원인은 Cloudflare가 <code>Origin: https://gustav-dev.com</code> 헤더를 추가해 Spring Boot로 전달하는데,
+    Spring Boot CORS 필터가 허용하지 않은 Origin이라 차단하기 때문이다.
+  </p>
+
+  <img class="cft-shot" src="../../assets/images/cft_browser_403.png" alt="브라우저 403 에러">
+  <p class="cft-shot-caption">정적 자원 403 — /assets/*.js, /assets/*.css 모두 ERR_ABORTED 403</p>
+
+  <table>
+    <tr><th>응답 헤더</th><th>의미</th></tr>
+    <tr><td><code>server: cloudflare</code></td><td>Cloudflare 엣지를 거쳐서 온 요청</td></tr>
+    <tr><td><code>vary: Origin</code></td><td>Origin 헤더에 따라 응답이 달라짐 = CORS 처리 중</td></tr>
+    <tr><td><code>cf-ray: ...</code></td><td>Cloudflare 요청 추적 ID — 직접 Spring Boot를 거쳤음을 확인</td></tr>
+  </table>
+
+  <p class="cft-sub-title">WebConfig.java — HTTP CORS 허용</p>
+  <p>
+    Spring Boot CORS 설정에 Cloudflare 도메인을 추가한다.
+    <code>allowedOrigins</code> 에 <code>https://도메인</code> 을 추가하면 된다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">WebConfig.java — allowedOrigins 추가</span>
+    </div>
+    <pre><code>@Override
+public void addCorsMappings(CorsRegistry registry) {
+    registry.addMapping("/**")
+        .allowedOrigins(
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "https://gustav-dev.com"  // 추가
+        )
+        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+        .allowCredentials(true);
+}</code></pre>
+  </div>
+
+  <p class="cft-sub-title">WebSocketConfig.java — WebSocket 허용</p>
+  <p>
+    STOMP WebSocket 엔드포인트도 동일하게 Origin 검증을 한다.
+    <code>setAllowedOrigins</code>에 도메인을 추가하지 않으면
+    <code>WebSocket connection to 'wss://gustav-dev.com/ws' failed</code> 오류가 발생한다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">WebSocketConfig.java — setAllowedOrigins 추가</span>
+    </div>
+    <pre><code>@Override
+public void registerStompEndpoints(StompEndpointRegistry registry) {
+    registry.addEndpoint("/ws")
+        .setAllowedOrigins(
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "https://gustav-dev.com"  // 추가
+        );
+}</code></pre>
+  </div>
+
+  <div class="cft-callout warn">
+    <strong>주의 — Cloudflare WebSockets 설정</strong>
+    Cloudflare 대시보드에서 해당 도메인 -> Network -> WebSockets 를 ON으로 켜야 한다.
+    기본값이 ON이지만, 꺼져 있으면 wss:// 연결이 Cloudflare 레벨에서 차단된다.
+  </div>
+
+  <p class="cft-sub-title">수정 후 재빌드 및 재배포</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">재빌드 (Gradle 예시)</span>
+    </div>
+    <pre><code>./gradlew bootJar
+
+# 서버에서 jar 교체 후 재시작
+sudo systemctl restart stock-app</code></pre>
+  </div>
+</div>
+
+
+<!-- Chapter 8 -->
+<div class="card" id="cft-ch8">
+  <div class="cft-chapter-label">
+    <span class="cft-ch-badge">Chapter 8</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">SSL/TLS 모드 설정</h2>
+  </div>
+
+  <h3>Cloudflare SSL/TLS 암호화 모드</h3>
+  <p>
+    Cloudflare 대시보드 → 해당 도메인 → SSL/TLS → Overview 에서 암호화 모드를 선택한다.
+    Cloudflare Tunnel을 사용하는 경우 <strong>Flexible 모드</strong>로 설정하면 된다.
+  </p>
+
+  <table>
+    <tr><th>모드</th><th>브라우저-CF</th><th>CF-원서버</th><th>Tunnel 적합성</th></tr>
+    <tr><td>Off</td><td>HTTP</td><td>HTTP</td><td>비권장</td></tr>
+    <tr><td>Flexible</td><td>HTTPS</td><td>HTTP (암호화 없음)</td><td>적합 (홈서버 HTTP)</td></tr>
+    <tr><td>Full</td><td>HTTPS</td><td>HTTPS (인증서 검증 없음)</td><td>가능 (서버 인증서 필요)</td></tr>
+    <tr><td>Full (Strict)</td><td>HTTPS</td><td>HTTPS (CA 인증서 필수)</td><td>추가 설정 필요</td></tr>
+  </table>
+
+  <div class="cft-callout ok">
+    <strong>Flexible 모드 권장 이유</strong>
+    홈서버 Spring Boot는 HTTP(8080)로 실행된다.
+    Flexible 모드에서는 브라우저-Cloudflare 구간만 HTTPS가 되고,
+    Cloudflare-터널-홈서버 구간은 HTTP로 처리되어 별도 인증서 설정 없이 동작한다.
+  </div>
+
+  <img class="cft-shot" src="../../assets/images/cft_ssl_flexible.png" alt="SSL/TLS Flexible 모드 선택">
+  <p class="cft-shot-caption">SSL/TLS Encryption mode — Flexible 선택 (홈서버 HTTP 그대로 사용)</p>
+
+  <p class="cft-sub-title">자동 HTTPS 리다이렉트</p>
+  <p>
+    SSL/TLS → Edge Certificates → "Always Use HTTPS"를 ON으로 설정하면
+    <code>http://gustav-dev.com</code> 접속 시 자동으로 <code>https://</code>로 리다이렉트된다.
+  </p>
+</div>
+
+
+<!-- Summary -->
+<div class="card" id="cft-summary">
+  <div class="cft-chapter-label">
+    <span class="cft-ch-badge">Summary</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">정리</h2>
+  </div>
+
+  <div class="cft-summary">
+    <h3>핵심 포인트</h3>
+    <ul>
+      <li>Cloudflare Tunnel은 홈서버가 Cloudflare로 outbound 연결을 맺는 방식 — 포트포워딩 불필요</li>
+      <li>cloudflared 설치 → tunnel login → tunnel create → config.yml → DNS route → service install 순서</li>
+      <li>config.yml credentials-file 경로는 실제 사용자 홈 디렉토리 절대경로로 작성</li>
+      <li>Spring Boot CORS(WebConfig.java)와 WebSocket(WebSocketConfig.java) 둘 다 도메인 추가 필요</li>
+      <li>403 원인 진단: Network 탭에서 server:cloudflare + vary:Origin 확인 → CORS 문제</li>
+      <li>WebSocket 실패 진단: Cloudflare Network 탭 WebSockets ON 확인 + setAllowedOrigins 확인</li>
+      <li>SSL 모드는 Flexible이면 홈서버 HTTP 그대로 사용 가능</li>
+    </ul>
+  </div>
+
+  <p class="cft-sub-title">트러블슈팅 체크리스트</p>
+  <table>
+    <tr><th>증상</th><th>원인</th><th>해결</th></tr>
+    <tr>
+      <td>정적 자원(.js/.css) 403</td>
+      <td>Spring Boot CORS가 Cloudflare Origin 차단</td>
+      <td>WebConfig.java allowedOrigins에 도메인 추가</td>
+    </tr>
+    <tr>
+      <td>wss:// WebSocket 연결 실패</td>
+      <td>setAllowedOrigins에 도메인 없음</td>
+      <td>WebSocketConfig.java setAllowedOrigins에 도메인 추가</td>
+    </tr>
+    <tr>
+      <td>cloudflared 서비스 시작 실패</td>
+      <td>config.yml 경로 오류 또는 credentials-file 경로 잘못됨</td>
+      <td>절대 경로 재확인, journalctl -u cloudflared 로그 확인</td>
+    </tr>
+    <tr>
+      <td>도메인 접속 불가 (Tunnel 정상인데)</td>
+      <td>DNS CNAME 미등록</td>
+      <td>cloudflared tunnel route dns my-app 도메인 재실행</td>
+    </tr>
+  </table>
+</div>

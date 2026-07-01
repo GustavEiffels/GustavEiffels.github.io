@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-07-02",
+    "title": "포트포워딩 없이 홈서버 배포 — Cloudflare Tunnel 완전 가이드",
+    "file": "dev/cloudflare_tunnel_no_portforward",
+    "category": "record"
+  },
+  {
     "date": "2026-06-30",
     "title": "[Java] JVM 메모리 구조 / GC 기초 (Serial·Parallel·G1·ZGC)",
     "file": "dev/jvm-memory-gc-basics",
