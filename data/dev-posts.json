@@ -1,5 +1,23 @@
 [
   {
+    "date": "2026-07-03",
+    "title": "[코딩테스트] LeetCode 455 - Assign Cookies (그리디, Java)",
+    "file": "dev/algorithm/leetcode_455_assigncookies",
+    "category": "algorithm"
+  },
+  {
+    "date": "2026-07-03",
+    "title": "[코딩테스트] LeetCode 409 - Longest Palindrome (그리디/해시맵, Java)",
+    "file": "dev/algorithm/leetcode_409_longestpalindrome",
+    "category": "algorithm"
+  },
+  {
+    "date": "2026-07-03",
+    "title": "[코딩테스트] LeetCode 121 - Best Time to Buy and Sell Stock (DP, Java)",
+    "file": "dev/algorithm/leetcode_121_besttimetobuysellstock",
+    "category": "algorithm"
+  },
+  {
     "date": "2026-06-30",
     "title": "[Java] JVM 메모리 구조 / GC 기초 (Serial·Parallel·G1·ZGC)",
     "file": "dev/jvm-memory-gc-basics",
