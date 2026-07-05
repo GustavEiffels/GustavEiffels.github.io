@@ -1,0 +1,206 @@
+<!-- [2026-07-03] LeetCode 455 - Assign Cookies -->
+<style>
+  .ac-section-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+  }
+  .ac-section-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .ac-callout {
+    border-left: 4px solid var(--red);
+    background: rgba(214, 57, 57, 0.05);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 16px 0;
+    font-size: 14px; white-space: pre-line;
+  }
+  .ac-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+  .ac-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .ac-table th {
+    background: var(--surface2); color: var(--accent); font-weight: 700;
+    padding: 8px 14px; text-align: left; border-bottom: 2px solid var(--border);
+  }
+  .ac-table td {
+    padding: 7px 14px; border-bottom: 1px solid var(--border);
+    color: var(--text-muted); font-family: 'JetBrains Mono', monospace;
+  }
+  .ac-table tr:last-child td { border-bottom: none; }
+
+  .ac-kw     { color: #c792ea; }
+  .ac-num    { color: #f78c6c; }
+  .ac-type   { color: #82aaff; }
+  .ac-method { color: #82aaff; }
+</style>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════ -->
+<div class="card">
+  <div style="margin-bottom:8px;">
+    <span class="badge badge-tag">LeetCode · Easy · Greedy</span>
+  </div>
+  <h1 style="font-size:1.6rem; font-weight:800; margin-bottom:10px;">
+    Assign Cookies
+  </h1>
+  <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.7;">
+    정렬 + 투 포인터로 매칭 개수를 최대화하는 그리디 문제 풀이 과정
+  </p>
+  <div class="meta" style="margin-top: 14px; font-size: 12px; color: var(--text-muted);">
+    <span>언어: Java</span>
+    <span style="margin: 0 8px;">분류: 그리디</span>
+    <span>핵심 기법: 정렬 + 투 포인터</span>
+  </div>
+  <p style="margin-top: 10px;">
+    <a href="https://leetcode.com/problems/assign-cookies/description/" target="_blank" rel="noopener" style="color: var(--accent); font-size: 13px; text-decoration: none;">
+      leetcode.com/problems/assign-cookies
+    </a>
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CH 1. 풀이 회고
+══════════════════════════════════════════ -->
+<div class="ac-section-header" style="margin: 24px 0 16px;">
+  <span class="badge badge-tag">CH 1</span>
+  <h2 style="font-size:1.1rem; font-weight:800; color:#fff; margin:0;">풀이 회고</h2>
+</div>
+
+<!-- ══════════════════════════════════════════
+     1. 문제 개요
+══════════════════════════════════════════ -->
+<div class="card" id="section-overview">
+  <div class="ac-section-header">
+    <div class="ac-section-number">1</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">문제 개요</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    g[i]는 인덱스가 아니라 그 자리 값 자체가 아이의 탐욕 기준이다.
+    s[j]도 마찬가지로 값이 쿠키 크기다.
+  </p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    목표는 조건(<code>s[j] >= g[i]</code>)을 만족하는 매칭 개수의 최댓값을 구하는 것이고,<br>
+    쿠키 개수 자체도 상한이 된다 - g=[3,4,5], s=[100,100]이면 둘 다 조건은 만족해도<br>
+    쿠키가 2개뿐이라 답은 2다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     2. 시행착오 - Collections.sort를 int[]에 그대로 씀
+══════════════════════════════════════════ -->
+<div class="card" id="section-mistake">
+  <div class="ac-section-header">
+    <div class="ac-section-number">2</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">시행착오 - Collections.sort를 int[]에 그대로 씀</h2>
+  </div>
+  <div class="ac-callout">
+    <strong>버그 - Collections.sort를 int[]에 그대로 씀</strong>
+    <code>Collections.sort(s, Collections.reverseOrder())</code>를 int[]에 썼다가 컴파일 에러가 났다.
+    Collections.sort는 List 대상 메서드라 기본형 배열엔 적용이 안 된다.
+    Arrays.sort(g), Arrays.sort(s)로 교체했다.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     3. 풀이 - 정렬 + 투 포인터
+══════════════════════════════════════════ -->
+<div class="card" id="section-solution">
+  <div class="ac-section-header">
+    <div class="ac-section-number">3</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">풀이 - 정렬 + 투 포인터</h2>
+  </div>
+  <p class="point" style="display:inline-block; margin: 6px 0;">첫 풀이</p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    정렬 후 투 포인터로 풀었다. while(true) + 맨 아래 break 구조로 짰다.
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">AssignCookies.java — 첫 풀이</span>
+    </div>
+    <pre><code><span class="ac-kw">while</span>(<span class="ac-kw">true</span>){
+    <span class="ac-kw">int</span> cookieSize = s[cookieIndex];
+    <span class="ac-kw">int</span> kidSize = g[kidIndex];
+    <span class="ac-kw">if</span>(cookieSize &gt;= kidSize){
+        result++; cookieIndex++; kidIndex++;
+    } <span class="ac-kw">else</span> {
+        cookieIndex++;
+    }
+    <span class="ac-kw">if</span>(cookieIndex &gt;= s.length || kidIndex &gt;= g.length) {
+        <span class="ac-kw">break</span>;
+    }
+}</code></pre>
+  </div>
+  <p class="point" style="display:inline-block; margin: 6px 0;">정리 버전</p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    루프 조건 자체에 두 인덱스 조건을 넣는 방식으로 정리해서 길이 0 예외 처리와<br>
+    break문을 없앴다.
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">AssignCookies.java — 정리 버전</span>
+    </div>
+    <pre><code><span class="ac-kw">public</span> <span class="ac-kw">int</span> <span class="ac-method">findContentChildren</span>(<span class="ac-kw">int</span>[] g, <span class="ac-kw">int</span>[] s) {
+    <span class="ac-type">Arrays</span>.<span class="ac-method">sort</span>(g);
+    <span class="ac-type">Arrays</span>.<span class="ac-method">sort</span>(s);
+
+    <span class="ac-kw">int</span> result = <span class="ac-num">0</span>;
+    <span class="ac-kw">int</span> cookieIndex = <span class="ac-num">0</span>;
+    <span class="ac-kw">int</span> kidIndex = <span class="ac-num">0</span>;
+
+    <span class="ac-kw">while</span> (cookieIndex &lt; s.length &amp;&amp; kidIndex &lt; g.length) {
+        <span class="ac-kw">if</span> (s[cookieIndex] &gt;= g[kidIndex]) {
+            result++;
+            kidIndex++;
+        }
+        cookieIndex++;
+    }
+    <span class="ac-kw">return</span> result;
+}</code></pre>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     4. 시간복잡도와 제출 결과
+══════════════════════════════════════════ -->
+<div class="card" id="section-result">
+  <div class="ac-section-header">
+    <div class="ac-section-number">4</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">시간복잡도와 제출 결과</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    정렬 O(n log n)이 이 문제의 사실상 하한이라 더 줄일 방법은 없다.
+    값 범위가 작다는 보장이 있으면 counting sort로 더 낮출 수 있지만 일반적인 경우엔 해당 없다.
+  </p>
+  <table class="ac-table">
+    <tr><th>항목</th><th>결과</th></tr>
+    <tr><td>테스트</td><td style="color: var(--green);">25 / 25 통과</td></tr>
+    <tr><td>Runtime</td><td>15ms (상위 61.65%)</td></tr>
+    <tr><td>Memory</td><td>51.81MB (상위 6.67%)</td></tr>
+  </table>
+  <p style="font-size:13px; color:var(--text-muted); line-height:1.8;">
+    메모리 %가 낮은 건 Java 제출이 JVM 부트스트랩 비용까지 그대로 측정에 포함되기 때문이고,<br>
+    다른 언어 제출까지 섞여 비교되는 구조라 실제 코드 문제는 아니다.
+    런타임 %가 알고리즘 효율을 더 정확히 반영하는 지표다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     5. Takeaway
+══════════════════════════════════════════ -->
+<div class="card" id="section-takeaway">
+  <div class="ac-section-header">
+    <div class="ac-section-number">5</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">Takeaway</h2>
+  </div>
+  <ul style="padding-left: 20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li>g[i]/s[j]는 인덱스가 아니라 값 자체가 기준이고, 쿠키 개수 자체도 상한이 된다.</li>
+    <li>Collections.sort는 List 전용, 기본형 배열엔 Arrays.sort를 써야 한다.</li>
+    <li>정렬 O(n log n)이 이미 하한이라, 값 범위 제약 없이는 더 줄일 수 없다.</li>
+  </ul>
+</div>

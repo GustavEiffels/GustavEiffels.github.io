@@ -1,0 +1,167 @@
+<!-- [2026-07-03] LeetCode 409 - Longest Palindrome -->
+<style>
+  .lp-section-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+  }
+  .lp-section-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .lp-callout {
+    border-left: 4px solid var(--red);
+    background: rgba(214, 57, 57, 0.05);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 16px 0;
+    font-size: 14px; white-space: pre-line;
+  }
+  .lp-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+  .lp-kw     { color: #c792ea; }
+  .lp-type   { color: #82aaff; }
+  .lp-num    { color: #f78c6c; }
+  .lp-method { color: #82aaff; }
+</style>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════ -->
+<div class="card">
+  <div style="margin-bottom:8px;">
+    <span class="badge badge-tag">LeetCode · Easy · Greedy / HashMap</span>
+  </div>
+  <h1 style="font-size:1.6rem; font-weight:800; margin-bottom:10px;">
+    Longest Palindrome
+  </h1>
+  <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.7;">
+    홀수 카운트 판정 기준을 result의 홀짝과 섞어서 틀렸던 버그를 고친 과정
+  </p>
+  <div class="meta" style="margin-top: 14px; font-size: 12px; color: var(--text-muted);">
+    <span>언어: Java</span>
+    <span style="margin: 0 8px;">분류: 그리디 / 해시맵</span>
+    <span>핵심 기법: 문자 빈도 카운팅 + 홀수 보정</span>
+  </div>
+  <p style="margin-top: 10px;">
+    <a href="https://leetcode.com/problems/longest-palindrome/description/" target="_blank" rel="noopener" style="color: var(--accent); font-size: 13px; text-decoration: none;">
+      leetcode.com/problems/longest-palindrome
+    </a>
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CH 1. 풀이 회고
+══════════════════════════════════════════ -->
+<div class="lp-section-header" style="margin: 24px 0 16px;">
+  <span class="badge badge-tag">CH 1</span>
+  <h2 style="font-size:1.1rem; font-weight:800; color:#fff; margin:0;">풀이 회고</h2>
+</div>
+
+<!-- ══════════════════════════════════════════
+     1. 문제 개요
+══════════════════════════════════════════ -->
+<div class="card" id="section-overview">
+  <div class="lp-section-header">
+    <div class="lp-section-number">1</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">문제 개요</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    문자열의 문자들을 자유롭게 재배열해서 만들 수 있는 가장 긴 팰린드롬의 길이를 구하는 문제다.<br>
+    원본 문자열의 순서는 상관없고, 문자별 개수만 중요하다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     2. 시행착오 - 홀수 판정 기준을 잘못 잡음
+══════════════════════════════════════════ -->
+<div class="card" id="section-mistake">
+  <div class="lp-section-header">
+    <div class="lp-section-number">2</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">시행착오 - 홀수 판정 기준을 잘못 잡음</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    Map/HashMap으로 문자 빈도부터 세는 구조로 시작했는데, import를 안 넣어서 첫 실행에<br>
+    컴파일 에러가 났다. import 추가하고 나서 실제 로직에서 더 큰 문제가 나왔다.
+  </p>
+  <div class="lp-callout">
+    <strong>버그 - 홀수 판정 기준을 잘못 잡음</strong>
+    <code>result % 2 == 0</code>으로 홀수 카운트 여부를 판단했다.
+    count가 홀수인지와 result의 현재 홀짝은 서로 무관한 값인데 섞어서 썼다.
+    abccccdd 기준 7이 나와야 하는데 6이 나왔다 - a(1), b(1)처럼 홀수 count를 만나는 시점에 result가 계속 짝수(0)라서 odd 처리가 한 번도 안 걸리는 구조였다.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     3. 수정 및 확인
+══════════════════════════════════════════ -->
+<div class="card" id="section-fix">
+  <div class="lp-section-header">
+    <div class="lp-section-number">3</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">수정 및 확인</h2>
+  </div>
+  <p class="point" style="display:inline-block; margin: 6px 0;">수정</p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    <code>count % 2 == 1</code>을 직접 판정하는 boolean odd 플래그로 바꾸고,<br>
+    루프가 다 끝난 뒤에 딱 한 번만 +1 하도록 고쳤다.
+  </p>
+  <p class="point" style="display:inline-block; margin: 6px 0;">확인 1 - 홀수 카운트가 여러 개여도 +1은 항상 한 번</p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    홀수 count인 문자가 3개(a,b,c 각 3개)든 몇 개든, 팰린드롬 가운데 자리는 한 칸뿐이라<br>
+    +1은 항상 최대 1이다.
+  </p>
+  <p class="point" style="display:inline-block; margin: 6px 0;">확인 2 - 원본 순서는 무관</p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    재배열이 허용되는 문제라, 원본에서 문자 순서가 어떻게 섞여 있든(444123444 같은 배치)<br>
+    count만 맞으면 상관없다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     4. 최종 코드
+══════════════════════════════════════════ -->
+<div class="card" id="section-code">
+  <div class="lp-section-header">
+    <div class="lp-section-number">4</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">최종 코드</h2>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">LongestPalindrome.java</span>
+    </div>
+    <pre><code><span class="lp-kw">public</span> <span class="lp-kw">int</span> <span class="lp-method">longestPalindrome</span>(<span class="lp-type">String</span> s) {
+    <span class="lp-type">Map</span>&lt;<span class="lp-type">Character</span>, <span class="lp-type">Integer</span>&gt; map = <span class="lp-kw">new</span> <span class="lp-type">HashMap</span>&lt;&gt;();
+    <span class="lp-kw">for</span>(<span class="lp-kw">char</span> c : s.<span class="lp-method">toCharArray</span>()) {
+        map.<span class="lp-method">put</span>(c, map.<span class="lp-method">getOrDefault</span>(c, <span class="lp-num">0</span>) + <span class="lp-num">1</span>);
+    }
+    <span class="lp-kw">int</span> result = <span class="lp-num">0</span>;
+    <span class="lp-kw">boolean</span> odd = <span class="lp-kw">false</span>;
+    <span class="lp-kw">for</span>(<span class="lp-kw">int</span> count : map.<span class="lp-method">values</span>()) {
+        result += (count / <span class="lp-num">2</span>) * <span class="lp-num">2</span>;
+        <span class="lp-kw">if</span>(count % <span class="lp-num">2</span> == <span class="lp-num">1</span>){
+            odd = <span class="lp-kw">true</span>;
+        }
+    }
+    <span class="lp-kw">if</span>(odd){
+        result += <span class="lp-num">1</span>;
+    }
+    <span class="lp-kw">return</span> result;
+}</code></pre>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     5. Takeaway
+══════════════════════════════════════════ -->
+<div class="card" id="section-takeaway">
+  <div class="lp-section-header">
+    <div class="lp-section-number">5</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">Takeaway</h2>
+  </div>
+  <ul style="padding-left: 20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li>홀수 판정은 count 자체로 해야지, result의 현재 홀짝과 섞으면 안 된다.</li>
+    <li>홀수 카운트가 몇 개든 팰린드롬 가운데 자리는 하나뿐이라, +1은 항상 최대 한 번이다.</li>
+  </ul>
+</div>

@@ -1,0 +1,123 @@
+<!-- [2026-07-03] LeetCode 121 - Best Time to Buy and Sell Stock -->
+<style>
+  .bs-section-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+  }
+  .bs-section-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .bs-kw     { color: #c792ea; }
+  .bs-type   { color: #82aaff; }
+  .bs-num    { color: #f78c6c; }
+  .bs-method { color: #82aaff; }
+</style>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════ -->
+<div class="card">
+  <div style="margin-bottom:8px;">
+    <span class="badge badge-tag">LeetCode · Easy · DP</span>
+  </div>
+  <h1 style="font-size:1.6rem; font-weight:800; margin-bottom:10px;">
+    Best Time to Buy and Sell Stock
+  </h1>
+  <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.7;">
+    매수/매도 시점을 따로 찾지 않고, 최솟값 하나만 들고 다니는 한 번의 순회로 푼 과정
+  </p>
+  <div class="meta" style="margin-top: 14px; font-size: 12px; color: var(--text-muted);">
+    <span>언어: Java</span>
+    <span style="margin: 0 8px;">분류: 동적 계획법 (DP)</span>
+    <span>핵심 기법: 최솟값 갱신 + 한 번의 순회</span>
+  </div>
+  <p style="margin-top: 10px;">
+    <a href="https://leetcode.com/problems/best-time-to-buy-and-sell-stock/" target="_blank" rel="noopener" style="color: var(--accent); font-size: 13px; text-decoration: none;">
+      leetcode.com/problems/best-time-to-buy-and-sell-stock
+    </a>
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CH 1. 풀이 회고
+══════════════════════════════════════════ -->
+<div class="bs-section-header" style="margin: 24px 0 16px;">
+  <span class="badge badge-tag">CH 1</span>
+  <h2 style="font-size:1.1rem; font-weight:800; color:#fff; margin:0;">풀이 회고</h2>
+</div>
+
+<!-- ══════════════════════════════════════════
+     1. 문제 개요
+══════════════════════════════════════════ -->
+<div class="card" id="section-overview">
+  <div class="bs-section-header">
+    <div class="bs-section-number">1</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">문제 개요</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    가격 배열이 주어지고, 한 번 사고 한 번 팔았을 때 낼 수 있는 최대 이익을 구하는 문제다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     2. 접근 - 최솟값 하나만 들고 다니기
+══════════════════════════════════════════ -->
+<div class="card" id="section-approach">
+  <div class="bs-section-header">
+    <div class="bs-section-number">2</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">접근 - 최솟값 하나만 들고 다니기</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    배열을 한 번 순회하면서 지금까지 본 가격 중 최솟값(minPrice)을 계속 갱신하고,<br>
+    오늘 가격에서 그 최솟값을 뺀 값과 지금까지의 최댓값(result)을 비교했다.
+  </p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    매수 시점과 매도 시점을 따로 찾을 필요 없이, "지금까지 가장 쌌던 값" 하나만 유지하면<br>
+    한 번의 루프로 끝나는 구조다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     3. 최종 코드
+══════════════════════════════════════════ -->
+<div class="card" id="section-code">
+  <div class="bs-section-header">
+    <div class="bs-section-number">3</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">최종 코드</h2>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">BestTimeToBuyAndSellStock.java</span>
+    </div>
+    <pre><code><span class="bs-kw">public</span> <span class="bs-kw">int</span> <span class="bs-method">maxProfit</span>(<span class="bs-kw">int</span>[] prices) {
+    <span class="bs-kw">int</span> minPrice = prices[<span class="bs-num">0</span>];
+    <span class="bs-kw">int</span> result = <span class="bs-num">0</span>;
+
+    <span class="bs-kw">for</span> (<span class="bs-kw">int</span> i = <span class="bs-num">1</span>; i &lt; prices.length; i++) {
+        minPrice = <span class="bs-type">Math</span>.<span class="bs-method">min</span>(minPrice, prices[i]);
+        result = <span class="bs-type">Math</span>.<span class="bs-method">max</span>(result, prices[i] - minPrice);
+    }
+    <span class="bs-kw">return</span> result;
+}</code></pre>
+  </div>
+  <span class="tag tag-blue" style="display:inline-block; font-size:11px; font-weight:700; padding:3px 10px; border-radius:6px; margin-top:12px; background: rgba(94, 129, 244, 0.12); color: var(--accent);">O(n)</span>
+</div>
+
+<!-- ══════════════════════════════════════════
+     4. Takeaway
+══════════════════════════════════════════ -->
+<div class="card" id="section-takeaway">
+  <div class="bs-section-header">
+    <div class="bs-section-number">4</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">Takeaway</h2>
+  </div>
+  <ul style="padding-left: 20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li>매수/매도 시점을 각각 찾을 필요 없이, 지금까지의 최솟값 하나만 유지하면 된다.</li>
+    <li>한 번의 순회(O(n))로 충분하고, 별도의 DP 배열이 필요 없는 형태다.</li>
+  </ul>
+</div>
