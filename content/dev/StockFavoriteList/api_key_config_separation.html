@@ -1,0 +1,139 @@
+<!-- [2026-07-04] API Key를 코드에서 분리하기 — .gitignore + 12-Factor App -->
+<h1>API Key를 소스코드에서 분리하기 — .gitignore와 12-Factor App</h1>
+
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+        <span class="badge badge-date">2026.07.04</span>
+        <span class="badge badge-tag">Stock Favorite List · 개인 프로젝트</span>
+    </div>
+    <h2>1. 무슨 문제가 있었나</h2>
+    <p>
+        Stock Favorite List 프로젝트를 진행하면서 Polygon, Finnhub, KIS, Telegram, FRED 같은 외부 API를 붙였는데,
+        각 서비스의 API 키를 그냥 <code>application.yml</code>에 문자열로 박아뒀다.
+    </p>
+    <div style="background:var(--surface2); padding:12px; border-radius:10px; margin-top:10px; font-size:0.9rem;">
+        <pre style="margin:0; white-space:pre-wrap;">polygon:
+  api:
+    key: sk-abcd1234...  # 실제 키가 그대로 파일에 박혀있음
+    url: https://api.polygon.io</pre>
+    </div>
+    <p style="margin-top:12px;">
+        <code>application.yml</code>은 소스코드와 같이 git으로 관리되는 파일이다.
+        즉 커밋하는 순간 이 키가 그대로 GitHub 저장소에 올라간다는 뜻이다.
+        레포가 지금은 private이라도, 나중에 실수로 public으로 바뀌거나 협업자를 추가하는 순간 키가 그대로 노출된다.
+        그리고 한 번 커밋된 값은 나중에 파일에서 지워도 git history에는 계속 남아있어서, 커밋을 되돌리는 것만으로는 해결이 안 된다.
+    </p>
+</div>
+
+<div class="card">
+    <h2>2. 어떻게 고쳤나</h2>
+    <p>
+        <code>application.yml</code>에는 실제 값 대신 <strong>환경변수 placeholder</strong>만 남기고,
+        실제 키 값은 <code>.gitignore</code>에 등록한 별도 로컬 설정 위치로 뺐다.
+    </p>
+    <div style="background:var(--surface2); padding:12px; border-radius:10px; margin-top:10px; font-size:0.9rem;">
+        <pre style="margin:0; white-space:pre-wrap;">polygon:
+  api:
+    key: ${POLYGON_API_KEY}
+    url: https://api.polygon.io</pre>
+    </div>
+    <p style="margin-top:12px;">
+        그리고 <code>.gitignore</code>에 실제 키가 들어가는 디렉토리를 추가해서, 실수로라도 <code>git add</code>에 걸리지 않게 원천 차단했다.
+    </p>
+    <div style="background:var(--surface2); padding:12px; border-radius:10px; margin-top:10px; font-size:0.9rem;">
+        <pre style="margin:0; white-space:pre-wrap;">back_end/stock/config/</pre>
+    </div>
+    <p>
+        코드 쪽에서는 Spring이 <code>${VAR}</code> 형태를 만나면 환경변수(또는 시스템 프로퍼티)에서 값을 읽어오기 때문에,
+        애플리케이션 코드는 한 줄도 안 건드리고 "값을 어디서 가져오느냐"만 바꾼 셈이다.
+    </p>
+</div>
+
+<div class="card">
+    <h2>3. 이 방법으로 얻는 이점</h2>
+    <table>
+        <thead>
+            <tr><th>이점</th><th>내용</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>보안</strong></td>
+                <td>키가 git 이력에 아예 안 남는다. 하드코딩은 커밋을 되돌려도 history에 흔적이 남지만, 이 구조는 애초에 커밋 대상이 아니다.</td>
+            </tr>
+            <tr>
+                <td><strong>환경별 분리</strong></td>
+                <td>로컬 / 운영 서버마다 코드 수정 없이 다른 키를 주입할 수 있다. 서버 환경변수만 바꾸면 끝.</td>
+            </tr>
+            <tr>
+                <td><strong>키 교체(rotation)</strong></td>
+                <td>키가 유출되거나 만료돼서 갱신해야 할 때, 재배포 없이 값만 바꾸면 된다.</td>
+            </tr>
+            <tr>
+                <td><strong>실수 방지</strong></td>
+                <td><code>.gitignore</code>에 등록돼 있어서 <code>git add .</code> 같은 걸 해도 실수로 스테이징/커밋되는 걸 막아준다.</td>
+            </tr>
+            <tr>
+                <td><strong>협업 안전성</strong></td>
+                <td>레포를 클론해도 각자 로컬에 자기 키만 넣으면 되고, 서로의 키를 볼 필요도 위험도 없다.</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="card" style="border-left: 5px solid var(--accent);">
+    <h2>4. 이건 사실 "12-Factor App"의 3번째 원칙이다</h2>
+    <p>
+        이 작업을 하고 나서 찾아보니, 이미 이름이 붙어있는 원칙이었다.
+        <strong>12-Factor App</strong>은 Heroku 엔지니어들이 정리한, 확장 가능하고 이식성 있는 SaaS 앱을 만들기 위한 12가지 방법론이다.
+        그중 <strong>Factor III: Config</strong>가 정확히 이 얘기다.
+    </p>
+    <blockquote>
+        "Config는 코드와 엄격하게 분리되어야 한다. Config는 배포(deploy) 사이에서 다르지만, 코드는 그렇지 않다."
+    </blockquote>
+    <p>
+        여기서 말하는 Config는 DB 접속 정보, 외부 서비스의 API 키, 배포 환경마다 달라지는 값들을 뜻한다.
+        판단 기준은 간단하다 — <strong>"이 값이 코드를 공개해도 괜찮은 상태로 만드는가?"</strong>를 물어봤을 때 아니라면 Config다.
+        12-Factor App은 이 값들을 <strong>환경변수(environment variables)</strong>에 저장하라고 권장하는데,
+        내가 한 방식(placeholder + gitignore된 로컬 값)이 바로 그 구현 방식 중 하나였다.
+    </p>
+    <div style="background:var(--surface2); padding:12px; border-radius:10px; margin-top:10px; font-size:0.9rem;">
+        📌 <strong>왜 환경변수인가</strong><br>
+        설정 파일(yml, properties)을 여러 개 만들어서 환경별로 나누는 방법도 있지만, 이건 환경이 늘어날 때마다 파일이 늘어나고
+        실수로 잘못된 파일이 배포될 위험이 있다. 환경변수는 언어/프레임워크에 상관없이 OS 레벨에서 동일하게 동작하고,
+        코드에 절대 섞여 들어가지 않는다는 점에서 더 안전하다.
+    </div>
+    <p style="margin-top:14px;">참고로 12-Factor의 나머지 원칙은 이런 것들이다.</p>
+    <table>
+        <thead>
+            <tr><th>#</th><th>원칙</th><th>한 줄 요약</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>I</td><td>Codebase</td><td>하나의 코드베이스를 버전 관리하고, 여러 환경에 배포</td></tr>
+            <tr><td>II</td><td>Dependencies</td><td>의존성을 명시적으로 선언하고 격리 (Gradle/Maven 등)</td></tr>
+            <tr><td>III</td><td><strong>Config</strong></td><td><strong>환경별로 달라지는 값은 환경변수로 분리 (이번에 적용한 부분)</strong></td></tr>
+            <tr><td>IV</td><td>Backing Services</td><td>DB, 외부 API 등을 교체 가능한 리소스로 취급</td></tr>
+            <tr><td>V</td><td>Build, Release, Run</td><td>빌드/릴리즈/실행 단계를 엄격히 분리</td></tr>
+            <tr><td>VI</td><td>Processes</td><td>앱을 stateless 프로세스로 실행</td></tr>
+            <tr><td>VII</td><td>Port Binding</td><td>포트 바인딩으로 서비스를 노출 (자체 내장 서버)</td></tr>
+            <tr><td>VIII</td><td>Concurrency</td><td>프로세스 모델로 수평 확장</td></tr>
+            <tr><td>IX</td><td>Disposability</td><td>빠른 시작/종료로 안정성 확보</td></tr>
+            <tr><td>X</td><td>Dev/Prod Parity</td><td>개발과 운영 환경을 최대한 비슷하게 유지</td></tr>
+            <tr><td>XI</td><td>Logs</td><td>로그를 이벤트 스트림으로 취급</td></tr>
+            <tr><td>XII</td><td>Admin Processes</td><td>관리/일회성 작업을 일회성 프로세스로 실행</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>5. 정리</h2>
+    <ul>
+        <li>문제: API 키를 <code>application.yml</code>에 하드코딩 → git에 커밋되어 노출 위험</li>
+        <li>해결: <code>${ENV_VAR}</code> placeholder + <code>.gitignore</code>된 로컬 설정으로 실제 값 분리</li>
+        <li>이 방식은 12-Factor App의 <strong>Factor III: Config</strong> 원칙과 정확히 일치한다</li>
+        <li>작은 개인 프로젝트라도 "이 파일이 공개돼도 되는가"는 항상 먼저 따져보고 구조를 잡아야 한다는 걸 배웠다</li>
+    </ul>
+</div>
+
+<p style="text-align:right; font-size:0.8rem; color:var(--text-muted); margin-top:30px;">
+    © 2026 Gustav — Stock Favorite List, Personal Project Log (2026-07-04)
+</p>

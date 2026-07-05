@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-07-04",
+    "title": "API Key를 소스코드에서 분리하기 — .gitignore와 12-Factor App",
+    "file": "dev/StockFavoriteList/api_key_config_separation",
+    "category": "stockapp"
+  },
+  {
     "date": "2026-07-02",
     "title": "포트포워딩 없이 홈서버 배포 — Cloudflare Tunnel 완전 가이드",
     "file": "dev/cloudflare_tunnel_no_portforward",
