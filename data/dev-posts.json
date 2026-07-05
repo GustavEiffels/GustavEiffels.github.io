@@ -6,7 +6,6 @@
     "category": "stockapp"
   },
   {
-<<<<<<< HEAD
     "date": "2026-07-03",
     "title": "[코딩테스트] LeetCode 455 - Assign Cookies (그리디, Java)",
     "file": "dev/algorithm/leetcode_455_assigncookies",
@@ -23,12 +22,12 @@
     "title": "[코딩테스트] LeetCode 121 - Best Time to Buy and Sell Stock (DP, Java)",
     "file": "dev/algorithm/leetcode_121_besttimetobuysellstock",
     "category": "algorithm"
-=======
+  },
+  {
     "date": "2026-07-02",
     "title": "포트포워딩 없이 홈서버 배포 — Cloudflare Tunnel 완전 가이드",
     "file": "dev/cloudflare_tunnel_no_portforward",
     "category": "record"
->>>>>>> 4334a84779885561019ea97e8dc7948790ab9834
   },
   {
     "date": "2026-06-30",
