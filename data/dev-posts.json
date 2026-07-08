@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-07-08",
+    "title": "동시성 정리 — 낙관적 락 / 비관적 락 / 분산락",
+    "file": "dev/concurrency_optimistic_pessimistic_distributed_lock",
+    "category": "record"
+  },
+  {
     "date": "2026-07-05",
     "title": "[코딩테스트] LeetCode 561 - Array Partition (그리디, Java)",
     "file": "dev/algorithm/leetcode_561_arraypartition",

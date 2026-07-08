@@ -1,0 +1,698 @@
+<!-- [2026-07-08] 동시성 정리 — 낙관적 락 / 비관적 락 / 분산락 -->
+<style>
+  /* ── TOC ── */
+  .report-toc {
+    position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+    background: var(--surface); border-left: 1px solid var(--border);
+    padding: 40px 25px; z-index: 1001;
+    transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+  }
+  .report-toc.active { right: 0; }
+  .report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .report-toc ul { list-style: none; padding: 0; margin: 0; }
+  .report-toc li { margin-bottom: 12px; line-height: 1.4; }
+  .report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+  .report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+  .toc-backdrop {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+    z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+  }
+  .toc-backdrop.active { display: block; opacity: 1; }
+  .toc-toggle-btn {
+    position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+    background: var(--accent); color: #fff; border: none; border-radius: 50%;
+    font-size: 1.5rem; cursor: pointer; z-index: 1002;
+    box-shadow: 0 4px 15px var(--accent-glow);
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+  }
+  .toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); }
+  @media (max-width: 768px) {
+    .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+  }
+
+  /* ── 챕터 헤더 ── */
+  .lock-ch-label {
+    display: flex; align-items: center; gap: 14px;
+    margin: 44px 0 16px; padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+  }
+  .lock-ch-label:first-of-type { margin-top: 0; }
+  .lock-ch-badge {
+    display: inline-flex; align-items: center;
+    background: var(--accent); color: #fff;
+    font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+    padding: 4px 12px; border-radius: 6px; flex-shrink: 0;
+  }
+  .lock-ch-label h2 { font-size: 1.1rem; font-weight: 800; color: #fff; margin: 0; }
+
+  .lock-sub-title {
+    font-size: .95rem; font-weight: 700; color: #4ecdc4;
+    margin: 22px 0 10px; padding-left: 10px;
+    border-left: 3px solid #4ecdc4;
+  }
+
+  /* ── callout ── */
+  .lock-callout {
+    border-left: 4px solid var(--accent);
+    background: var(--surface2);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 18px 0; font-size: 13.5px;
+  }
+  .lock-callout.warn { border-color: var(--yellow); }
+  .lock-callout.ok   { border-color: var(--green); }
+  .lock-callout.bad  { border-color: var(--red); }
+  .lock-callout strong { display: block; margin-bottom: 5px; color: #fff; font-size: 12.5px; }
+
+  /* ── SVG 다이어그램 ── */
+  .lock-diagram {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px; margin: 16px 0;
+  }
+  .lock-diagram svg { width: 100%; height: auto; display: block; }
+
+  /* ── 비교 테이블 ── */
+  .lock-compare { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13.5px; }
+  .lock-compare th, .lock-compare td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; }
+  .lock-compare th { background: var(--surface2); color: #fff; font-weight: 700; }
+  .lock-compare td { color: var(--text); }
+
+  /* ── 코드 탭 ── */
+  .lock-code-tabs { margin: 14px 0; }
+  .lock-code-tabs .lock-tab-buttons { display: flex; gap: 6px; }
+  .lock-code-tabs .lock-tab-btn {
+    background: var(--surface2); border: 1px solid var(--border); border-bottom: none;
+    color: var(--text-muted); font-size: 12px; font-weight: 700;
+    padding: 6px 16px; border-radius: 8px 8px 0 0; cursor: pointer;
+  }
+  .lock-code-tabs .lock-tab-btn.active { color: #fff; background: var(--code-bg); }
+  .lock-code-tabs pre { margin-top: 0; border-top-left-radius: 0; display: none; }
+  .lock-code-tabs pre.active { display: block; }
+
+  .lock-kw   { color: var(--accent); font-weight: 600; }
+  .lock-str  { color: var(--yellow); }
+  .lock-com  { color: var(--text-muted); font-style: italic; }
+  .lock-ann  { color: #4ecdc4; }
+  .lock-type { color: #c792ea; }
+</style>
+
+<div style="text-align:center; margin-bottom: 40px;">
+  <span class="badge badge-date">2026-07-08 학습 정리</span>
+  <h1 style="font-size: 2rem; font-weight: 800; margin: 14px 0 8px; background: linear-gradient(90deg, var(--accent), #4ecdc4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">동시성 정리 — 낙관적 락 / 비관적 락 / 분산락</h1>
+  <p style="color: var(--text-muted); font-size: 14px;">프로젝트 하다 겪은 동시성 문제를 정리한 개인 노트. 뒤에 계속 이어서 작성 예정.</p>
+</div>
+
+<!-- ── 문제 ── -->
+<div class="lock-ch-label" id="lock-sec-why">
+  <span class="lock-ch-badge">문제</span>
+  <h2>왜 동시성 문제가 생기는가</h2>
+</div>
+<div class="card">
+  <p>프로젝트를 하다보면 동시성에 대해서 생각해야한다. 여러 인스턴스나 스레드에서 동일한 자원을 동시에 수정하려고 할 때 많은 문제점이 발생하기 때문이다.</p>
+  <p class="lock-sub-title">문제가 발생하는 이유</p>
+  <p>문제가 되는 건 당연하다. 하나의 자원을 동시에 수행하려다 보니 몇 개의 시도가 누락되는 경우가 많이 발생하기 때문이다.</p>
+  <p>특정 자원(초기값 5)에 1을 빼는 작업을 5번 요청했다고 가정했을 때, 동시에 요청하다 보니 어느 요청들에서는 자원의 값이 4인 경우가 생기는 것이다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Lost Update 결과</span>
+    </div>
+    <pre><code>작업 1 : A = 5  -&gt; 5 - 1 = 4
+작업 2 : A = 4  -&gt; 4 - 1 = 3
+작업 3 : A = 4  -&gt; 4 - 1 = 3
+...
+작업 끝 : A = 1</code></pre>
+  </div>
+
+  <div class="lock-diagram">
+    <svg viewBox="0 0 760 260" xmlns="http://www.w3.org/2000/svg">
+      <text x="20" y="12" fill="#8b90a8" font-size="12" font-family="Segoe UI, sans-serif">공유 자원 A (실제 DB 값)</text>
+      <line x1="20" y1="44" x2="740" y2="44" stroke="#2e3350" stroke-width="2"/>
+      <circle cx="120" cy="44" r="5" fill="#6c8ef5"/>
+      <text x="120" y="34" fill="#e2e4f0" font-size="13" text-anchor="middle" font-weight="700">A = 5</text>
+      <circle cx="360" cy="44" r="5" fill="#6c8ef5"/>
+      <text x="360" y="34" fill="#e2e4f0" font-size="13" text-anchor="middle" font-weight="700">A = 4</text>
+      <circle cx="620" cy="44" r="5" fill="#ee5a5a"/>
+      <text x="620" y="34" fill="#ee5a5a" font-size="13" text-anchor="middle" font-weight="700">A = 3 (두 번 씀)</text>
+      <text x="20" y="90" fill="#8b90a8" font-size="12">작업 1</text>
+      <line x1="90" y1="86" x2="360" y2="86" stroke="#4ecdc4" stroke-width="2"/>
+      <polygon points="360,86 350,81 350,91" fill="#4ecdc4"/>
+      <text x="150" y="78" fill="#4ecdc4" font-size="12">READ A=5 -&gt; WRITE A=4</text>
+      <text x="20" y="150" fill="#8b90a8" font-size="12">작업 2</text>
+      <circle cx="400" cy="146" r="5" fill="#6c8ef5"/>
+      <text x="400" y="136" fill="#e2e4f0" font-size="12" text-anchor="middle">READ A=4</text>
+      <line x1="400" y1="146" x2="620" y2="146" stroke="#6c8ef5" stroke-width="2"/>
+      <polygon points="620,146 610,141 610,151" fill="#6c8ef5"/>
+      <text x="510" y="136" fill="#6c8ef5" font-size="12" text-anchor="middle">WRITE A=3</text>
+      <text x="20" y="200" fill="#8b90a8" font-size="12">작업 3</text>
+      <circle cx="430" cy="196" r="5" fill="#ee5a5a"/>
+      <text x="430" y="182" fill="#ee5a5a" font-size="12" text-anchor="middle">READ A=4 (작업2와 동일)</text>
+      <line x1="430" y1="196" x2="650" y2="196" stroke="#ee5a5a" stroke-width="2"/>
+      <polygon points="650,196 640,191 640,201" fill="#ee5a5a"/>
+      <text x="650" y="216" fill="#ee5a5a" font-size="12" text-anchor="middle">WRITE A=3 (덮어씀)</text>
+      <rect x="395" y="228" width="260" height="26" rx="6" fill="#2a1520" stroke="#ee5a5a" stroke-width="1"/>
+      <text x="525" y="245" fill="#ee5a5a" font-size="12" text-anchor="middle" font-weight="700">Lost Update: 작업 2 의 -1 결과가 사라짐</text>
+    </svg>
+  </div>
+
+  <p>작업 2와 작업 3이 서로 다른 시점에 실행됐지만, 둘 다 작업 1이 써놓은 <code>A=4</code>를 읽은 뒤 각자 <code>4-1=3</code>을 계산해서 그대로 덮어쓴다. 결과적으로 두 번의 <code>-1</code> 요청이 있었는데 자원 값은 한 번만 줄어든 것처럼 보이게 된다. 이런 일이 발생하면 우리는 이 데이터에 대해서 믿을 수 없게 된다.</p>
+  <p>나는 개발자이므로 보통 이런 경우를 막아야 하는 자원의 경우 DB 데이터가 주가 된다. 그래서 동시성을 위해서 사용하는 방법에 대해서 정리해보자.</p>
+</div>
+
+<!-- ── CH1 ── -->
+<div class="lock-ch-label" id="lock-sec-thread">
+  <span class="lock-ch-badge">1</span>
+  <h2>스레드 간 동시성 — synchronized / ReentrantLock</h2>
+</div>
+<div class="card">
+  <p>DB나 여러 서버로 넘어가기 전에, 같은 프로세스 안에서 여러 스레드가 부딪히는 경우부터 봐야 한다. 자바에서는 이 문제를 <code>synchronized</code> 또는 <code>ReentrantLock</code>으로 막는다.</p>
+  <p class="lock-sub-title">synchronized vs ReentrantLock</p>
+  <p>둘 다 임계 구역(critical section)에 한 번에 하나의 스레드만 들어가게 막는 도구다. <code>synchronized</code>는 블록을 벗어나면 JVM이 알아서 락을 풀어주고, <code>ReentrantLock</code>은 <code>lock()</code>/<code>unlock()</code>을 직접 호출해야 하는 대신 <code>tryLock()</code>, 공정성(fair) 옵션, 여러 개의 <code>Condition</code> 같은 걸 더 쓸 수 있다.</p>
+
+  <p class="lock-sub-title">tryLock() — 실제 프로젝트에서 이렇게 썼다</p>
+  <p>프로젝트에서 주기적으로 도는 스케줄러가 있는데, 주기가 짧다 보니 이전 작업이 아직 안 끝났는데 다음 주기가 시작되는 경우가 생겼다. 이때 <code>lock()</code>으로 그냥 기다리게 만들면, 못 끝낸 작업이 계속 쌓여서 나중엔 스케줄이 통째로 밀리는 문제가 된다. 그래서 <code>tryLock()</code>을 써서, 이미 누가 락을 선점하고 있으면 이번 주기는 대기하지 않고 그냥 실행을 취소(skip)하도록 만들었다. 다음 주기에 다시 시도하면 되니까 굳이 기다릴 이유가 없다는 판단이었다.</p>
+
+  <div class="lock-diagram">
+    <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg">
+      <text x="20" y="16" fill="#8b90a8" font-size="12">스케줄 주기가 짧을 때 tryLock()으로 작업 몰림을 막는 모습</text>
+      <line x1="60" y1="150" x2="660" y2="150" stroke="#2e3350" stroke-width="2"/>
+      <rect x="140" y="50" width="220" height="28" rx="4" fill="#5cb85c"/>
+      <text x="250" y="42" fill="#e2e4f0" font-size="11" text-anchor="middle">작업 1 실행 중 (tryLock 성공)</text>
+      <line x1="340" y1="50" x2="340" y2="150" stroke="#ee5a5a" stroke-width="2" stroke-dasharray="4 3"/>
+      <text x="395" y="70" fill="#ee5a5a" font-size="11" text-anchor="middle">tick 2:</text>
+      <text x="395" y="86" fill="#ee5a5a" font-size="11" text-anchor="middle">tryLock 실패</text>
+      <text x="395" y="102" fill="#ee5a5a" font-size="11" text-anchor="middle">-&gt; skip</text>
+      <rect x="540" y="50" width="90" height="28" rx="4" fill="#5cb85c"/>
+      <text x="585" y="42" fill="#e2e4f0" font-size="11" text-anchor="middle">작업 3 (tryLock 성공)</text>
+      <circle cx="140" cy="150" r="4" fill="#6c8ef5"/>
+      <text x="140" y="168" fill="#8b90a8" font-size="11" text-anchor="middle">tick 1</text>
+      <circle cx="340" cy="150" r="4" fill="#ee5a5a"/>
+      <text x="340" y="186" fill="#ee5a5a" font-size="11" text-anchor="middle">tick 2 (skip)</text>
+      <circle cx="540" cy="150" r="4" fill="#6c8ef5"/>
+      <text x="540" y="168" fill="#8b90a8" font-size="11" text-anchor="middle">tick 3</text>
+    </svg>
+  </div>
+  <p>tick 2가 왔을 때 작업 1이 아직 락을 들고 있어서 <code>tryLock()</code>이 즉시 false를 리턴하고, 이번 주기는 대기 없이 취소된다. tick 3에는 작업 1이 이미 끝났으니 <code>tryLock()</code>이 바로 성공한다. <code>lock()</code>이었다면 tick 2도 결국 실행은 됐겠지만, 대기하는 동안 스레드가 계속 묶여있었을 것이다.</p>
+
+  <div class="lock-code-tabs" id="lock-tabs-trylock">
+    <div class="lock-tab-buttons">
+      <button class="lock-tab-btn active" data-lang="java" onclick="lockShowLang('lock-tabs-trylock','java')">Java</button>
+      <button class="lock-tab-btn" data-lang="python" onclick="lockShowLang('lock-tabs-trylock','python')">Python</button>
+    </div>
+    <pre class="active" data-lang="java"><span class="lock-kw">private</span> <span class="lock-kw">final</span> <span class="lock-type">ReentrantLock</span> lock = <span class="lock-kw">new</span> <span class="lock-type">ReentrantLock</span>();
+
+<span class="lock-ann">@Scheduled</span>(fixedDelay = 5000) <span class="lock-com">// 5초마다 도는 스케줄</span>
+<span class="lock-kw">public</span> <span class="lock-kw">void</span> runPeriodicJob() {
+    <span class="lock-kw">if</span> (!lock.tryLock()) {
+        <span class="lock-com">// 이미 이전 주기가 실행 중 -&gt; 대기하지 않고 이번 주기는 취소</span>
+        log.info(<span class="lock-str">"이전 작업이 아직 실행 중, 이번 주기는 skip"</span>);
+        <span class="lock-kw">return</span>;
+    }
+    <span class="lock-kw">try</span> {
+        doHeavyWork();
+    } <span class="lock-kw">finally</span> {
+        lock.unlock();
+    }
+}</pre>
+    <pre data-lang="python">lock = threading.Lock()
+
+<span class="lock-kw">def</span> run_periodic_job():
+    <span class="lock-kw">if</span> <span class="lock-kw">not</span> lock.acquire(blocking=<span class="lock-kw">False</span>):
+        <span class="lock-com"># 이미 이전 주기가 실행 중 -&gt; 대기하지 않고 이번 주기는 취소</span>
+        logger.info(<span class="lock-str">"이전 작업이 아직 실행 중, 이번 주기는 skip"</span>)
+        <span class="lock-kw">return</span>
+    <span class="lock-kw">try</span>:
+        do_heavy_work()
+    <span class="lock-kw">finally</span>:
+        lock.release()</pre>
+  </div>
+</div>
+
+<div class="card" id="lock-sec-chm">
+  <p class="lock-sub-title">ConcurrentHashMap도 결국 이 얘기다</p>
+  <p>동시성 컬렉션인 <code>ConcurrentHashMap</code>도 내부적으로는 락(그리고 락이 아닌 것들)을 조합해서 쓴다. 어떻게 조합했는지 보면 왜 지금 상황에 맞는 락을 골라 써야 하는지 감이 온다.</p>
+
+  <p class="lock-sub-title">Java 7 — 세그먼트(Segment) 단위 락</p>
+  <p>배열 전체를 기본 16개의 Segment로 나누고, <code>Segment</code> 클래스 자체가 <code>ReentrantLock</code>을 상속받는다. put/remove 할 때 해당 key가 속한 세그먼트 하나만 잠그면 되고, 나머지 15개는 동시에 다른 스레드가 건드릴 수 있었다. 문제는 세그먼트 개수가 생성 시점에 고정된다는 것 — 세그먼트 수보다 많은 스레드가 몰리면 결국 같은 세그먼트를 두고 다시 경합이 생긴다.</p>
+
+  <div class="lock-diagram">
+    <svg viewBox="0 0 700 170" xmlns="http://www.w3.org/2000/svg">
+      <text x="20" y="18" fill="#8b90a8" font-size="12">세그먼트 하나 = 버킷 여러 개를 묶은 그룹 + 락 1개</text>
+      <rect x="30" y="36" width="300" height="112" rx="8" fill="none" stroke="#6c8ef5" stroke-width="2" stroke-dasharray="5 4"/>
+      <text x="180" y="54" fill="#6c8ef5" font-size="12" text-anchor="middle" font-weight="700">Segment 0</text>
+      <rect x="55" y="66" width="45" height="45" rx="4" fill="#1a1d27" stroke="#2e3350" stroke-width="2"/>
+      <text x="77" y="93" fill="#8b90a8" font-size="10" text-anchor="middle">bin</text>
+      <rect x="115" y="66" width="45" height="45" rx="4" fill="#1a1d27" stroke="#2e3350" stroke-width="2"/>
+      <text x="137" y="93" fill="#8b90a8" font-size="10" text-anchor="middle">bin</text>
+      <rect x="175" y="66" width="45" height="45" rx="4" fill="#1a1d27" stroke="#2e3350" stroke-width="2"/>
+      <text x="197" y="93" fill="#8b90a8" font-size="10" text-anchor="middle">bin</text>
+      <rect x="235" y="66" width="45" height="45" rx="4" fill="#1a1d27" stroke="#2e3350" stroke-width="2"/>
+      <text x="257" y="93" fill="#8b90a8" font-size="10" text-anchor="middle">bin</text>
+      <text x="180" y="133" fill="#6c8ef5" font-size="11" text-anchor="middle">ReentrantLock 1개 (버킷 4개가 전부 공유)</text>
+      <rect x="370" y="36" width="300" height="112" rx="8" fill="none" stroke="#6c8ef5" stroke-width="2" stroke-dasharray="5 4"/>
+      <text x="520" y="54" fill="#6c8ef5" font-size="12" text-anchor="middle" font-weight="700">Segment 1</text>
+      <rect x="395" y="66" width="45" height="45" rx="4" fill="#1a1d27" stroke="#2e3350" stroke-width="2"/>
+      <text x="417" y="93" fill="#8b90a8" font-size="10" text-anchor="middle">bin</text>
+      <rect x="455" y="66" width="45" height="45" rx="4" fill="#1a1d27" stroke="#2e3350" stroke-width="2"/>
+      <text x="477" y="93" fill="#8b90a8" font-size="10" text-anchor="middle">bin</text>
+      <rect x="515" y="66" width="45" height="45" rx="4" fill="#1a1d27" stroke="#2e3350" stroke-width="2"/>
+      <text x="537" y="93" fill="#8b90a8" font-size="10" text-anchor="middle">bin</text>
+      <rect x="575" y="66" width="45" height="45" rx="4" fill="#1a1d27" stroke="#2e3350" stroke-width="2"/>
+      <text x="597" y="93" fill="#8b90a8" font-size="10" text-anchor="middle">bin</text>
+      <text x="520" y="133" fill="#6c8ef5" font-size="11" text-anchor="middle">ReentrantLock 1개 (버킷 4개가 전부 공유)</text>
+      <text x="350" y="164" fill="#ee5a5a" font-size="11" text-anchor="middle">Segment 0 안의 bin 2개가 서로 다른 key라도, 같은 락 하나를 두고 경합한다</text>
+    </svg>
+  </div>
+  <p>바로 아래 Java 8 버킷 다이어그램과 비교해보면, "묶어서 하나로 잠그는 것"과 "버킷 하나하나를 따로 잠그는 것"의 차이가 그림으로 바로 보인다.</p>
+
+  <p class="lock-sub-title">Java 8 — 버킷(bin) 단위 락</p>
+  <p>Segment를 아예 없애고, 해시 버킷(테이블의 각 슬롯) 단위로 훨씬 잘게 쪼갰다. 버킷이 비어있으면 락 없이 바로 값을 넣고, 이미 값이 있는 버킷이라면 그 버킷 하나만 <code>synchronized</code>로 잠근다. 그래서 같은 순간에도 서로 다른 버킷끼리는 아무 영향 없이 동시에 읽고 쓸 수 있다.</p>
+  <p>참고로 한 버킷의 체인 길이가 8개를 넘고 테이블 전체 크기가 64 이상이면, 연결리스트를 레드-블랙 트리로 바꿔서(treeify) 최악의 경우에도 조회가 O(log n)에 그치게 만든다.</p>
+
+  <div class="lock-diagram">
+    <svg viewBox="0 0 700 130" xmlns="http://www.w3.org/2000/svg">
+      <text x="20" y="16" fill="#8b90a8" font-size="12">버킷(bin) 단위로만 잠긴다 — 나머지 버킷은 동시에 자유롭게 접근 가능</text>
+      <text x="20" y="52" fill="#8b90a8" font-size="12">table</text>
+      <rect x="80" y="30" width="70" height="36" rx="4" fill="#1a1d27" stroke="#2e3350" stroke-width="2"/>
+      <text x="115" y="52" fill="#8b90a8" font-size="11" text-anchor="middle">bin 0</text>
+      <rect x="160" y="30" width="70" height="36" rx="4" fill="#1a1d27" stroke="#2e3350" stroke-width="2"/>
+      <text x="195" y="52" fill="#8b90a8" font-size="11" text-anchor="middle">bin 1</text>
+      <rect x="240" y="30" width="90" height="36" rx="4" fill="#12141e" stroke="#5cb85c" stroke-width="2"/>
+      <text x="285" y="46" fill="#5cb85c" font-size="10" text-anchor="middle">bin 2 (비어있음)</text>
+      <text x="285" y="60" fill="#5cb85c" font-size="10" text-anchor="middle">락 없이 바로 삽입</text>
+      <rect x="340" y="30" width="70" height="36" rx="4" fill="#1a1d27" stroke="#2e3350" stroke-width="2"/>
+      <text x="375" y="52" fill="#8b90a8" font-size="11" text-anchor="middle">bin 3</text>
+      <rect x="420" y="30" width="70" height="36" rx="4" fill="#1a1d27" stroke="#2e3350" stroke-width="2"/>
+      <text x="455" y="52" fill="#8b90a8" font-size="11" text-anchor="middle">bin 4</text>
+      <rect x="500" y="24" width="110" height="48" rx="4" fill="#2a1520" stroke="#ee5a5a" stroke-width="2"/>
+      <text x="555" y="42" fill="#ee5a5a" font-size="10" text-anchor="middle">bin 5 (노드 2개 체인)</text>
+      <text x="555" y="56" fill="#ee5a5a" font-size="10" text-anchor="middle">synchronized(첫 노드)</text>
+      <text x="555" y="68" fill="#ee5a5a" font-size="10" text-anchor="middle">이 버킷만 잠김</text>
+      <rect x="620" y="30" width="60" height="36" rx="4" fill="#1a1d27" stroke="#2e3350" stroke-width="2"/>
+      <text x="650" y="52" fill="#8b90a8" font-size="11" text-anchor="middle">bin 6</text>
+      <text x="350" y="106" fill="#8b90a8" font-size="12" text-anchor="middle">bin 0,1,3,4,6 은 bin 5가 잠긴 것과 무관하게 동시에 읽고 쓸 수 있다</text>
+    </svg>
+  </div>
+
+  <div class="lock-callout">
+    <strong>Java 8에서 ReentrantLock을 뺀 이유</strong>
+    세그먼트(16개 고정)보다 버킷 단위가 훨씬 잘게 쪼개져서 경합이 줄고, <code>synchronized</code>의 JIT 최적화(biased/lightweight locking)가 좋아져서 굳이 <code>ReentrantLock</code>의 오버헤드를 감수할 필요가 없어졌다.
+  </div>
+
+  <p class="lock-sub-title">get()은 아예 락을 안 잡는다</p>
+  <p>읽기(<code>get</code>)는 Java 7이든 8이든 원래 락을 잡지 않는다. 대신 노드의 <code>val</code>, <code>next</code> 필드를 <code>volatile</code>로 선언해서, 다른 스레드가 쓴 값이 happens-before 규칙에 따라 바로 보이도록 보장한다. 그래서 쓰기가 진행 중인 버킷을 읽더라도 대기하지 않고, 그 시점에 반영된 가장 최근 값을 그대로 읽어간다.</p>
+
+  <p class="lock-sub-title">size()는 카운터 하나로 안 센다</p>
+  <p>전체 크기를 <code>AtomicLong</code> 하나로 세면, 모든 스레드의 put/remove가 결국 그 카운터 하나를 두고 경합하게 된다. 그래서 <code>ConcurrentHashMap</code>은 <code>baseCount</code>와 <code>CounterCell[]</code>(요즘의 <code>LongAdder</code>와 같은 아이디어)로 카운트를 여러 칸에 분산시켜두고, <code>size()</code>를 호출할 때만 이 칸들을 다 더해서 리턴한다. 쓰기는 스레드마다 자기 칸에 CAS로 더하기만 하면 되니 경합이 훨씬 줄어든다.</p>
+
+  <p class="lock-sub-title">실제 프로젝트에서 이렇게 썼다</p>
+  <p>WebSocket으로 실시간 데이터를 받는 콜백 스레드와, HTTP 요청을 처리하는 스레드가 동시에 같은 구독 목록을 건드리는 경우가 있었다. 구독 추가/조회가 서로 다른 스레드에서 동시에 일어나도 별도로 <code>synchronized</code>를 걸 필요 없이 <code>ConcurrentHashMap</code>(그리고 <code>newKeySet()</code>으로 만든 concurrent set)에 맡겨서 안전하게 공유했다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">SubscriptionRegistry.java</span>
+    </div>
+    <pre><code><span class="lock-kw">private</span> <span class="lock-kw">final</span> <span class="lock-type">Set</span>&lt;String&gt; subscribedTickers = <span class="lock-type">ConcurrentHashMap</span>.newKeySet();
+<span class="lock-kw">private</span> <span class="lock-kw">final</span> <span class="lock-type">Map</span>&lt;String, String&gt; tickerExchangeMap = <span class="lock-kw">new</span> <span class="lock-type">ConcurrentHashMap</span>&lt;&gt;();
+
+<span class="lock-com">// HTTP 요청 스레드에서 호출</span>
+<span class="lock-kw">public</span> <span class="lock-kw">void</span> subscribe(<span class="lock-type">String</span> ticker, <span class="lock-type">String</span> exchangeCode) {
+    <span class="lock-kw">if</span> (subscribedTickers.contains(ticker)) <span class="lock-kw">return</span>;
+    subscribedTickers.add(ticker);
+    tickerExchangeMap.put(ticker, exchangeCode);
+}
+
+<span class="lock-com">// WebSocket 콜백 스레드에서 동시에 호출됨</span>
+<span class="lock-kw">public</span> <span class="lock-type">Set</span>&lt;String&gt; getSubscribedTickers() {
+    <span class="lock-kw">return</span> <span class="lock-type">Set</span>.copyOf(subscribedTickers);
+}</code></pre>
+  </div>
+
+  <div class="lock-callout warn">
+    <strong>DB 락과 같은 층위의 도구 — DB 자체는 아니다</strong>
+    ConcurrentHashMap은 DB의 낙관적/비관적 락과 같은 층위, 즉 "동시성을 어떻게 보장하냐"의 방법 중 하나일 뿐이다.
+    DB가 락 말고 추가로 해주는 것들 — 영속성(재시작해도 안 사라짐), 인스턴스 간 공유, 여러 key를 묶은 트랜잭션 — 은 여기 없다.
+    메모리에만 있어서 재시작하면 사라지고, 서버 인스턴스마다 따로 논다.
+  </div>
+</div>
+
+<!-- ── CH2 ── -->
+<div class="lock-ch-label" id="lock-sec-optimistic">
+  <span class="lock-ch-badge">2</span>
+  <h2>낙관적 락 (Optimistic Lock)</h2>
+</div>
+<div class="card">
+  <p>DB 락의 종류 중 하나이다. 동시성을 제어할 대상 테이블에 <code>version</code>이라는 컬럼을 두어 언제 수정이 됐는지 확인하여 재시도 등을 할 수 있도록 한 방식이다.</p>
+  <p>예를 들면:</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">version 충돌 감지</span>
+    </div>
+    <pre><code>A : version 1  -&gt; 작업하려고 보니까 version 이 1이였음
+A : version 2  -&gt; 작업을 수행하고 업데이트를 하려고 보니 version 이 2가 됨
+즉, 누군가 내가 업데이트 완료하기 전에 값을 변경함</code></pre>
+  </div>
+
+  <p>이렇게 구별하는 것이다. 보통 이런 경우 어떻게 할 것인지 개발자에게 위임하는 게 가능하다. 다시 version 2의 값을 가지고 작업을 다시 수행할 것인지 아니면 적용하지 않을 것인지 말이다.</p>
+
+  <div class="lock-callout ok">
+    <strong>충돌 = 데이터 오염이 아니다</strong>
+    낙관적 락은 충돌이 나면 항상 감지해서 예외를 던지기 때문에, 잘못된 값이 조용히 저장되는 일은 없다.
+    다만 충돌난 요청을 재시도할지 말지는 개발자의 몫이다.
+  </div>
+
+  <p>낙관적 락은 보통 사용자 경합이 많이 없는 경우에 많이 쓰이는 편이다.</p>
+
+  <div class="lock-code-tabs" id="lock-tabs-optimistic">
+    <div class="lock-tab-buttons">
+      <button class="lock-tab-btn active" data-lang="java" onclick="lockShowLang('lock-tabs-optimistic','java')">Java</button>
+      <button class="lock-tab-btn" data-lang="python" onclick="lockShowLang('lock-tabs-optimistic','python')">Python</button>
+    </div>
+    <pre class="active" data-lang="java"><span class="lock-ann">@Entity</span>
+<span class="lock-kw">public</span> <span class="lock-kw">class</span> <span class="lock-type">Account</span> {
+    <span class="lock-ann">@Id</span>
+    <span class="lock-kw">private</span> <span class="lock-type">Long</span> id;
+    <span class="lock-kw">private</span> <span class="lock-type">Long</span> balance;
+
+    <span class="lock-ann">@Version</span>
+    <span class="lock-kw">private</span> <span class="lock-type">Long</span> version; <span class="lock-com">// 낙관적 락 컬럼</span>
+}
+
+<span class="lock-ann">@Transactional</span>
+<span class="lock-kw">public</span> <span class="lock-kw">void</span> withdraw(<span class="lock-type">Long</span> id, <span class="lock-type">Long</span> amount) {
+    <span class="lock-type">Account</span> account = accountRepository.findById(id).orElseThrow();
+    account.setBalance(account.getBalance() - amount);
+    accountRepository.save(account);
+    <span class="lock-com">// UPDATE ... WHERE id=? AND version=?</span>
+    <span class="lock-com">// 영향받은 row 가 0개면 OptimisticLockException 발생</span>
+}</pre>
+    <pre data-lang="python"><span class="lock-kw">class</span> <span class="lock-type">Account</span>(<span class="lock-type">Base</span>):
+    __tablename__ = <span class="lock-str">"account"</span>
+    id = Column(Integer, primary_key=True)
+    balance = Column(BigInteger)
+    version_id = Column(Integer, nullable=False)
+
+    __mapper_args__ = {
+        <span class="lock-str">"version_id_col"</span>: version_id  <span class="lock-com"># 낙관적 락 컬럼</span>
+    }
+
+<span class="lock-kw">def</span> withdraw(session: <span class="lock-type">Session</span>, account_id: int, amount: int):
+    account = session.get(Account, account_id)
+    account.balance -= amount
+    <span class="lock-kw">try</span>:
+        session.commit()
+    <span class="lock-kw">except</span> <span class="lock-type">StaleDataError</span>:
+        <span class="lock-com"># 다른 트랜잭션이 먼저 값을 바꿈 -&gt; 재시도 여부는 개발자 몫</span>
+        session.rollback()
+        <span class="lock-kw">raise</span></pre>
+  </div>
+</div>
+
+<!-- ── CH3 ── -->
+<div class="lock-ch-label" id="lock-sec-pessimistic">
+  <span class="lock-ch-badge">3</span>
+  <h2>비관적 락 (Pessimistic Lock)</h2>
+</div>
+<div class="card">
+  <p>DB 락의 종류 중 하나이다. 앞의 낙관적 락과 다르게 모든 요청이 특정 행에 대해 적용이 된다. 특정 값에 대해서 여러 사람들이 요청하면 우리가 흔히 아는 lock을 걸어 해당 작업에 대해 오직 하나의 요청만 수행하게 되며 나머지 요청들은 기다리게 된다. 이때 다른 요청들은 LOCK을 획득할 때까지 기다려야 한다.</p>
+  <p>여러 요청이 와도 정상적으로 처리가 되지만, Lock 획득 시까지 기다려야 하며 DB 락이기 때문에 그 기다리는 시간만큼 DB Connection이 잡혀있게 된다. 그리고 하나의 트랜잭션에 다수의 비관적 락을 사용하는 경우 자칫 잘못하면 Dead Lock에 빠질 수 있다.</p>
+
+  <div class="lock-diagram">
+    <svg viewBox="0 0 700 210" xmlns="http://www.w3.org/2000/svg">
+      <text x="20" y="16" fill="#8b90a8" font-size="12">요청이 순차적으로 처리되는 모습 (같은 행에 대한 lock)</text>
+      <line x1="60" y1="180" x2="660" y2="180" stroke="#2e3350" stroke-width="2"/>
+      <text x="20" y="54" fill="#8b90a8" font-size="12">요청 1</text>
+      <rect x="100" y="42" width="180" height="24" rx="4" fill="#5cb85c"/>
+      <text x="190" y="58" fill="#0f1117" font-size="11" text-anchor="middle" font-weight="700">실행 (Lock 보유)</text>
+      <text x="20" y="94" fill="#8b90a8" font-size="12">요청 2</text>
+      <rect x="100" y="82" width="180" height="24" rx="4" fill="#2e3350"/>
+      <text x="190" y="98" fill="#8b90a8" font-size="11" text-anchor="middle">대기</text>
+      <rect x="280" y="82" width="180" height="24" rx="4" fill="#5cb85c"/>
+      <text x="370" y="98" fill="#0f1117" font-size="11" text-anchor="middle" font-weight="700">실행 (Lock 보유)</text>
+      <text x="20" y="134" fill="#8b90a8" font-size="12">요청 3</text>
+      <rect x="100" y="122" width="360" height="24" rx="4" fill="#2e3350"/>
+      <text x="280" y="138" fill="#8b90a8" font-size="11" text-anchor="middle">대기</text>
+      <rect x="460" y="122" width="180" height="24" rx="4" fill="#5cb85c"/>
+      <text x="550" y="138" fill="#0f1117" font-size="11" text-anchor="middle" font-weight="700">실행 (Lock 보유)</text>
+      <text x="360" y="204" fill="#8b90a8" font-size="12" text-anchor="middle">시간 -&gt;</text>
+      <rect x="20" y="160" width="14" height="14" fill="#5cb85c"/>
+      <text x="40" y="171" fill="#e2e4f0" font-size="11">Lock 보유 (DB Connection 점유 중)</text>
+      <rect x="280" y="160" width="14" height="14" fill="#2e3350"/>
+      <text x="300" y="171" fill="#e2e4f0" font-size="11">Lock 대기</text>
+    </svg>
+  </div>
+  <p>요청 2, 3은 요청 1이 트랜잭션을 끝내고 Lock을 반납할 때까지 DB Connection을 잡은 채로 순서를 기다린다. 요청이 몰릴수록 대기 줄이 길어지고, 그만큼 커넥션 풀이 소모된다.</p>
+
+  <div class="lock-callout warn">
+    <strong>비용</strong>
+    락 대기 = DB Connection 점유 시간.
+    대기가 길어질수록 커넥션 풀 전체가 영향을 받는다.
+  </div>
+
+  <div class="lock-code-tabs" id="lock-tabs-pessimistic">
+    <div class="lock-tab-buttons">
+      <button class="lock-tab-btn active" data-lang="java" onclick="lockShowLang('lock-tabs-pessimistic','java')">Java</button>
+      <button class="lock-tab-btn" data-lang="python" onclick="lockShowLang('lock-tabs-pessimistic','python')">Python</button>
+    </div>
+    <pre class="active" data-lang="java"><span class="lock-kw">public</span> <span class="lock-kw">interface</span> <span class="lock-type">AccountRepository</span> <span class="lock-kw">extends</span> <span class="lock-type">JpaRepository</span>&lt;<span class="lock-type">Account</span>, <span class="lock-type">Long</span>&gt; {
+
+    <span class="lock-ann">@Lock</span>(LockModeType.PESSIMISTIC_WRITE)
+    <span class="lock-ann">@Query</span>(<span class="lock-str">"select a from Account a where a.id = :id"</span>)
+    <span class="lock-type">Optional</span>&lt;<span class="lock-type">Account</span>&gt; findByIdForUpdate(<span class="lock-ann">@Param</span>(<span class="lock-str">"id"</span>) <span class="lock-type">Long</span> id);
+    <span class="lock-com">// SELECT ... FOR UPDATE 로 행 잠금, 다른 트랜잭션은 대기</span>
+}
+
+<span class="lock-ann">@Transactional</span>
+<span class="lock-kw">public</span> <span class="lock-kw">void</span> withdraw(<span class="lock-type">Long</span> id, <span class="lock-type">Long</span> amount) {
+    <span class="lock-type">Account</span> account = accountRepository.findByIdForUpdate(id).orElseThrow();
+    account.setBalance(account.getBalance() - amount);
+} <span class="lock-com">// 트랜잭션 종료 시 락 해제</span></pre>
+    <pre data-lang="python"><span class="lock-kw">def</span> withdraw(session, account_id: int, amount: int):
+    row = session.execute(
+        text(<span class="lock-str">"SELECT balance FROM account WHERE id = :id FOR UPDATE"</span>),
+        {<span class="lock-str">"id"</span>: account_id}
+    ).one()
+    <span class="lock-com"># 여기서 다른 트랜잭션은 이 행에 대해 대기함</span>
+
+    new_balance = row.balance - amount
+    session.execute(
+        text(<span class="lock-str">"UPDATE account SET balance = :b WHERE id = :id"</span>),
+        {<span class="lock-str">"b"</span>: new_balance, <span class="lock-str">"id"</span>: account_id}
+    )
+    session.commit()  <span class="lock-com"># 커밋 시점에 락 해제</span></pre>
+  </div>
+</div>
+
+<!-- ── CH4 ── -->
+<div class="lock-ch-label" id="lock-sec-distributed">
+  <span class="lock-ch-badge">4</span>
+  <h2>분산락 (Distributed Lock)</h2>
+</div>
+<div class="card">
+  <p>분산환경에서 사용 가능해서 분산락이다. 보통 개발자들이 Lock을 걸면 위와 같은 DB 락을 많이 사용하며, DB 락만 걸어도 충분할 것 같다.</p>
+  <p>하지만 Transaction 범위가 길거나, 배치 등으로 다수의 row를 수정하거나, 하나의 Transaction에 외부 API 호출 부분이 포함되어 있는 경우 DB 락으로는 비효율적인 부분이 많다.</p>
+  <p>위의 경우 DB 락을 사용한다면 그만큼 DB Connection을 오래 점유하게 되어 커넥션 풀이 고갈될 수 있다. 반면 분산 락의 경우 각각의 인스턴스가 접근 가능한 저장소에 key를 가지는 형식으로 lock을 획득하여 운영되기 때문에 DB Connection 유지로 인한 커넥션 고갈을 막을 수 있다.</p>
+
+  <div class="lock-diagram">
+    <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg">
+      <text x="20" y="16" fill="#8b90a8" font-size="12">여러 인스턴스가 같은 외부 저장소(Redis)의 key로 경쟁하는 모습</text>
+      <rect x="30" y="26" width="150" height="40" rx="8" fill="#1a1d27" stroke="#5cb85c" stroke-width="2"/>
+      <text x="105" y="50" fill="#e2e4f0" font-size="13" text-anchor="middle" font-weight="700">Instance A</text>
+      <rect x="30" y="96" width="150" height="40" rx="8" fill="#1a1d27" stroke="#2e3350" stroke-width="2"/>
+      <text x="105" y="120" fill="#e2e4f0" font-size="13" text-anchor="middle" font-weight="700">Instance B</text>
+      <rect x="30" y="166" width="150" height="40" rx="8" fill="#1a1d27" stroke="#2e3350" stroke-width="2"/>
+      <text x="105" y="190" fill="#e2e4f0" font-size="13" text-anchor="middle" font-weight="700">Instance C</text>
+      <rect x="470" y="70" width="190" height="80" rx="8" fill="#12141e" stroke="#6c8ef5" stroke-width="2"/>
+      <text x="565" y="92" fill="#6c8ef5" font-size="13" text-anchor="middle" font-weight="700">Redis (공유 저장소)</text>
+      <text x="565" y="112" fill="#e2e4f0" font-size="11" text-anchor="middle">lock:account:1</text>
+      <text x="565" y="128" fill="#e2e4f0" font-size="11" text-anchor="middle">= "A-uuid" (TTL 10s)</text>
+      <line x1="180" y1="46" x2="470" y2="98" stroke="#5cb85c" stroke-width="2"/>
+      <polygon points="470,98 458,94 460,104" fill="#5cb85c"/>
+      <text x="300" y="60" fill="#5cb85c" font-size="11">SETNX -&gt; OK (락 획득)</text>
+      <line x1="180" y1="116" x2="470" y2="112" stroke="#8b90a8" stroke-width="2" stroke-dasharray="4 3"/>
+      <polygon points="470,112 459,108 459,116" fill="#8b90a8"/>
+      <text x="300" y="132" fill="#8b90a8" font-size="11">SETNX -&gt; nil (실패)</text>
+      <line x1="180" y1="186" x2="470" y2="130" stroke="#8b90a8" stroke-width="2" stroke-dasharray="4 3"/>
+      <polygon points="470,130 459,127 461,137" fill="#8b90a8"/>
+      <text x="300" y="196" fill="#8b90a8" font-size="11">SETNX -&gt; nil (실패)</text>
+    </svg>
+  </div>
+  <p>Instance A만 <code>SETNX</code>(없을 때만 설정)로 key 선점에 성공해서 락을 갖고, B/C는 같은 key에 대한 시도가 실패해서 재시도하거나 포기한다. A가 작업을 끝내고 key를 지우거나(TTL 만료) 하면 그때 다른 인스턴스가 다시 시도해서 획득할 수 있다.</p>
+
+  <div class="lock-code-tabs" id="lock-tabs-distributed">
+    <div class="lock-tab-buttons">
+      <button class="lock-tab-btn active" data-lang="java" onclick="lockShowLang('lock-tabs-distributed','java')">Java</button>
+      <button class="lock-tab-btn" data-lang="python" onclick="lockShowLang('lock-tabs-distributed','python')">Python</button>
+    </div>
+    <pre class="active" data-lang="java"><span class="lock-type">RLock</span> lock = redissonClient.getLock(<span class="lock-str">"lock:account:"</span> + accountId);
+<span class="lock-kw">boolean</span> acquired = false;
+<span class="lock-kw">try</span> {
+    acquired = lock.tryLock(3, 10, <span class="lock-type">TimeUnit</span>.SECONDS); <span class="lock-com">// 대기 3초, 점유 TTL 10초</span>
+    <span class="lock-kw">if</span> (!acquired) {
+        <span class="lock-kw">throw</span> <span class="lock-kw">new</span> <span class="lock-type">IllegalStateException</span>(<span class="lock-str">"락 획득 실패"</span>);
+    }
+    <span class="lock-com">// critical section: 외부 API 호출 + DB 갱신 등</span>
+    accountService.applyWithdraw(accountId, amount);
+} <span class="lock-kw">finally</span> {
+    <span class="lock-kw">if</span> (acquired) {
+        lock.unlock();
+    }
+}</pre>
+    <pre data-lang="python"><span class="lock-kw">def</span> acquire_lock(key: str, ttl_ms: int = 10000) -> str | <span class="lock-kw">None</span>:
+    token = str(uuid.uuid4())
+    ok = r.set(<span class="lock-str">f"lock:{key}"</span>, token, nx=True, px=ttl_ms)  <span class="lock-com"># 없을 때만 설정 + TTL</span>
+    <span class="lock-kw">return</span> token <span class="lock-kw">if</span> ok <span class="lock-kw">else</span> <span class="lock-kw">None</span>
+
+<span class="lock-kw">def</span> release_lock(key: str, token: str):
+    script = <span class="lock-str">"if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) end"</span>
+    r.eval(script, 1, <span class="lock-str">f"lock:{key}"</span>, token)  <span class="lock-com"># 내가 잡은 락만 지움 (fencing)</span>
+
+<span class="lock-kw">def</span> withdraw(account_id: int, amount: int):
+    token = acquire_lock(<span class="lock-str">f"account:{account_id}"</span>)
+    <span class="lock-kw">if</span> <span class="lock-kw">not</span> token:
+        <span class="lock-kw">raise</span> <span class="lock-type">RuntimeError</span>(<span class="lock-str">"락 획득 실패"</span>)
+    <span class="lock-kw">try</span>:
+        apply_withdraw(account_id, amount)
+    <span class="lock-kw">finally</span>:
+        release_lock(<span class="lock-str">f"account:{account_id}"</span>, token)</pre>
+  </div>
+</div>
+
+<div class="card" id="lock-sec-fencing">
+  <p class="lock-sub-title">분산락이 이중 실행되는 이유 — TTL 때문</p>
+  <p>락을 잡은 인스턴스가 <strong>TTL이 끝나기 전에 작업을 못 끝내는 경우</strong>가 진짜 위험한 시나리오다. 꼭 죽지 않아도, GC pause나 네트워크 지연으로 "잠깐 멈췄다 깨어나는 것"만으로도 똑같이 터진다.</p>
+
+  <div class="lock-diagram">
+    <svg viewBox="0 0 700 215" xmlns="http://www.w3.org/2000/svg">
+      <text x="20" y="16" fill="#8b90a8" font-size="12">TTL이 끝나기 전에 작업이 안 끝나면 생기는 문제</text>
+      <text x="20" y="68" fill="#8b90a8" font-size="12">Instance A</text>
+      <rect x="90" y="52" width="260" height="24" rx="4" fill="#f7b731"/>
+      <text x="220" y="44" fill="#f7b731" font-size="11" text-anchor="middle">T=0 락 획득(TTL 10s) -&gt; GC pause로 정지</text>
+      <circle cx="460" cy="64" r="5" fill="#ee5a5a"/>
+      <text x="460" y="44" fill="#ee5a5a" font-size="11" text-anchor="middle">T=15 재개 -&gt; 그대로 씀</text>
+      <line x1="350" y1="46" x2="350" y2="180" stroke="#ee5a5a" stroke-width="2" stroke-dasharray="4 3"/>
+      <text x="350" y="96" fill="#ee5a5a" font-size="11" text-anchor="middle">T=10: TTL 만료</text>
+      <text x="350" y="110" fill="#ee5a5a" font-size="11" text-anchor="middle">(자동 삭제)</text>
+      <text x="20" y="128" fill="#8b90a8" font-size="12">Instance B</text>
+      <rect x="370" y="112" width="230" height="24" rx="4" fill="#5cb85c"/>
+      <text x="485" y="104" fill="#5cb85c" font-size="11" text-anchor="middle">T=11 같은 락 획득 -&gt; 작업 수행</text>
+      <rect x="350" y="150" width="260" height="28" rx="6" fill="#2a1520" stroke="#ee5a5a" stroke-width="1"/>
+      <text x="480" y="168" fill="#ee5a5a" font-size="11" text-anchor="middle" font-weight="700">A(T=15)도 쓰고 B도 이미 실행 중 -&gt; 동시 수정</text>
+      <line x1="40" y1="190" x2="660" y2="190" stroke="#2e3350" stroke-width="2"/>
+      <text x="90" y="204" fill="#8b90a8" font-size="11" text-anchor="middle">T=0</text>
+      <text x="350" y="204" fill="#8b90a8" font-size="11" text-anchor="middle">T=10 (TTL)</text>
+      <text x="460" y="204" fill="#8b90a8" font-size="11" text-anchor="middle">T=15</text>
+    </svg>
+  </div>
+  <p>A는 T=0에 정상적으로 락을 획득했지만 GC pause로 멈춰있는 동안 T=10에 TTL이 자동으로 만료된다. T=11에 B가 같은 락을 정상적으로 획득해서 작업을 시작하고, T=15에 A가 깨어나 "나는 아직 락을 갖고 있다"고 착각한 채로 마저 작업을 수행한다. 결과적으로 A와 B가 동시에 같은 자원을 건드리게 된다 — 분산락을 쓴 이유 자체가 무너지는 상황이다.</p>
+
+  <div class="lock-callout bad">
+    <strong>TTL을 없앨 수도 없다</strong>
+    TTL이 없으면 A가 진짜로 죽었을 때 락이 영원히 안 풀린다(누구도 다음 작업을 못 함).
+    TTL이 있으면 방금 본 것처럼 "너무 일찍 풀려서 이중 실행"이 생길 수 있다.
+    둘 다 위험하다는 게 분산락의 근본적인 딜레마다.
+  </div>
+
+  <p class="lock-sub-title">TTL로 인한 이중 실행 방지 — Fencing Token</p>
+  <p>락 자체가 이 문제를 막아주는 게 아니라, <strong>자원 쪽에서 이중 실행을 걸러내는 방식</strong>이다. 락을 줄 때마다 계속 증가하는 번호(token)를 같이 주고, 실제 자원(DB 등)에 쓸 때 이 번호도 같이 보내서 "마지막으로 처리한 번호보다 낮은 건 거부"하도록 만든다. A가 33번, (A가 멈춘 사이) B가 34번을 받았다면, T=15에 깨어난 A가 33번 토큰으로 쓰려고 해도 자원 쪽은 이미 B의 34번을 처리한 뒤라 A의 쓰기를 거부한다.</p>
+  <p>중요한 건, 이중으로 락을 잡는 것 자체는 못 막아도 <strong>이중으로 실제 쓰기가 반영되는 것</strong>은 막는다는 점이다. 다만 이건 자원 쪽이 토큰 비교 로직을 직접 구현해줘야 동작하는 거라, 락 라이브러리만 바꾼다고 공짜로 되는 게 아니다.</p>
+
+  <div class="lock-code-tabs" id="lock-tabs-fencing">
+    <div class="lock-tab-buttons">
+      <button class="lock-tab-btn active" data-lang="java" onclick="lockShowLang('lock-tabs-fencing','java')">Java</button>
+      <button class="lock-tab-btn" data-lang="python" onclick="lockShowLang('lock-tabs-fencing','python')">Python</button>
+    </div>
+    <pre class="active" data-lang="java"><span class="lock-kw">public</span> <span class="lock-kw">class</span> <span class="lock-type">AccountRepository</span> {
+    <span class="lock-kw">private</span> <span class="lock-kw">final</span> <span class="lock-type">Map</span>&lt;Long, Long&gt; lastFencingToken = <span class="lock-kw">new</span> <span class="lock-type">ConcurrentHashMap</span>&lt;&gt;();
+
+    <span class="lock-kw">public</span> <span class="lock-kw">void</span> applyWithdraw(<span class="lock-type">Long</span> accountId, <span class="lock-kw">long</span> fencingToken, <span class="lock-kw">long</span> amount) {
+        <span class="lock-type">Long</span> lastToken = lastFencingToken.get(accountId);
+        <span class="lock-kw">if</span> (lastToken != <span class="lock-kw">null</span> && fencingToken &lt;= lastToken) {
+            <span class="lock-com">// 이미 더 최신 토큰이 처리됨 -&gt; 오래된 락에서 온 요청, 거부</span>
+            <span class="lock-kw">throw</span> <span class="lock-kw">new</span> <span class="lock-type">StaleLockException</span>(<span class="lock-str">"fencing token too old: "</span> + fencingToken);
+        }
+        lastFencingToken.put(accountId, fencingToken);
+        doWithdraw(accountId, amount);
+    }
+}
+
+<span class="lock-com">// 락 획득 시 fencing token 도 같이 발급 (Redis INCR로 단조 증가)</span>
+<span class="lock-kw">long</span> fencingToken = redisson.getAtomicLong(<span class="lock-str">"fencing:account:"</span> + accountId).incrementAndGet();
+accountRepository.applyWithdraw(accountId, fencingToken, amount);</pre>
+    <pre data-lang="python">last_fencing_token: dict[int, int] = {}
+
+<span class="lock-kw">def</span> apply_withdraw(account_id: int, fencing_token: int, amount: int):
+    last_token = last_fencing_token.get(account_id)
+    <span class="lock-kw">if</span> last_token <span class="lock-kw">is</span> <span class="lock-kw">not</span> <span class="lock-kw">None</span> <span class="lock-kw">and</span> fencing_token &lt;= last_token:
+        <span class="lock-com"># 이미 더 최신 토큰이 처리됨 -&gt; 오래된 락에서 온 요청, 거부</span>
+        <span class="lock-kw">raise</span> <span class="lock-type">StaleLockError</span>(<span class="lock-str">f"fencing token too old: {fencing_token}"</span>)
+    last_fencing_token[account_id] = fencing_token
+    do_withdraw(account_id, amount)
+
+<span class="lock-com"># 락 획득 시 fencing token도 같이 발급 (Redis INCR로 단조 증가)</span>
+fencing_token = r.incr(<span class="lock-str">f"fencing:account:{account_id}"</span>)
+apply_withdraw(account_id, fencing_token, amount)</pre>
+  </div>
+
+  <div class="lock-callout ok">
+    <strong>그 외 완화 방법</strong>
+    하트비트/lease 갱신 — 작업이 오래 걸리면 살아있는 동안 주기적으로 TTL을 연장(Redisson의 watchdog이 자동으로 해줌).
+    작업 자체를 멱등하게 설계하면 이중 실행이 나도 결과가 같아서 훨씬 덜 위험해진다.
+  </div>
+</div>
+
+<!-- ── 정리 ── -->
+<div class="lock-ch-label" id="lock-sec-summary">
+  <span class="lock-ch-badge">정리</span>
+  <h2>지금까지 3가지 비교</h2>
+</div>
+<div class="card">
+  <table class="lock-compare">
+    <tr><th>구분</th><th>충돌 처리 시점</th><th>대기</th><th>주로 쓰는 곳</th></tr>
+    <tr><td>synchronized / ReentrantLock</td><td>요청 즉시 (JVM 메모리 안)</td><td>lock() 대기, tryLock()은 없음</td><td>같은 프로세스 내 스레드 경합</td></tr>
+    <tr><td>낙관적 락</td><td>저장 시점에 version 비교</td><td>없음 (실패 시 재시도)</td><td>경합 적은 자원</td></tr>
+    <tr><td>비관적 락</td><td>요청 즉시 행 잠금</td><td>락 풀릴 때까지 대기</td><td>경합 많은 자원, 단일 DB</td></tr>
+    <tr><td>분산락</td><td>외부 저장소에 key로 잠금</td><td>구현에 따라 다름</td><td>멀티 인스턴스, 긴 트랜잭션/외부 API 호출 포함</td></tr>
+  </table>
+</div>
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#lock-sec-why" onclick="toggleTOC()">문제. 왜 동시성 문제가 생기는가</a></li>
+    <li><a href="#lock-sec-thread" onclick="toggleTOC()">1. synchronized / ReentrantLock</a></li>
+    <li><a href="#lock-sec-chm" onclick="toggleTOC()">1-1. ConcurrentHashMap 내부 동작</a></li>
+    <li><a href="#lock-sec-optimistic" onclick="toggleTOC()">2. 낙관적 락</a></li>
+    <li><a href="#lock-sec-pessimistic" onclick="toggleTOC()">3. 비관적 락</a></li>
+    <li><a href="#lock-sec-distributed" onclick="toggleTOC()">4. 분산락</a></li>
+    <li><a href="#lock-sec-fencing" onclick="toggleTOC()">4-1. TTL과 Fencing Token</a></li>
+    <li><a href="#lock-sec-summary" onclick="toggleTOC()">정리. 3가지 비교</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>
+
+<script>
+(function () {
+  window.lockShowLang = function (id, lang) {
+    var scope = document.getElementById(id);
+    if (!scope) return;
+    scope.querySelectorAll('pre').forEach(function (el) {
+      el.classList.toggle('active', el.dataset.lang === lang);
+    });
+    scope.querySelectorAll('.lock-tab-btn').forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.lang === lang);
+    });
+  };
+})();
+</script>
