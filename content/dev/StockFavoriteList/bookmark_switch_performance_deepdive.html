@@ -1,0 +1,580 @@
+<!-- [2026-07-08] 북마크 전환 속도 개선 Deep Dive — 병목 진단과 스레드풀 분리 -->
+<style>
+  /* ── TOC ── */
+  .report-toc {
+    position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+    background: var(--surface); border-left: 1px solid var(--border);
+    padding: 40px 25px; z-index: 1001;
+    transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+  }
+  .report-toc.active { right: 0; }
+  .report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .report-toc ul { list-style: none; padding: 0; margin: 0; }
+  .report-toc li { margin-bottom: 12px; line-height: 1.4; }
+  .report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+  .report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+  .toc-backdrop {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+    z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+  }
+  .toc-backdrop.active { display: block; opacity: 1; }
+  .toc-toggle-btn {
+    position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+    background: var(--accent); color: #fff; border: none; border-radius: 50%;
+    font-size: 1.5rem; cursor: pointer; z-index: 1002;
+    box-shadow: 0 4px 15px var(--accent-glow);
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+  }
+  .toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); box-shadow: 0 6px 20px var(--accent-glow); }
+  @media (max-width: 768px) {
+    .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+  }
+
+  /* ── Scoped Styles (공통) ── */
+  .sfl-chapter-label { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+  .sfl-ch-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--accent); color: #fff; font-size: 11px;
+    font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+    padding: 4px 12px; border-radius: 6px; flex-shrink: 0;
+  }
+  .sfl-sub-title { font-size: .95rem; font-weight: 700; color: var(--accent); margin: 22px 0 10px; padding-left: 10px; border-left: 3px solid var(--accent); }
+
+  .sfl-callout {
+    border-left: 4px solid var(--accent);
+    background: rgba(94,129,244,0.05);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 16px 0; font-size: 14px;
+  }
+  .sfl-callout.warn { border-color: var(--yellow); background: rgba(245,158,11,0.05); }
+  .sfl-callout.ok   { border-color: var(--green);  background: rgba(47,179,68,0.05); }
+  .sfl-callout.bad  { border-color: var(--red);    background: rgba(214,57,57,0.05); }
+  .sfl-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+  /* ── 코드 하이라이트 ── */
+  .sfl-kw   { color: #ff79c6; font-weight: 600; }
+  .sfl-fn   { color: #50fa7b; }
+  .sfl-str  { color: #f1fa8c; }
+  .sfl-cm   { color: #6272a4; font-style: italic; }
+  .sfl-type { color: #8be9fd; }
+
+  /* ── ERD ── */
+  .sfl-erd-row { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0; margin-top: 14px; }
+  .sfl-erd-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; width: 190px; }
+  .sfl-erd-box h4 { color: var(--accent); margin: 0 0 8px; font-size: 0.85rem; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .sfl-erd-box ul { margin: 0; padding-left: 16px; font-size: 0.74rem; color: var(--text-muted); }
+  .sfl-erd-box.center { border-color: var(--accent); }
+  .sfl-erd-rel { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 10px; color: var(--text-muted); font-size: 0.68rem; font-weight: 700; white-space: nowrap; }
+  .sfl-erd-rel .sfl-line { width: 34px; height: 2px; background: var(--border); margin: 4px 0; }
+
+  /* ── 시퀀스 흐름 ── */
+  .sfl-seq-step { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px dashed var(--border); }
+  .sfl-seq-step:last-child { border-bottom: none; }
+  .sfl-actor { flex: 0 0 auto; font-size: 0.68rem; font-weight: 700; padding: 3px 9px; border-radius: 99px; white-space: nowrap; }
+  .sfl-actor-user { background: rgba(136,146,176,0.15); color: var(--text-muted); }
+  .sfl-actor-fav { background: rgba(94,129,244,0.15); color: var(--accent); }
+  .sfl-actor-ws { background: rgba(182,115,244,0.15); color: #b673f4; }
+  .sfl-actor-rest { background: rgba(47,179,68,0.15); color: var(--green); }
+  .sfl-actor-price { background: rgba(139,233,253,0.15); color: #8be9fd; }
+  .sfl-actor-kis { background: rgba(214,57,57,0.15); color: var(--red); }
+  .sfl-seq-body { font-size: 0.85rem; }
+  .sfl-seq-note { font-size: 0.75rem; color: var(--text-muted); font-style: italic; margin-top: 2px; }
+
+  /* ── 원인 랭킹 카드 ── */
+  .sfl-cause-card { display: flex; gap: 14px; align-items: flex-start; border-radius: 10px; padding: 14px 18px; margin-bottom: 10px; border-left: 4px solid transparent; background: var(--surface2); }
+  .sfl-cause-rank { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; color: #fff; }
+  .sfl-cause-card.sev1 { border-left-color: var(--red); } .sfl-cause-card.sev1 .sfl-cause-rank { background: var(--red); }
+  .sfl-cause-card.sev2 { border-left-color: var(--yellow); } .sfl-cause-card.sev2 .sfl-cause-rank { background: var(--yellow); }
+  .sfl-cause-card.sev3 { border-left-color: #e0a800; } .sfl-cause-card.sev3 .sfl-cause-rank { background: #e0a800; }
+  .sfl-cause-card.sev4 { border-left-color: var(--accent); } .sfl-cause-card.sev4 .sfl-cause-rank { background: var(--accent); }
+  .sfl-cause-card.sev5 { border-left-color: var(--text-muted); opacity: 0.85; } .sfl-cause-card.sev5 .sfl-cause-rank { background: var(--text-muted); }
+  .sfl-cause-title { font-weight: 700; color: #fff; font-size: 0.9rem; margin-bottom: 4px; }
+  .sfl-cause-note { font-size: 0.78rem; color: var(--text-muted); margin-top: 6px; }
+  .sfl-cause-merge { text-align: center; background: rgba(214,57,57,0.1); border: 1px solid rgba(214,57,57,0.35); border-radius: 10px; padding: 12px; margin-top: 6px; font-weight: 700; color: #ffb3b3; }
+
+  /* ── 풀 비교 ── */
+  .sfl-pool-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 14px; }
+  .sfl-pool-card { border-radius: 12px; padding: 18px; text-align: center; background: var(--surface2); border: 1px solid var(--border); }
+  .sfl-pool-card.before { border-color: rgba(214,57,57,0.4); }
+  .sfl-pool-card.after { border-color: rgba(47,179,68,0.4); }
+  .sfl-pool-card-title { font-weight: 700; font-size: 0.85rem; margin-bottom: 12px; }
+  .sfl-pool-card.before .sfl-pool-card-title { color: var(--red); }
+  .sfl-pool-card.after .sfl-pool-card-title { color: var(--green); }
+  .sfl-pool-box { background: var(--code-bg); border: 1px dashed var(--text-muted); border-radius: 8px; padding: 10px; font-size: 0.76rem; color: var(--text-muted); margin-bottom: 8px; }
+  .sfl-pool-box.ok { border-color: var(--green); color: var(--green); }
+  .sfl-pool-tasks { display: flex; flex-direction: column; gap: 6px; }
+  .sfl-pool-task { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 0.76rem; }
+  .sfl-pool-task.congest { border-color: rgba(214,57,57,0.4); }
+
+  /* ── 막대 차트 ── */
+  .sfl-bar-chart { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+  .sfl-bar-row { display: flex; align-items: center; gap: 12px; }
+  .sfl-bar-label { width: 190px; font-size: 0.8rem; color: var(--text-muted); flex-shrink: 0; }
+  .sfl-bar-track { flex: 1; background: var(--code-bg); border-radius: 6px; overflow: hidden; height: 30px; position: relative; border: 1px solid var(--border); }
+  .sfl-bar-fill { height: 100%; display: flex; align-items: center; padding-left: 10px; font-size: 0.78rem; font-weight: 700; color: #fff; border-radius: 5px 0 0 5px; white-space: nowrap; }
+  .sfl-bar-fill.before { width: 100%; background: linear-gradient(90deg,#d63939,#f59e0b); }
+  .sfl-bar-fill.after { width: 7%; min-width: 110px; background: linear-gradient(90deg,#2fb344,#5e81f4); }
+
+  /* ── 타임라인 ── */
+  .sfl-timeline { position: relative; padding-left: 26px; margin-top: 16px; }
+  .sfl-timeline::before { content: ""; position: absolute; left: 6px; top: 6px; bottom: 6px; width: 2px; background: var(--border); }
+  .sfl-tl-item { position: relative; padding-bottom: 26px; }
+  .sfl-tl-item:last-child { padding-bottom: 0; }
+  .sfl-tl-dot { position: absolute; left: -26px; top: 3px; width: 13px; height: 13px; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); }
+  .sfl-tl-dot.hl { border-color: var(--red); background: var(--red); }
+  .sfl-tl-dot.gray { border-color: var(--text-muted); background: var(--surface); }
+  .sfl-tl-date { font-size: 0.72rem; color: var(--text-muted); font-weight: 700; letter-spacing: 0.4px; }
+  .sfl-tl-title { font-weight: 700; color: #fff; font-size: 0.92rem; margin: 2px 0 6px; }
+  .sfl-tl-body { font-size: 0.84rem; }
+  .sfl-tl-commit { font-family: "Consolas", "Courier New", monospace; font-size: 0.72rem; color: var(--accent); background: rgba(94,129,244,0.1); padding: 1px 7px; border-radius: 4px; margin-right: 6px; }
+  .sfl-tl-highlight { text-align: center; background: rgba(214,57,57,0.1); border: 1px solid rgba(214,57,57,0.35); border-radius: 10px; padding: 14px; margin-top: 18px; font-weight: 700; color: #ffb3b3; font-size: 0.88rem; }
+
+  @media (max-width: 768px) {
+    .sfl-pool-compare { grid-template-columns: 1fr; }
+    .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+  }
+</style>
+
+<h1>⚡ [Deep Dive] 북마크 전환 속도 개선: 병목 진단과 스레드풀 분리</h1>
+
+<div class="card" style="text-align:center; background: linear-gradient(135deg, var(--surface), var(--surface2));">
+  <span class="badge badge-date">2026.07.08</span>
+  <span class="badge badge-tag">Backend</span>
+  <span class="badge badge-tag">Performance</span>
+  <span class="badge badge-tag">Concurrency</span>
+  <p style="margin-top:14px; color:var(--text-muted); font-size:14px;">
+    선택 → 종목 목록 로딩 → 실시간 가격 반영까지, 지연의 근본 원인 5가지와 백엔드 병렬화 + 프론트 구독 diff로 해결한 과정
+  </p>
+</div>
+
+<!-- Section 0 -->
+<div class="card" id="sfl-perf-sec0">
+  <div class="sfl-chapter-label">
+    <span class="sfl-ch-badge">Section 0</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">🗂️ 도메인 이해 — Favorite / BookMark / Stock 관계</h2>
+  </div>
+
+  <div class="sfl-callout">
+    <strong>💡 "Favorite"이라는 이름의 DB 테이블은 존재하지 않는다</strong>
+    <code>Favorite.jsx</code>는 프론트엔드 라우트/화면 이름일 뿐이고, 실제로 화면에 그려지는 데이터는 <code>BookMark</code>(북마크 목록) 엔티티다.
+  </div>
+
+  <p class="sfl-sub-title">테이블 관계도</p>
+  <div class="sfl-erd-row">
+    <div class="sfl-erd-box">
+      <h4>👤 Member</h4>
+      <ul><li>id (PK)</li><li>email (UK)</li><li>password</li><li>apiKey</li></ul>
+    </div>
+    <div class="sfl-erd-rel">1 : N<div class="sfl-line"></div>소유</div>
+    <div class="sfl-erd-box center">
+      <h4>📁 BookMark</h4>
+      <ul><li>id (PK)</li><li>memberId (FK)</li><li>title / description</li><li>priority</li></ul>
+    </div>
+    <div class="sfl-erd-rel">1 : N<div class="sfl-line"></div>포함</div>
+    <div class="sfl-erd-box center">
+      <h4>🔗 BookMarkAndStock</h4>
+      <ul><li>id (PK)</li><li>bookMarkId (FK)</li><li>stockId (FK)</li><li>sortOrder</li></ul>
+    </div>
+    <div class="sfl-erd-rel">N : 1<div class="sfl-line"></div>포함됨</div>
+    <div class="sfl-erd-box">
+      <h4>📈 Stock</h4>
+      <ul><li>id (PK)</li><li>ticker (UK)</li><li>stockName / currency</li><li>indexFlag</li></ul>
+    </div>
+  </div>
+
+  <p style="margin-top:18px; font-size:0.88rem;"><strong>즉, "북마크 전환"이란:</strong> 사용자가 다른 <code>BookMark</code>를 클릭하면, <code>BookMarkAndStock</code>을 통해 그 북마크에 연결된 <code>Stock</code> 목록을 가져오고, 각 종목의 실시간 가격을 붙여서 보여주는 동작이다.</p>
+</div>
+
+<!-- Section 1 -->
+<div class="card" id="sfl-perf-sec1">
+  <div class="sfl-chapter-label">
+    <span class="sfl-ch-badge">Section 1</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">🕰️ 히스토리 — 이 코드가 병목이 되기까지</h2>
+  </div>
+
+  <p style="font-size:0.85rem; color:var(--text-muted); margin-top:-4px;">git log로 실제 커밋 이력을 추적한 결과. "느려진 이유"는 하루아침에 생긴 게 아니라, 이 프로젝트의 아키텍처가 커지는 과정에서 누적된 것이었다.</p>
+
+  <div class="sfl-timeline">
+    <div class="sfl-tl-item">
+      <div class="sfl-tl-dot hl"></div>
+      <div class="sfl-tl-date">2026-02-19</div>
+      <div class="sfl-tl-title">📌 최초 등장 — <code>StockPriceClientImpl</code> 도입</div>
+      <div class="sfl-tl-body"><span class="sfl-tl-commit">684b6b8</span>"stock Web Socket 연결 완료" 커밋에서 <code>fetchFromKis</code>의 ticker당 순차 for-loop, 그리고 프론트 <code>subscribeTicker</code>/<code>unsubscribeAll</code> 패턴이 함께 처음 만들어졌다. 이 시점엔 북마크당 종목 수가 적어 순차 호출이어도 체감 문제가 없었다.</div>
+    </div>
+    <div class="sfl-tl-item">
+      <div class="sfl-tl-dot"></div>
+      <div class="sfl-tl-date">2026-03-27</div>
+      <div class="sfl-tl-title">🏗️ 아키텍처 확장 — 사용자별 KIS 토큰/웹소켓 도입</div>
+      <div class="sfl-tl-body"><span class="sfl-tl-commit">bd7f626</span>"stock arch 변경" — <code>PerUserKisTokenManager</code>, <code>UserKisWebSocketSession</code> 등 사용자별 KIS 연결 구조와 <code>AlarmEvaluationService</code>(알람 평가)가 함께 추가되며 비동기 작업의 종류가 늘어났다. 이때부터 "커먼풀을 공유하는 비동기 작업"이 하나둘 늘어나기 시작.</div>
+    </div>
+    <div class="sfl-tl-item">
+      <div class="sfl-tl-dot gray"></div>
+      <div class="sfl-tl-date">2026-07-04</div>
+      <div class="sfl-tl-title">🧹 정리 — 사용자별 KIS 아키텍처를 다시 걷어냄</div>
+      <div class="sfl-tl-body"><span class="sfl-tl-commit">dd6f5e5</span>"fix : eleminate memebr stock api" — 3월에 도입했던 사용자별 KIS 토큰/웹소켓을 제거하고, 공유 <code>KisRealtimeManager</code> 하나로 단순화했다. 복잡화 → 단순화를 거치며 "다음에 손댈 수 있는" 구조로 정리된 시점 — 성능 개선 커밋 불과 4일 전.</div>
+    </div>
+    <div class="sfl-tl-item">
+      <div class="sfl-tl-dot hl"></div>
+      <div class="sfl-tl-date">2026-07-08 01:23</div>
+      <div class="sfl-tl-title">⚡ 병렬화 — 순차 구조를 4.5개월 만에 손봄</div>
+      <div class="sfl-tl-body"><span class="sfl-tl-commit">7afa7df</span>"미국 주식 한글로 조회 가능 추가" + "bookmark 전환시 데이터 로딩 속도 증가" — <strong>완전히 같은 커밋</strong>이다. <code>AsyncConfig.java</code>가 이때 처음 생겼고, <code>fetchFromKis</code>/<code>getCurrentPrices</code> 병렬화, <code>Favorite.jsx</code> diff 적용이 모두 이 한 커밋에 들어갔다.</div>
+    </div>
+  </div>
+
+  <div class="sfl-tl-highlight">🐌 순차 for-loop 병목은 2026-02-19 최초 커밋부터 2026-07-08 수정까지 <strong>약 140일(4.5개월)</strong> 동안 구조적으로 존재했다.</div>
+
+  <div class="sfl-callout">
+    <strong>🔗 왜 한글 검색과 성능 개선이 한 커밋에 같이 들어갔는가</strong>
+    두 작업은 논리적으로 완전히 독립된 관심사(검색 기능 vs 성능)지만, 실제로는 같은 세션에서 함께 작업되어 <span class="sfl-tl-commit">7afa7df</span> 하나의 커밋으로 합쳐졌다.
+    이 문서와 한글 종목 검색 Deep Dive 문서가 서로 "같은 날 커밋"이라고 언급하는 이유가 바로 이것 — 정확히는 날짜가 아니라 <strong>같은 커밋</strong>이다.
+  </div>
+</div>
+
+<!-- Section 2 -->
+<div class="card" id="sfl-perf-sec2">
+  <div class="sfl-chapter-label">
+    <span class="sfl-ch-badge">Section 2</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">📡 실시간 주식 데이터를 가져오는 3가지 경로</h2>
+  </div>
+
+  <p>가격 데이터는 하나의 경로가 아니라, <strong>시장 상태(장중/장외/휴장)에 따라 역할을 나눠 맡는 3가지 경로</strong>가 있다.</p>
+  <table>
+    <thead><tr><th>경로</th><th>트리거</th><th>대상</th><th>주기</th></tr></thead>
+    <tbody>
+      <tr><td>① 즉시 REST 조회</td><td>구독 시작 시 1회 (/app/stock/subscribe/{ticker})</td><td>구독한 ticker</td><td>1회성</td></tr>
+      <tr><td>② KIS 실시간 WebSocket</td><td>정규장 + 비지수 종목만</td><td>정규장 종목</td><td>실시간 tick</td></tr>
+      <tr><td>③ Yahoo 폴링 스케줄러</td><td>②를 못 받는 나머지 전부</td><td>KIS가 안 주는 ticker</td><td>시장 상태별 가변 주기</td></tr>
+    </tbody>
+  </table>
+
+  <p class="sfl-sub-title">시퀀스 흐름: 북마크 전환 → 실시간 구독까지</p>
+  <div class="sfl-seq-step"><span class="sfl-actor sfl-actor-user">User</span><div class="sfl-seq-body">다른 북마크 클릭</div></div>
+  <div class="sfl-seq-step"><span class="sfl-actor sfl-actor-fav">Favorite.jsx</span><div class="sfl-seq-body">GET bookmarks/{id}/stocks 요청</div></div>
+  <div class="sfl-seq-step"><span class="sfl-actor sfl-actor-rest">REST</span><div class="sfl-seq-body">getCurrentPrices(tickers) 호출 <span style="color:var(--text-muted);">— ticker별 병렬, priceFetchExecutor</span></div></div>
+  <div class="sfl-seq-step"><span class="sfl-actor sfl-actor-price">Price Client</span><div class="sfl-seq-body">종목별 초기 가격 반환 → 목록 + 초기 가격 렌더링</div></div>
+  <div class="sfl-seq-step"><span class="sfl-actor sfl-actor-fav">Favorite.jsx</span><div class="sfl-seq-body">diff(기존 stockList, 새 stocks) 계산 → 사라진 ticker만 unsubscribe, 새로 생긴 ticker만 subscribe</div></div>
+  <div class="sfl-seq-step"><span class="sfl-actor sfl-actor-ws">WSHook</span><div class="sfl-seq-body">STOMP publish <code>/app/stock/subscribe/{ticker}</code></div></div>
+  <div class="sfl-seq-step"><span class="sfl-actor sfl-actor-ws">WSCtrl</span><div class="sfl-seq-body">getCurrentPrices([ticker]) 즉시 1회 조회 → /topic/stock/{ticker} 브로드캐스트 <span style="color:var(--accent);">(경로 ①)</span></div></div>
+  <div class="sfl-seq-step"><span class="sfl-actor sfl-actor-kis">KIS</span><div class="sfl-seq-body">정규장 + 비지수면 <code>kisSubscribeExecutor.submit(subscribe)</code> (500ms 페이싱) → 실시간 체결마다 브로드캐스트 <span style="color:var(--accent);">(경로 ②)</span><div class="sfl-seq-note">지수 또는 장외/휴장이면 StockPriceScheduler가 3s~3600s 간격 Yahoo 폴링 후 브로드캐스트 (경로 ③)</div></div></div>
+
+  <p class="sfl-sub-title">경로 ③ Yahoo 폴링 주기</p>
+  <table>
+    <thead><tr><th>시장 상태</th><th>폴링 주기</th></tr></thead>
+    <tbody>
+      <tr><td>정규장(REGULAR) — KIS WS 수신 ticker 제외</td><td>3초</td></tr>
+      <tr><td>프리마켓/애프터(PRE_MARKET, AFTER_HOURS)</td><td>10초</td></tr>
+      <tr><td>장 마감(CLOSED)</td><td>300초 (5분)</td></tr>
+      <tr><td>휴장일(HOLIDAY)</td><td>3600초 (1시간)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="sfl-callout">
+    <strong>🔌 KIS 연결이 끊기면 자동으로 Yahoo 폴백되는가 → Yes</strong>
+    <code>KisRealtimeManager.getSubscribedTickers()</code>는 연결이 끊기면 빈 집합을 반환한다.
+    <code>StockPriceScheduler</code>는 "KIS가 서빙 중인 ticker"만 Yahoo 폴링에서 제외하므로, 끊긴 순간부터 모든 ticker가 자동으로 Yahoo 폴링 대상에 포함된다 — 별도 분기 없이 "제외 목록이 비면 전부 포함"되는 구조 자체가 폴백 역할을 한다.
+  </div>
+</div>
+
+<!-- Section 3 -->
+<div class="card" id="sfl-perf-sec3">
+  <div class="sfl-chapter-label">
+    <span class="sfl-ch-badge">Section 3</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">🔬 문제 진단 — 왜 느렸는가 (원인 5가지, 영향도 순)</h2>
+  </div>
+
+  <p style="font-size:0.85rem; color:var(--text-muted); margin-top:-4px;">Explore 서브에이전트에게 "북마크 전환 흐름 전체를 추적해 지연 원인을 랭킹으로 보고하라"고 위임해 찾아낸 5가지 원인.</p>
+
+  <div class="sfl-cause-card sev1">
+    <div class="sfl-cause-rank">1</div>
+    <div>
+      <div class="sfl-cause-title">🐌 가격조회가 ticker당 순차 블로킹 호출 (가장 큰 원인)</div>
+      <div>KIS와 Yahoo를 모두 호출하고, 거래소 코드 미확정 ticker는 최대 3회까지 순차 시도. 20~30개 ticker 기준 <strong>최악 90~120회 순차 네트워크 라운드트립.</strong></div>
+    </div>
+  </div>
+
+  <div class="sfl-cause-card sev2">
+    <div class="sfl-cause-rank">2</div>
+    <div>
+      <div class="sfl-cause-title">🚦 KIS WS 500ms 페이싱이 가격조회와 같은 커먼풀 점유</div>
+      <div><code>Thread.sleep(500)</code>으로 점유된 <code>ForkJoinPool.commonPool()</code> 스레드가 늘어날수록, 같은 풀을 쓰는 즉시 가격조회 작업까지 실행이 밀림.</div>
+    </div>
+  </div>
+
+  <div class="sfl-cause-card sev3">
+    <div class="sfl-cause-rank">3</div>
+    <div>
+      <div class="sfl-cause-title">🔁 전체 unsubscribe 후 전체 재구독</div>
+      <div>겹치는 종목이 있어도 매번 전부 해제 후 전부 재구독 → 겹치는 종목까지 원인 2의 500ms 페이싱을 다시 탐.</div>
+      <div class="sfl-cause-note">→ 원인 2를 불필요하게 더 많이 유발</div>
+    </div>
+  </div>
+
+  <div class="sfl-cause-card sev4">
+    <div class="sfl-cause-rank">4</div>
+    <div>
+      <div class="sfl-cause-title">🧭 거래소 코드 미확정 ticker의 반복 탐색</div>
+      <div>캐시에 없는 ticker는 NAS/NYS/AMS를 순서대로 최대 3번 시도. 캐시 무효화 직후·최초 로딩 시점에 원인 1을 악화시킴.</div>
+      <div class="sfl-cause-note">→ 원인 1을 악화</div>
+    </div>
+  </div>
+
+  <div class="sfl-cause-merge">🥵 체감 지연: 종목 목록 로딩이 느림 (원인 1 + 원인 2가 합쳐진 결과)</div>
+
+  <div class="sfl-cause-card sev5" style="margin-top:14px;">
+    <div class="sfl-cause-rank">5</div>
+    <div>
+      <div class="sfl-cause-title">🔄 실시간 틱마다 리스트 전체 리렌더 (상시 비용, 전환 지연 아님)</div>
+      <div><code>React.memo</code> 부재로 가격이 올 때마다 리스트 전체가 리렌더. "전환" 자체의 지연 요인은 아니라 이번 범위에서 제외.</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <p class="sfl-sub-title">원인 1 상세 — KIS와 Yahoo를 왜 같이 부르는가</p>
+  <p style="font-size:0.85rem;">단순히 "KIS 실패 시 Yahoo로 대체"하는 게 아니다. 실제로는 <strong>필드 단위로 병합</strong>한다 — KIS의 실시간 현재가를 우선 쓰되, KIS가 주지 않는 애프터마켓 가격·일중 고가/저가는 Yahoo 결과에서 보충한다. 이 이중 조회 자체가 원인 1을 키우는 구조다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">📄 StockPriceClientImpl.java — getCurrentPrices (병합 로직)</span>
+    </div>
+    <pre><code><span class="sfl-kw">public</span> <span class="sfl-type">Map</span>&lt;<span class="sfl-type">String</span>, <span class="sfl-type">StockPriceInfo</span>&gt; <span class="sfl-fn">getCurrentPrices</span>(<span class="sfl-type">List</span>&lt;<span class="sfl-type">String</span>&gt; tickers) {
+    <span class="sfl-cm">// 지수(^)와 일반 주식 분리 — 지수는 항상 Yahoo</span>
+    <span class="sfl-type">List</span>&lt;<span class="sfl-type">String</span>&gt; stockTickers = tickers.<span class="sfl-fn">stream</span>().<span class="sfl-fn">filter</span>(t -&gt; !<span class="sfl-fn">isIndex</span>(t)).<span class="sfl-fn">toList</span>();
+    ...
+    <span class="sfl-kw">if</span> (status == REGULAR || PRE_MARKET || AFTER_HOURS) {
+        <span class="sfl-cm">// 정규장/프리/애프터: KIS와 Yahoo를 "둘 다" 호출</span>
+        <span class="sfl-type">Map</span>&lt;<span class="sfl-type">String</span>, <span class="sfl-type">StockPriceInfo</span>&gt; kisResult = <span class="sfl-fn">fetchFromKis</span>(stockTickers);
+        <span class="sfl-type">Map</span>&lt;<span class="sfl-type">String</span>, <span class="sfl-type">StockPriceInfo</span>&gt; yahooResult = yahooPriceClient.<span class="sfl-fn">getCurrentPrices</span>(stockTickers);
+
+        <span class="sfl-kw">for</span> (<span class="sfl-type">String</span> ticker : stockTickers) {
+            <span class="sfl-kw">if</span> (kisPrice != <span class="sfl-kw">null</span>) {
+                <span class="sfl-cm">// KIS 현재가를 쓰되, Yahoo에서 애프터마켓가/일중 고저만 보충</span>
+                result.<span class="sfl-fn">put</span>(ticker, <span class="sfl-kw">new</span> <span class="sfl-type">StockPriceInfo</span>(kisPrice.currentPrice(), ...,
+                        yahooPrice.<span class="sfl-fn">afterHoursPrice</span>(), yahooPrice.<span class="sfl-fn">dayHigh</span>(), yahooPrice.<span class="sfl-fn">dayLow</span>()));
+            } <span class="sfl-kw">else if</span> (yahooPrice != <span class="sfl-kw">null</span>) {
+                result.<span class="sfl-fn">put</span>(ticker, yahooPrice); <span class="sfl-cm">// KIS 실패 시 순수 fallback</span>
+            }
+        }
+    } <span class="sfl-kw">else</span> {
+        result.<span class="sfl-fn">putAll</span>(yahooPriceClient.<span class="sfl-fn">getCurrentPrices</span>(stockTickers)); <span class="sfl-cm">// CLOSED/HOLIDAY</span>
+    }
+    <span class="sfl-kw">return</span> result;
+}</code></pre>
+  </div>
+
+  <p style="font-size:0.85rem; margin-top:16px;"><strong>거래소 코드 탐색(원인 4)의 실제 코드</strong> — <code>exchangeCodeCache</code>에 없으면 3개 거래소를 순서대로 시도한다:</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">📄 StockPriceClientImpl.java — fetchKisPrice</span>
+    </div>
+    <pre><code><span class="sfl-kw">private</span> <span class="sfl-type">StockPriceInfo</span> <span class="sfl-fn">fetchKisPrice</span>(<span class="sfl-type">String</span> ticker) {
+    <span class="sfl-type">String</span> cached = exchangeCodeCache.<span class="sfl-fn">get</span>(ticker);
+    <span class="sfl-kw">if</span> (cached != <span class="sfl-kw">null</span>) {
+        <span class="sfl-type">StockPriceInfo</span> info = <span class="sfl-fn">tryFetch</span>(cached, ticker);
+        <span class="sfl-kw">if</span> (info != <span class="sfl-kw">null</span>) <span class="sfl-kw">return</span> info;
+        exchangeCodeCache.<span class="sfl-fn">remove</span>(ticker); <span class="sfl-cm">// 캐시된 코드가 더 이상 안 맞으면 제거 후 재탐색</span>
+    }
+    <span class="sfl-kw">for</span> (<span class="sfl-type">String</span> code : EXCHANGE_CODES) { <span class="sfl-cm">// {"NAS","NYS","AMS"}</span>
+        <span class="sfl-type">StockPriceInfo</span> info = <span class="sfl-fn">tryFetch</span>(code, ticker);
+        <span class="sfl-kw">if</span> (info != <span class="sfl-kw">null</span>) { exchangeCodeCache.<span class="sfl-fn">put</span>(ticker, code); <span class="sfl-kw">return</span> info; }
+    }
+    <span class="sfl-kw">return null</span>; <span class="sfl-cm">// 3개 거래소 모두 실패</span>
+}</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <p class="sfl-sub-title">Before → After: 가격조회 병렬화</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">📄 StockPriceClientImpl.java — fetchFromKis (Before)</span>
+    </div>
+    <pre><code><span class="sfl-cm">// Before — 순차 for-loop, 블로킹</span>
+<span class="sfl-kw">private</span> <span class="sfl-type">Map</span>&lt;<span class="sfl-type">String</span>, <span class="sfl-type">StockPriceInfo</span>&gt; <span class="sfl-fn">fetchFromKis</span>(<span class="sfl-type">List</span>&lt;<span class="sfl-type">String</span>&gt; tickers) {
+    <span class="sfl-type">Map</span>&lt;<span class="sfl-type">String</span>, <span class="sfl-type">StockPriceInfo</span>&gt; result = <span class="sfl-kw">new</span> <span class="sfl-type">HashMap</span>&lt;&gt;();
+    <span class="sfl-kw">for</span> (<span class="sfl-type">String</span> ticker : tickers) {                       <span class="sfl-cm">// 순차 for-loop</span>
+        <span class="sfl-type">StockPriceInfo</span> priceInfo = <span class="sfl-fn">fetchKisPrice</span>(ticker); <span class="sfl-cm">// 블로킹 HTTP 호출</span>
+        <span class="sfl-kw">if</span> (priceInfo != <span class="sfl-kw">null</span>) result.<span class="sfl-fn">put</span>(ticker, priceInfo);
+    }
+    <span class="sfl-kw">return</span> result;
+}</code></pre>
+  </div>
+
+  <div class="terminal-window" style="margin-top:16px;">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">📄 StockPriceClientImpl.java — fetchFromKis (After)</span>
+    </div>
+    <pre><code><span class="sfl-cm">// After — priceFetchExecutor(고정 24스레드)로 병렬화</span>
+<span class="sfl-kw">private</span> <span class="sfl-type">Map</span>&lt;<span class="sfl-type">String</span>, <span class="sfl-type">StockPriceInfo</span>&gt; <span class="sfl-fn">fetchFromKis</span>(<span class="sfl-type">List</span>&lt;<span class="sfl-type">String</span>&gt; tickers) {
+    <span class="sfl-type">List</span>&lt;<span class="sfl-type">CompletableFuture</span>&lt;<span class="sfl-type">Map.Entry</span>&lt;<span class="sfl-type">String</span>, <span class="sfl-type">StockPriceInfo</span>&gt;&gt;&gt; futures = tickers.<span class="sfl-fn">stream</span>()
+            .<span class="sfl-fn">map</span>(ticker -&gt; CompletableFuture.<span class="sfl-fn">supplyAsync</span>(
+                    () -&gt; <span class="sfl-kw">new</span> <span class="sfl-type">AbstractMap.SimpleEntry</span>&lt;&gt;(ticker, <span class="sfl-fn">fetchKisPrice</span>(ticker)),
+                    priceFetchExecutor))
+            .<span class="sfl-fn">toList</span>();
+
+    <span class="sfl-type">Map</span>&lt;<span class="sfl-type">String</span>, <span class="sfl-type">StockPriceInfo</span>&gt; result = <span class="sfl-kw">new</span> <span class="sfl-type">HashMap</span>&lt;&gt;();
+    <span class="sfl-kw">for</span> (<span class="sfl-kw">var</span> future : futures) {
+        <span class="sfl-kw">var</span> entry = future.<span class="sfl-fn">join</span>();
+        <span class="sfl-kw">if</span> (entry.<span class="sfl-fn">getValue</span>() != <span class="sfl-kw">null</span>) result.<span class="sfl-fn">put</span>(entry.<span class="sfl-fn">getKey</span>(), entry.<span class="sfl-fn">getValue</span>());
+    }
+    <span class="sfl-kw">return</span> result;
+}</code></pre>
+  </div>
+
+  <div class="terminal-window" style="margin-top:16px;">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">📄 Favorite.jsx — 구독 diff</span>
+    </div>
+    <pre><code><span class="sfl-cm">// After — ticker 기준 diff (기존 stockAddHandler가 쓰던 패턴을 전환 로직에도 적용)</span>
+<span class="sfl-kw">const</span> oldTickers = <span class="sfl-kw">new</span> <span class="sfl-type">Set</span>(stockList.<span class="sfl-fn">map</span>(s =&gt; s.ticker).<span class="sfl-fn">filter</span>(Boolean));
+<span class="sfl-kw">const</span> newTickers = <span class="sfl-kw">new</span> <span class="sfl-type">Set</span>(stocks.<span class="sfl-fn">map</span>(s =&gt; s.ticker).<span class="sfl-fn">filter</span>(Boolean));
+
+oldTickers.<span class="sfl-fn">forEach</span>(ticker =&gt; { <span class="sfl-kw">if</span> (!newTickers.<span class="sfl-fn">has</span>(ticker)) <span class="sfl-fn">unsubscribeTicker</span>(ticker); });
+newTickers.<span class="sfl-fn">forEach</span>(ticker =&gt; { <span class="sfl-kw">if</span> (!oldTickers.<span class="sfl-fn">has</span>(ticker)) <span class="sfl-fn">subscribeTicker</span>(ticker); });</code></pre>
+  </div>
+</div>
+
+<!-- Section 4 -->
+<div class="card" id="sfl-perf-sec4">
+  <div class="sfl-chapter-label">
+    <span class="sfl-ch-badge">Section 4</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">🧵 스레드풀 분리 설계 (AsyncConfig)</h2>
+  </div>
+
+  <div class="sfl-pool-compare">
+    <div class="sfl-pool-card before">
+      <div class="sfl-pool-card-title">😵 Before: 커먼풀 공유</div>
+      <div class="sfl-pool-box">ForkJoinPool.commonPool()</div>
+      <div class="sfl-pool-tasks">
+        <div class="sfl-pool-task congest">💰 가격조회 작업</div>
+        <div class="sfl-pool-task congest">⏱️ KIS 500ms 페이싱 작업</div>
+        <div class="sfl-pool-task congest">🔔 다른 비동기 작업 (알람 평가 등)</div>
+      </div>
+      <p style="font-size:0.72rem; color:var(--red); margin-top:10px;">→ 셋이 같은 스레드를 두고 경합</p>
+    </div>
+    <div class="sfl-pool-card after">
+      <div class="sfl-pool-card-title">✅ After: 전용 풀 분리</div>
+      <div class="sfl-pool-box ok">priceFetchExecutor (고정 24스레드)</div>
+      <div class="sfl-pool-tasks"><div class="sfl-pool-task">💰 즉시 가격조회 + broadcast</div></div>
+      <div class="sfl-pool-box ok" style="margin-top:14px;">kisSubscribeExecutor (단일 스레드)</div>
+      <div class="sfl-pool-tasks"><div class="sfl-pool-task">⏱️ KIS WS 구독 500ms 페이싱</div></div>
+      <p style="font-size:0.72rem; color:var(--green); margin-top:10px;">→ 서로 막지 않음</p>
+    </div>
+  </div>
+
+  <div class="terminal-window" style="margin-top:20px;">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">📄 common/configs/AsyncConfig.java</span>
+    </div>
+    <pre><code><span class="sfl-kw">@Configuration</span>
+<span class="sfl-kw">public class</span> <span class="sfl-type">AsyncConfig</span> {
+    <span class="sfl-kw">@Bean</span>
+    <span class="sfl-kw">public</span> <span class="sfl-type">ExecutorService</span> <span class="sfl-fn">priceFetchExecutor</span>() {
+        <span class="sfl-kw">return</span> Executors.<span class="sfl-fn">newFixedThreadPool</span>(<span class="sfl-str">24</span>);
+    }
+
+    <span class="sfl-kw">@Bean</span>
+    <span class="sfl-kw">public</span> <span class="sfl-type">ExecutorService</span> <span class="sfl-fn">kisSubscribeExecutor</span>() {
+        <span class="sfl-kw">return</span> Executors.<span class="sfl-fn">newSingleThreadExecutor</span>();
+    }
+}</code></pre>
+  </div>
+
+  <div class="sfl-callout">
+    <strong>🧩 왜 KIS/Yahoo 그룹 간 병렬화는 하지 않았는가 (중첩 스레드풀 데드락 회피)</strong>
+    둘 다 같은 <code>priceFetchExecutor</code>에 던지고 그 안에서 다시 ticker별로 같은 풀에 서브밋해 <code>.join()</code>으로 기다리면, 같은 고정 크기 풀에 작업이 중첩 제출되는 구조가 된다.
+    다중 세션이 겹치면 외곽 작업이 풀 스레드를 모두 점유한 채 내부 작업을 기다려 데드락 위험이 생긴다.
+    그래서 그룹(KIS→Yahoo) 자체는 순차 유지, <strong>그룹 내부에서만</strong> 병렬화했다.
+  </div>
+
+  <p class="sfl-sub-title">부수 결정 — 왜 @RequiredArgsConstructor를 명시적 생성자로 바꿨는가</p>
+  <p style="font-size:0.85rem;"><code>ExecutorService</code> 빈이 <code>priceFetchExecutor</code>/<code>kisSubscribeExecutor</code> 2개 존재하므로, 타입만으로는 Spring이 어느 빈을 주입할지 판단할 수 없다(둘 다 <code>ExecutorService</code> 타입). 그래서 캐시 이전에 <code>WebClient</code> 빈이 여러 개일 때 이미 쓰고 있던 <code>@Qualifier("kisWebClient")</code> 컨벤션을 그대로 재사용해, Lombok의 <code>@RequiredArgsConstructor</code> 대신 명시적 생성자 + <code>@Qualifier</code>로 바꿨다.</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">📄 StockPriceWebSocketController.java — 생성자</span>
+    </div>
+    <pre><code><span class="sfl-kw">public</span> <span class="sfl-fn">StockPriceWebSocketController</span>(<span class="sfl-type">StockPriceRelayService</span> relayService,
+                                      <span class="sfl-type">StockPriceClient</span> stockPriceClient,
+                                      <span class="sfl-type">StockPriceClientImpl</span> stockPriceClientImpl,
+                                      <span class="sfl-type">KisRealtimeManager</span> kisRealtimeManager,
+                                      <span class="sfl-kw">@Qualifier</span>(<span class="sfl-str">"priceFetchExecutor"</span>) <span class="sfl-type">ExecutorService</span> priceFetchExecutor,
+                                      <span class="sfl-kw">@Qualifier</span>(<span class="sfl-str">"kisSubscribeExecutor"</span>) <span class="sfl-type">ExecutorService</span> kisSubscribeExecutor) { ... }</code></pre>
+  </div>
+  <p style="font-size:0.78rem; color:var(--text-muted); margin-top:10px;">같은 처리를 <code>YahooPriceClient</code>, <code>StockPriceClientImpl</code>에도 동일하게 적용했다 — 필드명-빈이름 매칭에 의존하지 않고 명시적으로 어떤 풀을 쓰는지 코드에서 바로 보이게 하기 위함.</p>
+</div>
+
+<!-- Section 5 -->
+<div class="card" id="sfl-perf-sec5">
+  <div class="sfl-chapter-label">
+    <span class="sfl-ch-badge">Section 5</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">📊 도입 효과</h2>
+  </div>
+
+  <p class="sfl-sub-title">순차 호출 횟수 비교 (20~30 ticker 기준)</p>
+  <div class="sfl-bar-chart">
+    <div class="sfl-bar-row">
+      <div class="sfl-bar-label">Before (순차)</div>
+      <div class="sfl-bar-track"><div class="sfl-bar-fill before">~90~120회 순차 호출</div></div>
+    </div>
+    <div class="sfl-bar-row">
+      <div class="sfl-bar-label">After (그룹 내부 병렬)</div>
+      <div class="sfl-bar-track"><div class="sfl-bar-fill after">~2~4 라운드</div></div>
+    </div>
+  </div>
+  <p style="font-size:0.78rem; color:var(--text-muted); margin-top:10px;">O(N) → O(⌈N / 24⌉). poolSize=24이므로 대부분의 북마크는 그룹(KIS/Yahoo)당 1~2 라운드로 끝난다.</p>
+
+  <ul style="margin-top:20px;">
+    <li>가격조회와 KIS 500ms 페이싱의 스레드 경합 제거 — 전용 풀 분리로 서로를 막지 않음</li>
+    <li>겹치는 종목은 재구독(KIS 500ms 페이싱)을 타지 않아, 유사한 북마크 간 전환일수록 이득이 커짐</li>
+  </ul>
+
+  <blockquote>
+    <strong>🧑‍💻 남은 한계:</strong> KIS 500ms 페이싱 자체(ticker당 순차)는 여전히 존재한다 — 완전히 겹치지 않는 새 북마크로 전환하면 실시간 구독은 여전히 순차로 붙는다. 다만 이제 그게 "가격이 화면에 뜨는 시점"을 막지 않는다: 사용자는 초기 가격을 먼저 보고, 실시간 틱은 뒤에서 순차적으로 이어붙는다. 원인 5(리스트 전체 리렌더)도 <code>React.memo</code> 부재로 여전히 남아있지만, 이번 작업은 "전환" 지연 해소가 목적이라 범위 밖으로 뒀다.
+  </blockquote>
+
+  <div class="terminal-window" style="margin-top:20px;">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">빌드 검증 (커밋 7afa7df 기준)</span>
+    </div>
+    <pre><code>./gradlew compileJava   -&gt; BUILD SUCCESSFUL
+./gradlew build -x test -&gt; BUILD SUCCESSFUL
+npm run build           -&gt; built in 310ms (경고 없음)
+npm run lint            -&gt; 기존에도 있던 무관한 파일의 pre-existing 이슈만 존재,
+                           이번 수정 파일(Favorite.jsx 등)에는 신규 에러 없음</code></pre>
+  </div>
+</div>
+
+<p style="text-align:right; font-size:0.8rem; color:var(--text-muted); margin-top:30px;">
+  참고: docs/2026-07-08-bookmark-switch-performance.md · docs/2026-07-08-bookmark-switch-performance-deepdive.md · 커밋 7afa7df (2026-07-08 01:23)<br />
+  관련 코드: AsyncConfig.java · YahooPriceClient.java · StockPriceClientImpl.java · StockPriceWebSocketController.java · StockPriceScheduler.java · KisRealtimeManager.java · Favorite.jsx<br />
+  © 2026 Gustav — Stock Favorite List, Personal Project Log (2026-07-08)
+</p>
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#sfl-perf-sec0" onclick="toggleTOC()">0. 도메인 이해 (ERD)</a></li>
+    <li><a href="#sfl-perf-sec1" onclick="toggleTOC()">1. 히스토리 (타임라인)</a></li>
+    <li><a href="#sfl-perf-sec2" onclick="toggleTOC()">2. 실시간 데이터 3가지 경로</a></li>
+    <li><a href="#sfl-perf-sec3" onclick="toggleTOC()">3. 문제 진단 — 원인 5가지</a></li>
+    <li><a href="#sfl-perf-sec4" onclick="toggleTOC()">4. 스레드풀 분리 설계</a></li>
+    <li><a href="#sfl-perf-sec5" onclick="toggleTOC()">5. 도입 효과</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>

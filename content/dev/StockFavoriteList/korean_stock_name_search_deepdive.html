@@ -1,0 +1,556 @@
+<!-- [2026-07-08] 한글 종목 검색 기능 Deep Dive — IndexAndWaterRide 이식과 기존 파이프라인 통합 -->
+<style>
+  /* ── TOC ── */
+  .report-toc {
+    position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+    background: var(--surface); border-left: 1px solid var(--border);
+    padding: 40px 25px; z-index: 1001;
+    transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+  }
+  .report-toc.active { right: 0; }
+  .report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .report-toc ul { list-style: none; padding: 0; margin: 0; }
+  .report-toc li { margin-bottom: 12px; line-height: 1.4; }
+  .report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+  .report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+  .toc-backdrop {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+    z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+  }
+  .toc-backdrop.active { display: block; opacity: 1; }
+  .toc-toggle-btn {
+    position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+    background: var(--accent); color: #fff; border: none; border-radius: 50%;
+    font-size: 1.5rem; cursor: pointer; z-index: 1002;
+    box-shadow: 0 4px 15px var(--accent-glow);
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+  }
+  .toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); box-shadow: 0 6px 20px var(--accent-glow); }
+  @media (max-width: 768px) {
+    .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+  }
+
+  /* ── Scoped Styles ── */
+  .sfl-chapter-label { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+  .sfl-ch-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--accent); color: #fff; font-size: 11px;
+    font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+    padding: 4px 12px; border-radius: 6px; flex-shrink: 0;
+  }
+  .sfl-sub-title { font-size: .95rem; font-weight: 700; color: var(--accent); margin: 22px 0 10px; padding-left: 10px; border-left: 3px solid var(--accent); }
+
+  .sfl-callout {
+    border-left: 4px solid var(--accent);
+    background: rgba(94,129,244,0.05);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 16px 0; font-size: 14px;
+  }
+  .sfl-callout.warn { border-color: var(--yellow); background: rgba(245,158,11,0.05); }
+  .sfl-callout.ok   { border-color: var(--green);  background: rgba(47,179,68,0.05); }
+  .sfl-callout.bad  { border-color: var(--red);    background: rgba(214,57,57,0.05); }
+  .sfl-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+  .sfl-tag-good { color: var(--green); font-weight: 700; }
+  .sfl-tag-bad  { color: var(--red);   font-weight: 700; }
+
+  /* ── 코드 하이라이트 ── */
+  .sfl-kw   { color: #ff79c6; font-weight: 600; }
+  .sfl-fn   { color: #50fa7b; }
+  .sfl-str  { color: #f1fa8c; }
+  .sfl-cm   { color: #6272a4; font-style: italic; }
+  .sfl-type { color: #8be9fd; }
+
+  /* ── 플로우차트 ── */
+  .sfl-flowchart { display: flex; flex-direction: column; align-items: center; gap: 0; margin: 10px auto 0; }
+  .sfl-fnode { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; text-align: center; width: 100%; max-width: 640px; font-size: 0.88rem; }
+  .sfl-fnode b { color: #fff; }
+  .sfl-fnode.decision { border-radius: 50px; border-color: var(--yellow); background: rgba(245, 158, 11, 0.08); font-weight: 600; }
+  .sfl-fnode.merge { border-color: var(--green); background: rgba(47, 179, 68, 0.08); }
+  .sfl-fnode.exit { border-color: var(--red); background: rgba(214, 57, 57, 0.08); font-size: 0.8rem; max-width: 380px; }
+  .sfl-fconnector { color: var(--accent); font-size: 1.6rem; font-weight: 700; line-height: 1; padding: 2px 0 6px; }
+  .sfl-flane { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; width: 100%; max-width: 780px; align-items: stretch; }
+  .sfl-flane .sfl-fnode { max-width: none; height: 100%; }
+  .sfl-flane-col { display: flex; flex-direction: column; align-items: center; }
+  .sfl-flane-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; padding: 3px 10px; border-radius: 99px; }
+  .sfl-flane-label.old { color: var(--text-muted); background: rgba(136,146,176,0.12); }
+  .sfl-flane-label.new { color: var(--accent); background: rgba(94,129,244,0.12); }
+  .sfl-fnode.old-branch { border-left: 3px solid var(--text-muted); }
+  .sfl-fnode.new-branch { border-left: 3px solid var(--accent); }
+  .sfl-fexit-row { display: flex; justify-content: center; gap: 14px; width: 100%; max-width: 780px; margin: 4px 0; }
+  .sfl-arrow { color: var(--accent); font-weight: 600; }
+
+  @media (max-width: 768px) {
+    .sfl-flane { grid-template-columns: 1fr; }
+    .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+  }
+</style>
+
+<h1>🔎 [Deep Dive] 한글 종목 검색 기능: IndexAndWaterRide 이식과 기존 파이프라인 통합</h1>
+
+<div class="card" style="text-align:center; background: linear-gradient(135deg, var(--surface), var(--surface2));">
+  <span class="badge badge-date">2026.07.08</span>
+  <span class="badge badge-tag">Backend</span>
+  <span class="badge badge-tag">Search</span>
+  <p style="margin-top:14px; color:var(--text-muted); font-size:14px;">
+    stock_favorite_list의 findStockByTicker에 한글 종목명 검색을 추가하며 내린 설계 결정과 트레이드오프 분석
+  </p>
+</div>
+
+<!-- Section 0 -->
+<div class="card" id="sfl-search-sec0">
+  <div class="sfl-chapter-label">
+    <span class="sfl-ch-badge">Section 0</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">🎯 배경 및 목적 — 왜 이 기능을 만들었나</h2>
+  </div>
+
+  <p class="sfl-sub-title">문제 상황</p>
+  <p>기존 종목 검색은 티커(예: <code>AAPL</code>) 또는 <code>^</code>접두사 지수만 인식했다. 사용자가 "애플", "테슬라" 같은 <strong>한글 종목명</strong>을 입력하면 백엔드에 도달하지도 못하고 <strong>프론트엔드 정규식 검증 단계에서 즉시 차단</strong>되었다.</p>
+
+  <div class="sfl-callout warn">
+    <strong>💡 왜 바꿔야 했는가</strong>
+    종목 즐겨찾기 서비스인데 정작 회사 이름으로 검색이 안 되고 정확한 영문 티커를 외워서 입력해야 했다.
+    미국주식(ETF 제외)에 대해 한글 종목명 검색을 지원하도록 백엔드에 네이버 금융 자동완성(<code>ac.stock.naver.com</code>) 연동을 추가하고, 프론트엔드 입력 검증을 완화했다.
+  </div>
+  <div class="sfl-callout">
+    <strong>⚙️ ETF는 왜 대상에서 뺐는가</strong>
+    ETF(SOXL 등)는 사용자가 원래부터 영문 티커로 직접 입력하므로 별도 한글 매핑 대상에서 제외했다.
+    네이버 자동완성 응답을 <code>category=stock</code>으로 필터링하면 ETF는 자연히 제외되어 별도 예외 처리가 필요 없었다.
+  </div>
+</div>
+
+<div class="card">
+  <p class="sfl-sub-title">설계 결정과 이유 (Design Decisions)</p>
+  <table>
+    <thead><tr><th>결정</th><th>이유</th></tr></thead>
+    <tbody>
+      <tr><td>자체 한글-ticker 매핑 테이블 대신 네이버 자동완성 API 사용</td><td>미국 상장 종목 전체에 대한 한글명 매핑을 직접 구축/유지보수하는 비용을 피하고, 네이버가 이미 관리하는 데이터를 재사용</td></tr>
+      <tr><td>category=stock &amp;&amp; nationCode=USA 필터링만으로 ETF 제외</td><td>사용자가 ETF는 영문 티커로 입력한다고 명시했고, 네이버 응답에서 ETF는 별도 category로 분류되어 추가 로직 없이 자연 제외됨</td></tr>
+      <tr><td>검색 실패(0건)는 캐싱하지 않음</td><td>오타 등으로 인한 실패가 캐시에 영구 고정되면 오타를 고쳐도 계속 실패로 보일 위험 방지</td></tr>
+      <tr><td>alias 캐시 키를 원본 한글 입력값으로 유지</td><td>동일 한글 재검색 시 네이버 API를 다시 타지 않고 기존 ticker 캐시로 즉시 응답</td></tr>
+      <tr><td>기존 findStockByTicker 파이프라인(캐시→DB→Yahoo) 재사용</td><td>한글 검색은 "입력값을 ticker로 정규화"하는 전처리 단계로만 취급, 검색/저장 로직 중복 없이 기존 안정 경로에 합류</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Section 1 -->
+<div class="card" id="sfl-search-sec1">
+  <div class="sfl-chapter-label">
+    <span class="sfl-ch-badge">Section 1</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">📦 IndexAndWaterRide 프로젝트에서 그대로 이식</h2>
+  </div>
+
+  <p class="sfl-sub-title">1-1. 거의 동일한 코드</p>
+  <p>새로 설계한 것이 아니라, 개인 프로젝트 <strong>IndexAndWaterRide</strong>에서 이미 검증된 "한글 종목명 → 미국주식 ticker 변환" 로직을 그대로 가져왔다.</p>
+  <table>
+    <thead><tr><th>파일</th><th>IndexAndWaterRide</th><th>stock_favorite_list</th><th>비고</th></tr></thead>
+    <tbody>
+      <tr><td>Naver 응답 DTO</td><td><code>NaverExternalDto</code></td><td><code>NaverExternalDto</code></td><td>레코드 구조(code, name, category, nationCode) 100% 동일</td></tr>
+      <tr><td>Naver 호출 클라이언트</td><td><code>NaverStockSearchClient</code></td><td><code>NaverStockSearchClient</code></td><td><code>.block()</code> 호출, 실패 시 null 반환 + log.warn 문구까지 동일</td></tr>
+      <tr><td>WebClient 빈</td><td><code>naverWebClient</code></td><td><code>naverWebClient</code></td><td>base-url ac.stock.naver.com, User-Agent 헤더까지 동일</td></tr>
+      <tr><td>필터링 조건</td><td>category=stock &amp;&amp; nationCode=USA</td><td>category=stock &amp;&amp; nationCode=USA</td><td>상수명(STOCK_CATEGORY, US_NATION_CODE)까지 동일</td></tr>
+      <tr><td>"0건 캐싱 안함" 정책</td><td><code>UsStockSearchService.search</code></td><td><code>StockNameSearchClientImpl.searchUsTickers</code></td><td>주석 문구("오타 등으로 인한 실패가 영구히 캐싱되는 것을 막기 위함")까지 동일</td></tr>
+    </tbody>
+  </table>
+
+  <div class="terminal-window" style="margin-top:16px;">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">📄 domain/stock/StockNameSearchClient.java — 포트 인터페이스 (신규)</span>
+    </div>
+    <pre><code><span class="sfl-kw">package</span> com.bookmark.stock.domain.stock;
+
+<span class="sfl-kw">import</span> java.util.List;
+
+<span class="sfl-kw">public interface</span> <span class="sfl-type">StockNameSearchClient</span> {
+    <span class="sfl-cm">// 한글 종목명("애플")을 실제 미국주식 ticker 목록(["AAPL"])으로 변환한다.</span>
+    <span class="sfl-type">List</span>&lt;<span class="sfl-type">String</span>&gt; <span class="sfl-fn">searchUsTickers</span>(<span class="sfl-type">String</span> keyword);
+}</code></pre>
+  </div>
+
+  <div class="terminal-window" style="margin-top:16px;">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">📄 infrastructure/stock/external/NaverStockSearchClient.java — /ac 호출부 (신규)</span>
+    </div>
+    <pre><code><span class="sfl-kw">public</span> <span class="sfl-type">NaverExternalDto</span>.<span class="sfl-type">AutoCompleteResponse</span> <span class="sfl-fn">search</span>(<span class="sfl-type">String</span> keyword) {
+    <span class="sfl-kw">try</span> {
+        <span class="sfl-kw">return</span> webClient.<span class="sfl-fn">get</span>()
+                .<span class="sfl-fn">uri</span>(uriBuilder -&gt; uriBuilder
+                        .<span class="sfl-fn">path</span>(<span class="sfl-str">"/ac"</span>)
+                        .<span class="sfl-fn">queryParam</span>(<span class="sfl-str">"q"</span>, keyword)
+                        .<span class="sfl-fn">queryParam</span>(<span class="sfl-str">"target"</span>, <span class="sfl-str">"stock"</span>)
+                        .<span class="sfl-fn">build</span>())
+                .<span class="sfl-fn">retrieve</span>()
+                .<span class="sfl-fn">bodyToMono</span>(<span class="sfl-type">NaverExternalDto</span>.<span class="sfl-type">AutoCompleteResponse</span>.<span class="sfl-kw">class</span>)
+                .<span class="sfl-fn">block</span>();
+    } <span class="sfl-kw">catch</span> (<span class="sfl-type">Exception</span> e) {
+        log.<span class="sfl-fn">warn</span>(<span class="sfl-str">"Naver 종목 검색 실패 (keyword={}): {}"</span>, keyword, e.<span class="sfl-fn">getMessage</span>());
+        <span class="sfl-kw">return null</span>;
+    }
+}</code></pre>
+  </div>
+  <p style="margin-top:12px; font-size:0.85rem; color:var(--text-muted);">⚠️ <code>.block()</code>으로 동기 호출하고, 실패 시 예외를 던지지 않고 <code>null</code>을 반환한다 — IndexAndWaterRide와 완전히 동일한 폴백 방식이라 원본과 대조했을 때 사실상 동일 파일이다.</p>
+
+  <p class="sfl-sub-title">1-2. 이식하며 바뀐 부분 (구조적 차이)</p>
+  <ul>
+    <li>IndexAndWaterRide: <code>UsStockSearchRepositoryImpl</code>(필터링) → <code>UsStockSearchService</code>(캐싱)로 책임이 Repository/Service 두 레이어로 분리.</li>
+    <li>stock_favorite_list: <code>StockNameSearchClientImpl</code> 한 클래스가 필터링 + 캐싱을 모두 담당하고, 기존 DDD 레이어링(포트/구현)에 맞춰 재배치.</li>
+    <li>IndexAndWaterRide는 결과가 <code>UsStockCandidateDto(code, name)</code> — 이름까지 보유. stock_favorite_list는 <code>List&lt;String&gt;</code>(ticker만) — 기존 <code>findStockByTicker</code> 파이프라인이 ticker 기준으로 동작하기 때문에 이름은 버린다.</li>
+  </ul>
+
+  <p class="sfl-sub-title">1-3. 최초 도입 시점과 재사용 근거</p>
+  <p>IndexAndWaterRide 쪽 최초 도입 커밋: <span class="point">70a1502</span> — "feat : - Find By Natural Language" (2026-06-19).</p>
+  <div class="sfl-callout warn">
+    <strong>💡 왜 그대로 재사용했는가</strong>
+    이 로직은 이미 한 달 가까이(2026-06-19 → 2026-07-08) IndexAndWaterRide 텔레그램 봇에서 실사용되며 Naver /ac 응답 포맷, 필터링 조건, 실패 시 폴백 동작까지 검증된 코드다.
+    같은 문제를 처음부터 재설계할 이유가 없어, 검증된 코드를 그대로 옮기고 레이어링만 stock_favorite_list의 DDD 컨벤션에 맞췄다.
+  </div>
+</div>
+
+<!-- Section 2 -->
+<div class="card" id="sfl-search-sec2">
+  <div class="sfl-chapter-label">
+    <span class="sfl-ch-badge">Section 2</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">🔗 기존 Ticker 검색 로직과의 통합</h2>
+  </div>
+
+  <p class="sfl-sub-title">2-1. 한글 분기 도입 이전의 원래 흐름</p>
+  <p><code>StockService.findStockByTicker</code>의 뼈대는 한글 검색을 넣기 전에도 이미 <strong>캐시 → DB → 외부 API</strong> 3단 파이프라인이었다. 한글 검색은 이 파이프라인 앞에 "입력값을 candidate ticker 목록으로 정규화"하는 단계 하나만 끼워 넣은 것이다.</p>
+  <ul>
+    <li>캐시: <code>StockCacheRepositoryImpl</code> (Caffeine, stockInfoByTicker / stockInfoByName, 10,000건/24일 TTL)</li>
+    <li>DB: <code>StockRepository.findStock(...)</code> (PostgreSQL, StockEntity)</li>
+    <li>외부 API: <code>StockExternalApiClient.findSymbol(...)</code> → Yahoo Finance → (실패 시) Finnhub fallback</li>
+  </ul>
+  <p>기존 로직(한글 아닌 입력)은 <code>originalInput</code> + <code>^originalInput</code>(지수 접두사) 두 개를 candidate로 만들고, 외부 API 조회는 원본 1회 호출로 끝났다.</p>
+
+  <p class="sfl-sub-title">2-2. 실제 소스: 한글 분기와 candidate 결정</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">📄 domain/stock/StockService.java — findStockByTicker (수정)</span>
+    </div>
+    <pre><code><span class="sfl-type">String</span> originalInput = searchDto.<span class="sfl-fn">ticker</span>();
+<span class="sfl-kw">boolean</span> isKoreanKeyword = <span class="sfl-fn">containsKorean</span>(originalInput);
+
+<span class="sfl-cm">// 검색 대상 후보 결정
+// - 한글 입력: Naver 자동완성으로 실제 미국주식 ticker 목록으로 변환
+// - 그 외: 원본 ticker + ^접두사(지수)</span>
+<span class="sfl-type">List</span>&lt;<span class="sfl-type">String</span>&gt; candidates;
+<span class="sfl-kw">if</span> (isKoreanKeyword) {
+    candidates = nameSearchClient.<span class="sfl-fn">searchUsTickers</span>(originalInput);
+    <span class="sfl-kw">if</span> (candidates.<span class="sfl-fn">isEmpty</span>()) {
+        <span class="sfl-kw">throw new</span> <span class="sfl-type">RuntimeException</span>(<span class="sfl-str">"존재하지 않은 종목명입니다."</span>);
+    }
+} <span class="sfl-kw">else</span> {
+    candidates = <span class="sfl-kw">new</span> <span class="sfl-type">ArrayList</span>&lt;&gt;();
+    candidates.<span class="sfl-fn">add</span>(originalInput);
+    <span class="sfl-kw">if</span> (!originalInput.<span class="sfl-fn">startsWith</span>(<span class="sfl-str">"^"</span>)) {
+        candidates.<span class="sfl-fn">add</span>(<span class="sfl-str">"^"</span> + originalInput);
+    }
+}</code></pre>
+  </div>
+
+  <div class="terminal-window" style="margin-top:16px;">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">📄 domain/stock/StockService.java — 외부 API 조회 분기</span>
+    </div>
+    <pre><code><span class="sfl-cm">// - 한글 검색: 후보(candidate)마다 개별 조회 (Naver가 여러 ticker를 반환할 수 있음)
+// - 그 외: 원본 ticker로 1회 조회 (findSymbol이 ^접두사 지수도 함께 병합해 반환)</span>
+<span class="sfl-kw">if</span> (isKoreanKeyword) {
+    <span class="sfl-kw">for</span> (<span class="sfl-type">String</span> t : needApiLookup) {
+        fromExternal.<span class="sfl-fn">addAll</span>(externalRepository.<span class="sfl-fn">findSymbol</span>(t));
+    }
+} <span class="sfl-kw">else</span> {
+    fromExternal = externalRepository.<span class="sfl-fn">findSymbol</span>(originalInput);
+}
+
+<span class="sfl-kw">private boolean</span> <span class="sfl-fn">containsKorean</span>(<span class="sfl-type">String</span> input) {
+    <span class="sfl-kw">return</span> input.<span class="sfl-fn">codePoints</span>().<span class="sfl-fn">anyMatch</span>(cp -&gt; cp &gt;= <span class="sfl-str">0xAC00</span> &amp;&amp; cp &lt;= <span class="sfl-str">0xD7A3</span>);
+}</code></pre>
+  </div>
+
+  <p class="sfl-sub-title">2-3. 파이프라인 시각화 — 기존 로직 vs 한글 적용 후</p>
+  <p style="font-size:0.85rem; color:var(--text-muted); margin-top:-4px;">회색 라인 = 한글 도입 <strong>이전</strong>부터 있던 기존 경로 · 파란 라인 = 한글 지원을 위해 <strong>새로 갈라진</strong> 경로. 두 경로는 candidate 생성과 API 호출 방식만 다르고, 캐시 → DB → 저장 파이프라인은 그대로 공유한다.</p>
+
+  <div class="sfl-flowchart">
+    <div class="sfl-fnode"><b>🔎 검색 요청 keyword</b></div>
+    <div class="sfl-fconnector">↓</div>
+    <div class="sfl-fnode decision">한글 포함? <span style="color:var(--text-muted); font-weight:400;">(U+AC00~U+D7A3)</span></div>
+    <p style="font-size:0.78rem; color:var(--text-muted); text-align:center; max-width:560px; margin:6px 0 0;">U+AC00~U+D7A3 = 유니코드 "한글 음절(Hangul Syllables)" 블록 — 가(U+AC00)부터 힣(U+D7A3)까지, 조합이 끝난 완성형 한글 글자 전체 범위. <code>containsKorean()</code>은 입력값의 각 코드포인트가 이 범위 안에 있는지만 검사한다.</p>
+    <div class="sfl-fconnector">↓</div>
+
+    <div class="sfl-flane">
+      <div class="sfl-flane-col">
+        <span class="sfl-flane-label old">🩶 기존 로직 (No)</span>
+        <div class="sfl-fnode old-branch">candidates = [keyword, '^'+keyword]</div>
+      </div>
+      <div class="sfl-flane-col">
+        <span class="sfl-flane-label new">🆕 한글 로직 (Yes)</span>
+        <div class="sfl-fnode new-branch">NaverStockSearchClient.search(keyword)<br /><span style="color:var(--text-muted); font-size:0.78rem;">ac.stock.naver.com/ac</span></div>
+      </div>
+    </div>
+    <div class="sfl-flane">
+      <div class="sfl-flane-col"></div>
+      <div class="sfl-flane-col">
+        <div class="sfl-fconnector">↓</div>
+        <div class="sfl-fnode new-branch">category=stock &amp;&amp; nationCode=USA 필터링</div>
+      </div>
+    </div>
+    <div class="sfl-fexit-row">
+      <div></div>
+      <div class="sfl-fnode exit">😵 0건 <span class="sfl-arrow">➡️</span> "존재하지 않은 종목명" 예외</div>
+    </div>
+    <div class="sfl-flane">
+      <div class="sfl-flane-col"></div>
+      <div class="sfl-flane-col">
+        <div class="sfl-fconnector">↓</div>
+        <div class="sfl-fnode new-branch">candidates = ticker 목록 (1건 이상)</div>
+      </div>
+    </div>
+
+    <div class="sfl-fconnector">↓</div>
+    <div class="sfl-fnode merge">🔗 공통 파이프라인 합류: candidate별 <b>stockInfoByTicker 캐시</b> → <b>DB(StockRepository)</b> 순차 조회</div>
+    <div class="sfl-fconnector">↓</div>
+    <div class="sfl-fnode decision">캐시/DB 모두 Miss?</div>
+    <div class="sfl-fconnector">↓</div>
+
+    <div class="sfl-flane">
+      <div class="sfl-flane-col">
+        <span class="sfl-flane-label old">🩶 기존 로직</span>
+        <div class="sfl-fnode old-branch">원본 ticker로 <code>findSymbol()</code> <b>1회</b> 호출<br /><span style="color:var(--text-muted); font-size:0.78rem;">(^ 지수 자동 병합)</span></div>
+      </div>
+      <div class="sfl-flane-col">
+        <span class="sfl-flane-label new">🆕 한글 로직</span>
+        <div class="sfl-fnode new-branch">candidate<b>별로</b> <code>findSymbol()</code> <b>개별</b> 호출<br /><span style="color:var(--text-muted); font-size:0.78rem;">(Naver가 여러 ticker 반환 가능)</span></div>
+      </div>
+    </div>
+
+    <div class="sfl-fconnector">↓</div>
+    <div class="sfl-fnode merge">🌐 Yahoo Finance <span class="sfl-arrow">➡️</span> 실패 시 Finnhub fallback</div>
+    <div class="sfl-fconnector">↓</div>
+    <div class="sfl-fnode merge">💾 DB 저장 + 캐시 저장</div>
+    <div class="sfl-fconnector">↓</div>
+    <div class="sfl-fnode merge">🏷️ alias 캐시 등록 <span style="color:var(--text-muted); font-size:0.78rem;">(originalInput → 결과 ticker, 한글도 여기서 등록)</span></div>
+    <div class="sfl-fconnector">↓</div>
+    <div class="sfl-fnode"><b>✅ 최종 결과 반환</b></div>
+  </div>
+
+  <p class="sfl-sub-title">2-4. 다중 매치 시나리오와 정렬 로직 부재</p>
+  <p>IndexAndWaterRide의 TRADEOFFS.md에는 국내 종목명 검색(<code>StockMasterService.search</code>)에 대해 "완전일치 &gt; 접두일치 &gt; 부분일치 &gt; 길이순" 정렬 로직이 문서화되어 있다(예: "SK하이닉스" 입력 시 SK하이닉스 → SK하이닉스레버리지 → Kodex SK하이닉스레버리지 순).</p>
+  <p>다만 이 정렬 로직은 <strong>국내(KRX) 종목명 검색 전용</strong>이며, 이번에 이식된 미국주식 Naver /ac 포트에는 애초에 존재하지 않았다. 즉 "정렬 로직이 이식되지 않은" 것이 아니라, <strong>원본부터 미국주식 경로에는 정렬 로직이 없다</strong> — 한 키워드가 여러 ticker에 매칭될 경우 Naver가 반환한 순서를 그대로 candidate 순서로 사용한다.</p>
+</div>
+
+<!-- Section 3 -->
+<div class="card" id="sfl-search-sec3">
+  <div class="sfl-chapter-label">
+    <span class="sfl-ch-badge">Section 3</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">⚡ 성능 개선 여부 확인</h2>
+  </div>
+
+  <p><strong>결론: 이 기능 자체는 성능 개선이 목적이 아니다.</strong> (같은 날 커밋된 "북마크 전환 속도 개선"과는 별개 작업이며 혼동하지 않도록 구분해야 한다.)</p>
+  <p>다만 아래 두 캐싱 계층 덕분에 <strong>반복 검색 비용은 줄어든다:</strong></p>
+  <table>
+    <thead><tr><th>캐시</th><th>캐싱 대상</th><th>효과</th></tr></thead>
+    <tbody>
+      <tr><td>koreanStockNameSearch (신규)</td><td>한글 keyword → ticker 목록</td><td>동일 한글 검색 재입력 시 Naver API 재호출 없이 즉시 반환</td></tr>
+      <tr><td>stockInfoByTicker alias (기존 재사용)</td><td>originalInput(한글 원문) → 결과 ticker의 StockInfoCache</td><td>한글 검색 성공 이후엔 Naver 호출 자체를 건너뛰고 기존 ticker 캐시로 바로 응답</td></tr>
+    </tbody>
+  </table>
+  <p>즉 <strong>최초 1회는 Naver API 호출 + 기존 캐시/DB/Yahoo 파이프라인 그대로 타지만, 이후 동일 키워드는 두 계층 중 하나에서 바로 캐시 적중</strong>한다. 새로운 병목(순차 호출, N+1 등)은 도입되지 않았다 — candidate가 여러 개인 경우에도 개수가 작고(보통 1~3개), Naver 응답 자체가 배치이므로 문제되지 않는다.</p>
+  <blockquote>
+    <strong>🧑‍💻 엔지니어 코멘트:</strong> 실제 응답시간 실측(최초 요청 vs 캐시 적중, Naver /ac 자체 평균 응답시간)은 아직 수행되지 않았다. 구조상 병목이 없다는 것은 코드 경로 분석으로 확인된 것이며, 수치 검증은 운영 로그가 쌓인 뒤 후속 작업으로 남겨둔다.
+  </blockquote>
+</div>
+
+<!-- Section 4 -->
+<div class="card" id="sfl-search-sec4">
+  <div class="sfl-chapter-label">
+    <span class="sfl-ch-badge">Section 4</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">🧩 코드 구성 및 핵심 소스</h2>
+  </div>
+
+  <p class="sfl-sub-title">신규/수정 파일 전체 지도</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">변경 파일 지도</span>
+    </div>
+    <pre><code>domain/stock/
+  StockNameSearchClient.java          [신규] 포트: List&lt;String&gt; searchUsTickers(String keyword)
+
+infrastructure/stock/external/
+  NaverExternalDto.java               [신규] Naver 자동완성 응답 DTO
+  NaverStockSearchClient.java         [신규] WebClient로 /ac 호출 (실패 시 null)
+  StockNameSearchClientImpl.java      [신규] 포트 구현체: 필터링(stock/USA) + 캐싱(0건 미캐싱)
+
+common/configs/
+  WebClientConfig.java                [수정] naverWebClient 빈 추가
+  CacheConfig.java                    [수정] koreanStockNameSearch 캐시 등록 (2,000건/24일)
+
+domain/stock/
+  StockService.java                   [수정] findStockByTicker에 한글 분기 추가
+
+front_page/.../contents/
+  StockSearchContent.jsx              [수정] 입력 검증 정규식에 한글 허용</code></pre>
+  </div>
+  <p style="margin-top:14px;"><strong>레이어링 관점 포인트:</strong> 한글 검색은 기존 findStockByTicker의 흐름(캐시→DB→API)을 전혀 건드리지 않고, "입력값을 candidate ticker 목록으로 바꿔주는" 어댑터를 domain 포트로 하나 추가한 것뿐이다. StockExternalApiClient(Yahoo 포트)와 동일한 패턴이라 기존 컨벤션과 결이 맞는다.</p>
+</div>
+
+<div class="card">
+  <p class="sfl-sub-title">캐싱 + 필터링: StockNameSearchClientImpl.java</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">📄 infrastructure/stock/external/StockNameSearchClientImpl.java</span>
+    </div>
+    <pre><code><span class="sfl-kw">private static final</span> <span class="sfl-type">String</span> CACHE_NAME = <span class="sfl-str">"koreanStockNameSearch"</span>;
+
+<span class="sfl-kw">public</span> <span class="sfl-type">List</span>&lt;<span class="sfl-type">String</span>&gt; <span class="sfl-fn">searchUsTickers</span>(<span class="sfl-type">String</span> keyword) {
+    <span class="sfl-type">String</span> key = keyword.<span class="sfl-fn">trim</span>();
+    <span class="sfl-type">Cache</span> cache = cacheManager.<span class="sfl-fn">getCache</span>(CACHE_NAME);
+
+    <span class="sfl-kw">if</span> (cache != <span class="sfl-kw">null</span>) {
+        <span class="sfl-type">List</span>&lt;<span class="sfl-type">String</span>&gt; cached = cache.<span class="sfl-fn">get</span>(key, <span class="sfl-type">List</span>.<span class="sfl-kw">class</span>);
+        <span class="sfl-kw">if</span> (cached != <span class="sfl-kw">null</span>) <span class="sfl-kw">return</span> cached;
+    }
+
+    <span class="sfl-type">List</span>&lt;<span class="sfl-type">String</span>&gt; result = <span class="sfl-fn">resolve</span>(key);
+    <span class="sfl-cm">// 0건이면 cache.put() 자체를 건너뛴다 → 오타 실패가 영구 캐싱되지 않음</span>
+    <span class="sfl-kw">if</span> (!result.<span class="sfl-fn">isEmpty</span>() &amp;&amp; cache != <span class="sfl-kw">null</span>) {
+        cache.<span class="sfl-fn">put</span>(key, result);
+    }
+    <span class="sfl-kw">return</span> result;
+}</code></pre>
+  </div>
+  <div class="terminal-window" style="margin-top:16px;">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">📄 StockNameSearchClientImpl.java — resolve()</span>
+    </div>
+    <pre><code><span class="sfl-kw">private</span> <span class="sfl-type">List</span>&lt;<span class="sfl-type">String</span>&gt; <span class="sfl-fn">resolve</span>(<span class="sfl-type">String</span> keyword) {
+    <span class="sfl-kw">var</span> response = naverStockSearchClient.<span class="sfl-fn">search</span>(keyword);
+    <span class="sfl-kw">if</span> (response == <span class="sfl-kw">null</span> || response.<span class="sfl-fn">items</span>() == <span class="sfl-kw">null</span>) <span class="sfl-kw">return</span> <span class="sfl-type">List</span>.<span class="sfl-fn">of</span>();
+
+    <span class="sfl-kw">return</span> response.<span class="sfl-fn">items</span>().<span class="sfl-fn">stream</span>()
+            .<span class="sfl-fn">filter</span>(item -&gt; <span class="sfl-str">"stock"</span>.<span class="sfl-fn">equals</span>(item.<span class="sfl-fn">category</span>())
+                    &amp;&amp; <span class="sfl-str">"USA"</span>.<span class="sfl-fn">equals</span>(item.<span class="sfl-fn">nationCode</span>()))
+            .<span class="sfl-fn">map</span>(Item::code)
+            .<span class="sfl-fn">distinct</span>()
+            .<span class="sfl-fn">toList</span>();
+}</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <p class="sfl-sub-title">설정 변경: WebClientConfig.java / CacheConfig.java</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">📄 common/configs/WebClientConfig.java — naverWebClient 빈 추가</span>
+    </div>
+    <pre><code><span class="sfl-kw">@Bean</span>
+<span class="sfl-kw">public</span> <span class="sfl-type">WebClient</span> <span class="sfl-fn">naverWebClient</span>(<span class="sfl-kw">@Value</span>(<span class="sfl-str">"${naver.stock.base-url:https://ac.stock.naver.com}"</span>) <span class="sfl-type">String</span> baseUrl) {
+    <span class="sfl-type">HttpClient</span> httpClient = <span class="sfl-type">HttpClient</span>.<span class="sfl-fn">create</span>()
+            .<span class="sfl-fn">option</span>(ChannelOption.CONNECT_TIMEOUT_MILLIS, <span class="sfl-str">10000</span>)
+            .<span class="sfl-fn">responseTimeout</span>(Duration.<span class="sfl-fn">ofSeconds</span>(<span class="sfl-str">10</span>))
+            .<span class="sfl-fn">doOnConnected</span>(conn -&gt; conn
+                    .<span class="sfl-fn">addHandlerLast</span>(<span class="sfl-kw">new</span> <span class="sfl-type">ReadTimeoutHandler</span>(<span class="sfl-str">10</span>, TimeUnit.SECONDS))
+                    .<span class="sfl-fn">addHandlerLast</span>(<span class="sfl-kw">new</span> <span class="sfl-type">WriteTimeoutHandler</span>(<span class="sfl-str">10</span>, TimeUnit.SECONDS)));
+
+    <span class="sfl-kw">return</span> <span class="sfl-type">WebClient</span>.<span class="sfl-fn">builder</span>()
+            .<span class="sfl-fn">baseUrl</span>(baseUrl)
+            .<span class="sfl-fn">clientConnector</span>(<span class="sfl-kw">new</span> <span class="sfl-type">ReactorClientHttpConnector</span>(httpClient))
+            .<span class="sfl-fn">defaultHeader</span>(HttpHeaders.USER_AGENT, <span class="sfl-str">"Mozilla/5.0 ..."</span>)
+            .<span class="sfl-fn">filter</span>(<span class="sfl-fn">logRequest</span>()).<span class="sfl-fn">filter</span>(<span class="sfl-fn">logResponse</span>()).<span class="sfl-fn">filter</span>(<span class="sfl-fn">handleError</span>())
+            .<span class="sfl-fn">build</span>();
+}</code></pre>
+  </div>
+
+  <div class="terminal-window" style="margin-top:16px;">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">📄 common/configs/CacheConfig.java — koreanStockNameSearch 캐시 등록</span>
+    </div>
+    <pre><code>simpleCacheManager.<span class="sfl-fn">setCaches</span>(Arrays.<span class="sfl-fn">asList</span>(
+        <span class="sfl-fn">buildCache</span>(<span class="sfl-str">"stockInfoByTicker"</span>, <span class="sfl-str">10000</span>, <span class="sfl-str">24</span>, TimeUnit.DAYS),
+        <span class="sfl-fn">buildCache</span>(<span class="sfl-str">"allStocks"</span>, <span class="sfl-str">10000</span>, <span class="sfl-str">24</span>, TimeUnit.DAYS),
+        <span class="sfl-fn">buildCache</span>(<span class="sfl-str">"stockInfoByName"</span>, <span class="sfl-str">10000</span>, <span class="sfl-str">24</span>, TimeUnit.DAYS),
+        <span class="sfl-cm">// 신규: 한글 키워드 → ticker 목록 캐시 (2,000건 / 24일)</span>
+        <span class="sfl-fn">buildCache</span>(<span class="sfl-str">"koreanStockNameSearch"</span>, <span class="sfl-str">2000</span>, <span class="sfl-str">24</span>, TimeUnit.DAYS),
+        <span class="sfl-fn">buildCache</span>(<span class="sfl-str">"kisAccessToken"</span>, <span class="sfl-str">1</span>, <span class="sfl-str">23</span>, TimeUnit.HOURS)
+        <span class="sfl-cm">// ... 기존 캐시 목록 계속</span>
+));</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <p class="sfl-sub-title">프론트엔드: StockSearchContent.jsx</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">📄 front_page/stock_front/src/contents/StockSearchContent.jsx</span>
+    </div>
+    <pre><code><span class="sfl-cm">// 영어/숫자/^(지수) + 한글(완성형 음절, 조합 중인 자모 포함) 허용.
+// 한글 종목명("애플")은 로컬 캐시(영문 ticker)에 매치가 없어 자동으로 서버(Naver) 검색으로 넘어간다.</span>
+<span class="sfl-kw">const</span> isValid = <span class="sfl-str">/^\^?[a-zA-Z0-9ㄱ-ㆎ가-힣]+$/</span>.<span class="sfl-fn">test</span>(query)
+<span class="sfl-fn">setIsValidInput</span>(isValid)
+
+<span class="sfl-kw">if</span> (!isValid) {
+    <span class="sfl-fn">setSearchResults</span>([])
+    <span class="sfl-cm">// 에러 메시지: "영어, 숫자, 한글 또는 ^(지수)만 입력 가능합니다."</span>
+}</code></pre>
+  </div>
+</div>
+
+<!-- Section 5 -->
+<div class="card" id="sfl-search-sec5">
+  <div class="sfl-chapter-label">
+    <span class="sfl-ch-badge">Section 5</span>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">⚖️ 도입 장단점</h2>
+  </div>
+
+  <p class="sfl-sub-title"><span class="sfl-tag-good">✅ 장점</span></p>
+  <ul>
+    <li>자체 한글-ticker 매핑 테이블을 만들고 유지보수할 필요 없음 (Naver가 이미 관리하는 데이터 재사용)</li>
+    <li>기존 검색 파이프라인(캐시→DB→Yahoo)을 전혀 변경하지 않아 회귀 위험이 낮음 — 순수 추가(additive) 구조</li>
+    <li>IndexAndWaterRide에서 2026-06-19부터 실사용 검증된 코드라 신뢰도가 높음</li>
+    <li>캐싱(신규 캐시 + alias) 덕분에 반복 검색 비용이 낮음</li>
+    <li>ETF 제외 요구사항이 별도 로직 없이 category 필터링만으로 자연스럽게 해결됨</li>
+  </ul>
+
+  <p class="sfl-sub-title"><span class="sfl-tag-bad">⚠️ 단점 / 리스크</span></p>
+  <ul>
+    <li><strong>외부 의존성 추가:</strong> Naver /ac는 비공식 API — 스펙 변경/차단 가능성이 있고, 공식 SLA가 없음</li>
+    <li><strong>폴백 없음:</strong> Yahoo는 Finnhub라는 폴백이 있지만, Naver 실패 시엔 바로 "존재하지 않는 종목명" 예외 — 한글 검색 자체가 막힘</li>
+    <li><strong>다중 매치 UX 미정리:</strong> 한 키워드가 여러 ticker에 매칭될 경우 필터링/우선순위 로직이 없어 노이즈 가능성. 국내 종목의 "완전일치&gt;접두일치&gt;부분일치&gt;길이순" 정렬은 이번 미국주식 포트에는 애초에 대상이 아니었다 — 도입한다면 신규 설계 필요.</li>
+    <li><strong>캐시 무효화 정책 부재:</strong> 24일 TTL 동안 Naver 쪽 종목명이 바뀌어도 반영 안 됨 (다만 발생 빈도 낮음)</li>
+  </ul>
+</div>
+
+<p style="text-align:right; font-size:0.8rem; color:var(--text-muted); margin-top:30px;">
+  참고: docs/2026-07-08-korean-stock-name-search.md · docs/2026-07-08-korean-stock-search-deepdive.md · 이식 원본 IndexAndWaterRide (TRADEOFFS.md, 커밋 70a1502)<br />
+  © 2026 Gustav — Stock Favorite List, Personal Project Log (2026-07-08)
+</p>
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#sfl-search-sec0" onclick="toggleTOC()">0. 배경 및 목적</a></li>
+    <li><a href="#sfl-search-sec1" onclick="toggleTOC()">1. IndexAndWaterRide 이식</a></li>
+    <li><a href="#sfl-search-sec2" onclick="toggleTOC()">2. 기존 로직과의 통합</a></li>
+    <li><a href="#sfl-search-sec3" onclick="toggleTOC()">3. 성능 개선 여부 확인</a></li>
+    <li><a href="#sfl-search-sec4" onclick="toggleTOC()">4. 코드 구성 및 핵심 소스</a></li>
+    <li><a href="#sfl-search-sec5" onclick="toggleTOC()">5. 도입 장단점</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>

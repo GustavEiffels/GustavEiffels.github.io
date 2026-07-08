@@ -12,6 +12,18 @@
     "category": "algorithm"
   },
   {
+    "date": "2026-07-08",
+    "title": "[Deep Dive] 북마크 전환 속도 개선: 병목 진단과 스레드풀 분리",
+    "file": "dev/StockFavoriteList/bookmark_switch_performance_deepdive",
+    "category": "stockapp"
+  },
+  {
+    "date": "2026-07-08",
+    "title": "[Deep Dive] 한글 종목 검색 기능: IndexAndWaterRide 이식과 기존 파이프라인 통합",
+    "file": "dev/StockFavoriteList/korean_stock_name_search_deepdive",
+    "category": "stockapp"
+  },
+  {
     "date": "2026-07-04",
     "title": "API Key를 소스코드에서 분리하기 — .gitignore와 12-Factor App",
     "file": "dev/StockFavoriteList/api_key_config_separation",
