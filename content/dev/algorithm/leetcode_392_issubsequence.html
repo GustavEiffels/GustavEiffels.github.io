@@ -1,0 +1,198 @@
+<!-- [2026-07-09] LeetCode 392 - Is Subsequence -->
+<style>
+  .is-section-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+  }
+  .is-section-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .is-callout {
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 16px 0;
+    font-size: 14px; white-space: pre-line;
+  }
+  .is-callout.warn {
+    border-left: 4px solid var(--yellow);
+    background: rgba(245, 158, 11, 0.06);
+  }
+  .is-callout.ok {
+    border-left: 4px solid var(--green);
+    background: rgba(47, 179, 68, 0.05);
+  }
+  .is-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+  .is-hi   { color: var(--accent); font-weight: 700; }
+  .is-hi2  { color: #4ecdc4; font-weight: 700; }
+  .is-bad  { color: var(--red); font-weight: 700; }
+  .is-dim  { color: var(--text-muted); }
+
+  .is-kw     { color: #c792ea; }
+  .is-type   { color: #82aaff; }
+  .is-num    { color: #f78c6c; }
+  .is-method { color: #82aaff; }
+</style>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════ -->
+<div class="card">
+  <div style="margin-bottom:8px;">
+    <span class="badge badge-tag">LeetCode · Easy · Two Pointer</span>
+  </div>
+  <h1 style="font-size:1.6rem; font-weight:800; margin-bottom:10px;">
+    Is Subsequence
+  </h1>
+  <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.7;">
+    되감기 없는 투 포인터로 O(t.length) 한 번에 부분수열 여부를 판별한 과정
+  </p>
+  <div class="meta" style="margin-top: 14px; font-size: 12px; color: var(--text-muted);">
+    <span>언어: Java</span>
+    <span style="margin: 0 8px;">분류: 투 포인터</span>
+    <span>핵심 기법: t는 앞으로만, s쪽 포인터도 앞으로만 이동</span>
+  </div>
+  <p style="margin-top: 10px;">
+    <a href="https://leetcode.com/problems/is-subsequence/" target="_blank" rel="noopener" style="color: var(--accent); font-size: 13px; text-decoration: none;">
+      leetcode.com/problems/is-subsequence
+    </a>
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CH 1. 풀이 회고
+══════════════════════════════════════════ -->
+<div class="is-section-header" style="margin: 24px 0 16px;">
+  <span class="badge badge-tag">CH 1</span>
+  <h2 style="font-size:1.1rem; font-weight:800; color:#fff; margin:0;">풀이 회고</h2>
+</div>
+
+<!-- ══════════════════════════════════════════
+     1. 문제 개요
+══════════════════════════════════════════ -->
+<div class="card" id="section-overview">
+  <div class="is-section-header">
+    <div class="is-section-number">1</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">문제 개요</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    문자열 s가 문자열 t의 부분수열(subsequence)인지 판별하는 문제다.<br>
+    부분수열은 순서를 유지한 채 일부 문자를 건너뛰며 뽑아낸 문자열이라, s의 문자를
+    <span class="is-hi">등장 순서대로</span> t 안에서 순서를 지키며 다 찾을 수 있는지가 핵심이다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     2. 손으로 구조부터 정리
+══════════════════════════════════════════ -->
+<div class="card" id="section-structure">
+  <div class="is-section-header">
+    <div class="is-section-number">2</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">손으로 구조부터 정리</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    노트에 먼저 적은 구조는 s를 문자 배열(sequence)로 옮겨두고, 지금 맞춰야 할 목표 문자를<br>
+    가리키는 포인터(sequenceIndex)를 하나 두는 방식이었다.
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">손 풀이 - 구조 스케치</span>
+    </div>
+    <pre><code>char[] sequence = s.toCharArray 대상
+int sequenceIndex = 0
+char currentChar = sequence[sequenceIndex]
+
+for (ch : t의 각 문자) {
+    if (ch == currentChar) {
+        sequenceIndex++
+        currentChar = sequence[sequenceIndex]   <span class="is-dim">// 다음 목표로 이동</span>
+    }
+}</code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    t를 한 글자씩 훑으면서, "지금 찾아야 할 s의 글자"와 같을 때만 포인터를 한 칸 옮긴다는 아이디어다.<br>
+    t는 절대 되감지 않고 앞으로만 가고, s쪽 포인터도 절대 되감지 않고 앞으로만 간다 -
+    <span class="is-hi2">그래서 O(t.length) 한 번 순회로 끝난다.</span>
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     3. 경계 조건 추가
+══════════════════════════════════════════ -->
+<div class="card" id="section-edgecase">
+  <div class="is-section-header">
+    <div class="is-section-number">3</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">경계 조건 추가</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    손 풀이 구조를 코드로 옮기면서 아래 두 가지를 먼저 처리해야 한다는 걸 넣었다.
+  </p>
+  <div class="is-callout warn">
+    <strong>sequenceIndex가 sequence.length를 넘는 순간 바로 리턴</strong>
+    s의 모든 문자를 다 찾았으면 그 즉시 true를 반환해야 한다.
+    아니면 currentChar = sequence[sequenceIndex]에서 <span class="is-bad">ArrayIndexOutOfBoundsException</span>이 난다 - s를 다 찾고 나서도 배열 다음 칸을 또 읽으려 하기 때문이다.
+  </div>
+  <div class="is-callout ok">
+    <strong>s가 빈 문자열이면 무조건 true, t가 빈 문자열이면 무조건 false</strong>
+    빈 부분수열은 어떤 문자열에도 포함되고, s가 비어있지 않은데 t가 비어있으면 애초에 찾을 문자가 없으므로 바로 false로 처리해서 루프 진입 전에 걸러냈다.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     4. 최종 코드
+══════════════════════════════════════════ -->
+<div class="card" id="section-code">
+  <div class="is-section-header">
+    <div class="is-section-number">4</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">최종 코드</h2>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">IsSubsequence.java</span>
+    </div>
+    <pre><code><span class="is-kw">public</span> <span class="is-kw">boolean</span> <span class="is-method">isSubsequence</span>(<span class="is-type">String</span> s, <span class="is-type">String</span> t) {
+    <span class="is-kw">if</span>(s.length() == <span class="is-num">0</span>) <span class="is-kw">return</span> <span class="is-kw">true</span>;
+    <span class="is-kw">if</span>(t.length() == <span class="is-num">0</span>) <span class="is-kw">return</span> <span class="is-kw">false</span>;
+    <span class="is-kw">if</span>(s.length() &gt; t.length()) <span class="is-kw">return</span> <span class="is-kw">false</span>;
+
+    <span class="is-kw">char</span>[] sequence = <span class="is-kw">new</span> <span class="is-kw">char</span>[s.length()];
+    <span class="is-kw">for</span>(<span class="is-kw">int</span> i = <span class="is-num">0</span>; i&lt;s.length(); i++){
+        sequence[i] = s.<span class="is-method">charAt</span>(i);
+    }
+    <span class="is-kw">int</span> sequenceIndex = <span class="is-num">0</span>;
+    <span class="is-kw">char</span> currentChar = sequence[sequenceIndex];
+    <span class="is-kw">for</span>(<span class="is-kw">char</span> ch : t.<span class="is-method">toCharArray</span>()){
+        <span class="is-kw">if</span>(ch == currentChar){
+            sequenceIndex++;
+            <span class="is-kw">if</span>(sequenceIndex == sequence.length) <span class="is-kw">return</span> <span class="is-kw">true</span>;
+            currentChar = sequence[sequenceIndex];
+        }
+    }
+    <span class="is-kw">return</span> <span class="is-kw">false</span>;
+}</code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    <code>s.length() &gt; t.length()</code>는 사실 없어도 로직상 정답은 나오지만, t를 끝까지 순회하지 않고<br>
+    즉시 false로 끝낼 수 있는 조기 종료(early exit)라 넣어뒀다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     5. Takeaway
+══════════════════════════════════════════ -->
+<div class="card" id="section-takeaway">
+  <div class="is-section-header">
+    <div class="is-section-number">5</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">Takeaway</h2>
+  </div>
+  <ul style="padding-left: 20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li>t는 앞으로만, s쪽 포인터도 앞으로만 - 되감기가 없어서 O(t.length) 한 번 순회로 충분하다.</li>
+    <li>포인터가 s.length에 도달하는 즉시 true로 끝내지 않으면 다음 배열 접근에서 인덱스 초과가 난다.</li>
+    <li>s/t 둘 다 빈 문자열인 경우를 루프 진입 전에 먼저 걸러두면 본 로직이 단순해진다.</li>
+  </ul>
+</div>

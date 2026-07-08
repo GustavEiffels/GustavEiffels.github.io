@@ -1,5 +1,17 @@
 [
   {
+    "date": "2026-07-09",
+    "title": "[코딩테스트] LeetCode 1137 - N-th Tribonacci Number (DP, Java)",
+    "file": "dev/algorithm/leetcode_1137_tribonacci",
+    "category": "algorithm"
+  },
+  {
+    "date": "2026-07-09",
+    "title": "[코딩테스트] LeetCode 392 - Is Subsequence (Two Pointer, Java)",
+    "file": "dev/algorithm/leetcode_392_issubsequence",
+    "category": "algorithm"
+  },
+  {
     "date": "2026-07-08",
     "title": "동시성 정리 — 낙관적 락 / 비관적 락 / 분산락",
     "file": "dev/concurrency_optimistic_pessimistic_distributed_lock",
