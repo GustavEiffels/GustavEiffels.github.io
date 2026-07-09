@@ -1,0 +1,263 @@
+<!-- [2026-07-09] LeetCode 1005 - Maximize Sum Of Array After K Negations -->
+<style>
+  .msk-section-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+  }
+  .msk-section-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .msk-callout {
+    border-left: 4px solid var(--accent);
+    background: rgba(94, 129, 244, 0.05);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 16px 0;
+    font-size: 14px; white-space: pre-line;
+  }
+  .msk-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+  .msk-callout.danger { border-left-color: var(--red); background: rgba(214, 57, 57, 0.05); }
+  .msk-callout.danger strong { color: var(--red); }
+
+  .msk-kw     { color: #c792ea; }
+  .msk-type   { color: #82aaff; }
+  .msk-method { color: #82aaff; }
+  .msk-num    { color: #f78c6c; }
+  .msk-cmt    { color: var(--text-muted); }
+</style>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════ -->
+<div class="card">
+  <div style="margin-bottom:8px;">
+    <span class="badge badge-tag">LeetCode · Easy · Greedy</span>
+  </div>
+  <h1 style="font-size:1.6rem; font-weight:800; margin-bottom:10px;">
+    Maximize Sum Of Array After K Negations
+  </h1>
+  <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.7;">
+    손으로 잡은 그리디 방향은 맞았고, 이후엔 계산량을 줄이는 재구성이었다
+  </p>
+  <div class="meta" style="margin-top: 14px; font-size: 12px; color: var(--text-muted);">
+    <span>언어: Java</span>
+    <span style="margin: 0 8px;">분류: 그리디</span>
+    <span>핵심 기법: 정렬 + 홀짝 트릭</span>
+  </div>
+  <p style="margin-top: 10px;">
+    <a href="https://leetcode.com/problems/maximize-sum-of-array-after-k-negations/" target="_blank" rel="noopener" style="color: var(--accent); font-size: 13px; text-decoration: none;">
+      leetcode.com/problems/maximize-sum-of-array-after-k-negations
+    </a>
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CH 1. 풀이 회고
+══════════════════════════════════════════ -->
+<div class="msk-section-header" style="margin: 24px 0 16px;">
+  <span class="badge badge-tag">CH 1</span>
+  <h2 style="font-size:1.1rem; font-weight:800; color:#fff; margin:0;">풀이 회고</h2>
+</div>
+
+<!-- ══════════════════════════════════════════
+     1. 문제
+══════════════════════════════════════════ -->
+<div class="card" id="section-overview">
+  <div class="msk-section-header">
+    <div class="msk-section-number">1</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">문제</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    배열 <code>nums</code>와 정수 <code>k</code>가 주어진다.
+    원소 하나를 골라 부호를 뒤집는 연산을 정확히 <code>k</code>번 수행한다 (같은 원소를 여러 번 골라도 됨).
+    <code>k</code>번 수행한 뒤 배열 합의 최댓값을 구한다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     2. 손으로 먼저 잡은 알고리즘
+══════════════════════════════════════════ -->
+<div class="card" id="section-idea">
+  <div class="msk-section-header">
+    <div class="msk-section-number">2</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">손으로 먼저 잡은 알고리즘</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    코드를 짜기 전에 종이에 정리한 핵심 관찰은 두 가지였다.
+  </p>
+
+  <p class="point" style="display:inline-block; margin: 6px 0;">관찰 1 - 음수 영역에 갇혀있는 경우</p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    음수가 남아있으면 양수 영역이 아니라 음수 영역에서 제일 작은 값(가장 음수인 값)을 뒤집는 게 이득이다.
+  </p>
+
+  <p class="point" style="display:inline-block; margin: 6px 0;">관찰 2 - 음수가 모두 사라진 경우</p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    더 이상 음수가 없으면 양수 영역에서 제일 작은 값을 뒤집는다.
+  </p>
+
+  <div class="msk-callout">
+    <strong>핵심</strong>
+    두 관찰을 합치면 결국 "매 스텝마다 전체에서 최솟값 하나를 뒤집는다"는 하나의 규칙으로 정리된다.
+    minus가 비어있지 않으면 그 최솟값이 항상 전체 최솟값이고, 비어있으면 plus의 최솟값이 전체 최솟값이기 때문이다.
+  </div>
+
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    코드로 옮기기 전에 잡은 스케치:
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">손으로 잡은 스케치 (pseudo)</span>
+    </div>
+    <pre><code><span class="msk-cmt">int[] plus, int[] minus
+int minPlus, int minMinus
+
+for (n : arr) {
+    if (n &gt; 0) plus.add(n)
+    else minus.add(n)
+}
+
+while (k &gt; 0) {
+    if (minus.size() &gt; 0) {
+        minM = min(minus)
+        minus.remove(minM)
+        plus.add(-1 * minM)
+    } else {
+        minP = min(plus)
+        plus.remove(minP)
+        plus.add(-1 * minP)   // minus로 옮기는 걸 빠뜨린 부분, 구현 때 수정
+    }
+    k--
+}</span></code></pre>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     3. 1차 구현 - 정확하지만 O(k·n)
+══════════════════════════════════════════ -->
+<div class="card" id="section-first-impl">
+  <div class="msk-section-header">
+    <div class="msk-section-number">3</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">1차 구현 - 정확하지만 O(k·n)</h2>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Solution.java — 1차 구현</span>
+    </div>
+    <pre><code><span class="msk-kw">public</span> <span class="msk-kw">int</span> <span class="msk-method">largestSumAfterKNegations</span>(<span class="msk-kw">int</span>[] nums, <span class="msk-kw">int</span> k) {
+    <span class="msk-kw">int</span> sum = <span class="msk-num">0</span>;
+    List&lt;Integer&gt; plus = <span class="msk-kw">new</span> ArrayList&lt;&gt;();
+    List&lt;Integer&gt; minus = <span class="msk-kw">new</span> ArrayList&lt;&gt;();
+
+    <span class="msk-kw">for</span> (<span class="msk-kw">int</span> n : nums) {
+        <span class="msk-kw">if</span> (n &gt;= <span class="msk-num">0</span>) plus.add(n);
+        <span class="msk-kw">else</span> minus.add(n);
+    }
+
+    <span class="msk-kw">while</span> (k &gt; <span class="msk-num">0</span>) {
+        <span class="msk-kw">if</span> (minus.size() &gt; <span class="msk-num">0</span>) {
+            <span class="msk-kw">int</span> minM = <span class="msk-type">Collections</span>.<span class="msk-method">min</span>(minus);
+            minus.remove(<span class="msk-type">Integer</span>.<span class="msk-method">valueOf</span>(minM));
+            plus.add(-minM);
+        } <span class="msk-kw">else</span> {
+            <span class="msk-kw">int</span> minP = <span class="msk-type">Collections</span>.<span class="msk-method">min</span>(plus);
+            plus.remove(<span class="msk-type">Integer</span>.<span class="msk-method">valueOf</span>(minP));
+            minus.add(-minP);
+        }
+        k--;
+    }
+
+    <span class="msk-kw">for</span> (<span class="msk-kw">int</span> n : plus) sum += n;
+    <span class="msk-kw">for</span> (<span class="msk-kw">int</span> n : minus) sum += n;
+    <span class="msk-kw">return</span> sum;
+}</code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    로직 자체는 정확하다. 매 스텝 "전체 최솟값을 뒤집는다"는 원래 그리디와 동일하게 동작하기 때문에,
+    <code>{3, -1, 0, 2}, k=3</code> 같은 0 포함 케이스로 직접 추적해도 정답 6이 나온다.
+  </p>
+  <div class="msk-callout danger">
+    <strong>문제점</strong>
+    Collections.min과 list.remove(Integer.valueOf(...))가 매 반복 O(n)이라, k번 도는 전체가 O(k·n)이다.
+    제약이 n, k &le; 10^4라 최악의 경우 10^8 연산 + ArrayList&lt;Integer&gt; 오토박싱 오버헤드까지 겹쳐서 시간초과 위험이 있다.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     4. 최적화 - 정렬 + 홀짝 트릭, O(n log n)
+══════════════════════════════════════════ -->
+<div class="card" id="section-optimized">
+  <div class="msk-section-header">
+    <div class="msk-section-number">4</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">최적화 - 정렬 + 홀짝 트릭, O(n log n)</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    핵심 관찰은 "같은 원소를 짝수 번 뒤집으면 원상복구된다"는 것이다.
+    그러므로 누구를 몇 번 뒤집었는지는 중요하지 않고, 결과적으로 몇 개가 홀수 번 뒤집혔는지만 중요하다.
+  </p>
+
+  <p class="point" style="display:inline-block; margin: 6px 0;">STEP 1 - 음수부터 순서대로 제거</p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    정렬 후 앞에서부터 음수를 순서대로 양수로 뒤집으면서 <code>k</code>를 소진한다.
+  </p>
+
+  <p class="point" style="display:inline-block; margin: 6px 0;">STEP 2 - k가 홀수로 남았을 때만 처리</p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    <code>k</code>가 남았을 때 홀수면 절댓값이 가장 작은 원소 딱 하나만 한 번 더 뒤집는다.
+    짝수로 남으면 서로 상쇄되므로 그대로 둔다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Solution.java — 최적화</span>
+    </div>
+    <pre><code><span class="msk-kw">public</span> <span class="msk-kw">int</span> <span class="msk-method">largestSumAfterKNegationsOptimized</span>(<span class="msk-kw">int</span>[] nums, <span class="msk-kw">int</span> k) {
+    <span class="msk-kw">int</span>[] sorted = nums.clone();
+    <span class="msk-type">Arrays</span>.<span class="msk-method">sort</span>(sorted);
+
+    <span class="msk-kw">int</span> idx = <span class="msk-num">0</span>;
+    <span class="msk-kw">while</span> (idx &lt; sorted.length &amp;&amp; k &gt; <span class="msk-num">0</span> &amp;&amp; sorted[idx] &lt; <span class="msk-num">0</span>) {
+        sorted[idx] = -sorted[idx];
+        idx++;
+        k--;
+    }
+
+    <span class="msk-kw">if</span> (k % <span class="msk-num">2</span> == <span class="msk-num">1</span>) {
+        <span class="msk-kw">int</span> minIdx = <span class="msk-num">0</span>;
+        <span class="msk-kw">for</span> (<span class="msk-kw">int</span> i = <span class="msk-num">1</span>; i &lt; sorted.length; i++) {
+            <span class="msk-kw">if</span> (sorted[i] &lt; sorted[minIdx]) minIdx = i;
+        }
+        sorted[minIdx] = -sorted[minIdx];
+    }
+
+    <span class="msk-kw">int</span> sum = <span class="msk-num">0</span>;
+    <span class="msk-kw">for</span> (<span class="msk-kw">int</span> n : sorted) sum += n;
+    <span class="msk-kw">return</span> sum;
+}</code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    두 메서드 모두 <code>{4, 2, 3}, k=1</code> 입력에서 동일하게 5를 반환함을 확인했다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     5. Takeaway
+══════════════════════════════════════════ -->
+<div class="card" id="section-takeaway">
+  <div class="msk-section-header">
+    <div class="msk-section-number">5</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">Takeaway</h2>
+  </div>
+  <ul style="padding-left: 20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li>"매 스텝 최솟값을 찾아 뒤집는다"는 방향이 맞더라도, 그 탐색 자체를 O(1)/O(log n)으로 줄일 수 있는지, 혹은 반복 시뮬레이션 자체가 필요한지부터 점검해야 한다.</li>
+    <li>"짝수 번 연산은 취소된다"는 성질이 보이면, 반복 시뮬레이션을 홀짝 판정 문제로 치환할 수 있는지 검토한다 - 토글/부호 뒤집기 계열 그리디에서 자주 나오는 패턴이다.</li>
+    <li>손으로 먼저 잡은 방향(매 스텝 최솟값 뒤집기)은 그 자체로 틀리지 않았다. 이후 최적화는 로직 교체가 아니라 같은 로직의 계산량을 줄이는 재구성이었다.</li>
+  </ul>
+</div>
