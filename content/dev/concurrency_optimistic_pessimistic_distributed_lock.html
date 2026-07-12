@@ -171,6 +171,100 @@
   <p class="lock-sub-title">synchronized vs ReentrantLock</p>
   <p>둘 다 임계 구역(critical section)에 한 번에 하나의 스레드만 들어가게 막는 도구다. <code>synchronized</code>는 블록을 벗어나면 JVM이 알아서 락을 풀어주고, <code>ReentrantLock</code>은 <code>lock()</code>/<code>unlock()</code>을 직접 호출해야 하는 대신 <code>tryLock()</code>, 공정성(fair) 옵션, 여러 개의 <code>Condition</code> 같은 걸 더 쓸 수 있다.</p>
 
+  <p class="lock-sub-title">unlock()을 놓치면 생기는 위험</p>
+  <p>synchronized는 블록을 벗어나는 경로가 정상 종료든 예외든 상관없이 JVM이 락을 풀어주지만, ReentrantLock은 <code>unlock()</code>을 개발자가 직접 호출해야 하는 평범한 메서드 호출이다. 그래서 예외 처리를 잘못 짜면 락이 영원히 안 풀리는 상황이 생길 수 있다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">위험한 패턴 — try-catch로 감쌌지만 안전하지 않다</span>
+    </div>
+    <pre><code>lock.lock();
+<span class="lock-kw">try</span> {
+    doSomething();
+} <span class="lock-kw">catch</span> (<span class="lock-type">Exception</span> e) {
+    log.error(<span class="lock-str">"작업 실패"</span>, e);
+    <span class="lock-kw">return</span>;   <span class="lock-com">// 이 한 줄 때문에 아래 unlock()은 건너뛴다</span>
+}
+lock.unlock();  <span class="lock-com">// catch에서 return하면 여기까지 오지 못함</span></code></pre>
+  </div>
+
+  <p>구멍이 두 개 있다. 하나는 catch 블록 안에서 로깅 후 <code>return</code>하거나 예외를 다시 던지면 그 아래 있는 <code>unlock()</code>이 실행되지 않는다는 것. 다른 하나는 <code>catch (Exception e)</code>가 <code>OutOfMemoryError</code>, <code>StackOverflowError</code> 같은 <code>Error</code> 계열은 애초에 못 잡는다는 것 — 이런 예외가 나면 catch에 걸리지도 않고 unlock()을 건너뛴 채 빠져나간다.</p>
+
+  <div class="lock-callout bad">
+    <strong>결과</strong>
+    Lock 객체가 잠긴 채로 영원히 방치된다. JVM과 프로세스는 멀쩡히 살아있는데 그 Lock 인스턴스 하나만 죽어버리는 것이다.
+    이후 lock()으로 대기하던 스레드는 영원히 블록되고, tryLock()으로 시도하던 스레드는 계속 false만 받는다.
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">올바른 패턴 — try-finally</span>
+    </div>
+    <pre><code>lock.lock();
+<span class="lock-kw">try</span> {
+    doSomething();
+} <span class="lock-kw">catch</span> (<span class="lock-type">Exception</span> e) {
+    log.error(<span class="lock-str">"작업 실패"</span>, e);
+    <span class="lock-kw">return</span>;   <span class="lock-com">// 여기서 return을 하든 예외를 다시 던지든 상관없다</span>
+} <span class="lock-kw">finally</span> {
+    lock.unlock();   <span class="lock-com">// 어떤 경로로 블록을 빠져나가도 반드시 실행됨</span>
+}</code></pre>
+  </div>
+
+  <p class="lock-sub-title">synchronized는 왜 자동으로 안전한가 — 바이트코드로 확인</p>
+  <p><a href="https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-3.html" target="_blank" rel="noopener">Java Virtual Machine Specification의 synchronized statement 관련 서술</a>에 따르면, 컴파일러는 메서드 호출이 정상 종료든 비정상 종료든 <code>monitorenter</code>마다 <code>monitorexit</code>이 실행되도록 보장하고, 이를 위해 예외 핸들러를 자동으로 생성한다. 말로만 하면 추상적이니 실제로 코드를 짜서 <code>javap -c</code>로 까본 결과를 보자.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">SyncDemo.java</span>
+    </div>
+    <pre><code><span class="lock-kw">public</span> <span class="lock-kw">void</span> doWork() {
+    <span class="lock-kw">synchronized</span> (lock) {
+        riskyOperation();   <span class="lock-com">// 여기서 항상 예외를 던짐</span>
+    }
+}</code></pre>
+  </div>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">javap -c -p SyncDemo.class</span>
+    </div>
+    <pre><code>public void doWork();
+  Code:
+     0: aload_0
+     1: getfield      #7      // Field lock:Ljava/lang/Object;
+     4: dup
+     5: astore_1
+     6: monitorenter
+     7: aload_0
+     8: invokevirtual #13     // Method riskyOperation:()V
+    11: aload_1
+    12: monitorexit
+    13: goto          21
+    16: astore_2
+    17: aload_1
+    18: monitorexit
+    19: aload_2
+    20: athrow
+    21: return
+  Exception table:
+     from    to  target type
+         7    13    16   any
+        16    19    16   any</code></pre>
+  </div>
+
+  <p>핵심은 <code>Exception table</code>이다. <code>from 7 to 13</code>(riskyOperation() 호출 구간) 사이에 어떤 예외든 발생하면 16번으로 점프하는데, 16번 코드는 예외 객체를 잠깐 저장한 뒤 <strong>먼저 monitorexit으로 락을 풀고</strong> 그 예외를 다시 던진다. 개발자가 try-finally를 한 줄도 안 썼는데, 컴파일러가 소스 레벨에서 이미 그 구조를 강제로 만들어 넣은 것이다.</p>
+
+  <div class="lock-callout ok">
+    <strong>정리</strong>
+    ReentrantLock이 원래 위험한 게 아니라, unlock()을 try-finally로 감싸지 않았을 때만 위험하다.
+    synchronized는 이 책임을 컴파일러가 강제로 떠맡아주고, ReentrantLock은 그 책임이 개발자에게 넘어온 대신 tryLock 같은 유연성을 얻는 것 — 이게 둘의 근본적인 트레이드오프다.
+  </div>
+
   <p class="lock-sub-title">tryLock() — 실제 프로젝트에서 이렇게 썼다</p>
   <p>프로젝트에서 주기적으로 도는 스케줄러가 있는데, 주기가 짧다 보니 이전 작업이 아직 안 끝났는데 다음 주기가 시작되는 경우가 생겼다. 이때 <code>lock()</code>으로 그냥 기다리게 만들면, 못 끝낸 작업이 계속 쌓여서 나중엔 스케줄이 통째로 밀리는 문제가 된다. 그래서 <code>tryLock()</code>을 써서, 이미 누가 락을 선점하고 있으면 이번 주기는 대기하지 않고 그냥 실행을 취소(skip)하도록 만들었다. 다음 주기에 다시 시도하면 되니까 굳이 기다릴 이유가 없다는 판단이었다.</p>
 
