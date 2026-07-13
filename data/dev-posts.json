@@ -1,5 +1,17 @@
 [
   {
+    "date": "2026-07-13",
+    "title": "순차 원격 호출 2회, CompletableFuture로 병렬화하기",
+    "file": "dev/completablefuture_parallel_remote_calls",
+    "category": "record"
+  },
+  {
+    "date": "2026-07-13",
+    "title": "[코딩테스트] LeetCode 976 - Largest Perimeter Triangle (그리디, Java)",
+    "file": "dev/algorithm/leetcode_976_largestperimetertriangle",
+    "category": "algorithm"
+  },
+  {
     "date": "2026-07-09",
     "title": "[코딩테스트] LeetCode 1005 - Maximize Sum Of Array After K Negations (그리디, Java)",
     "file": "dev/algorithm/leetcode_1005_maximizesumafterknegations",

@@ -1,0 +1,165 @@
+<!-- [2026-07-13] LeetCode 976 - Largest Perimeter Triangle -->
+<style>
+  .lpt-section-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+  }
+  .lpt-section-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .lpt-callout {
+    border-left: 4px solid var(--accent);
+    background: rgba(94, 129, 244, 0.05);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 16px 0;
+    font-size: 14px; white-space: pre-line;
+  }
+  .lpt-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+  .lpt-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .lpt-table th {
+    background: var(--surface2); color: var(--accent); font-weight: 700;
+    padding: 8px 14px; text-align: left; border-bottom: 2px solid var(--border);
+  }
+  .lpt-table td {
+    padding: 7px 14px; border-bottom: 1px solid var(--border);
+    color: var(--text-muted); font-family: 'JetBrains Mono', monospace;
+  }
+  .lpt-table tr:last-child td { border-bottom: none; }
+
+  .lpt-kw     { color: #c792ea; }
+  .lpt-num    { color: #f78c6c; }
+  .lpt-type   { color: #82aaff; }
+  .lpt-method { color: #82aaff; }
+</style>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════ -->
+<div class="card">
+  <div style="margin-bottom:8px;">
+    <span class="badge badge-tag">LeetCode · Easy · Greedy</span>
+  </div>
+  <h1 style="font-size:1.6rem; font-weight:800; margin-bottom:10px;">
+    Largest Perimeter Triangle
+  </h1>
+  <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.7;">
+    정렬 후 뒤에서부터 탐색하는 그리디로 삼각형이 성립하는 최대 둘레를 구하는 문제 풀이 과정
+  </p>
+  <div class="meta" style="margin-top: 14px; font-size: 12px; color: var(--text-muted);">
+    <span>언어: Java</span>
+    <span style="margin: 0 8px;">분류: 그리디</span>
+    <span>핵심 기법: 정렬 + 뒤에서부터 탐색</span>
+  </div>
+  <p style="margin-top: 10px;">
+    <a href="https://leetcode.com/problems/largest-perimeter-triangle/description/" target="_blank" rel="noopener" style="color: var(--accent); font-size: 13px; text-decoration: none;">
+      leetcode.com/problems/largest-perimeter-triangle
+    </a>
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CH 1. 풀이 회고
+══════════════════════════════════════════ -->
+<div class="lpt-section-header" style="margin: 24px 0 16px;">
+  <span class="badge badge-tag">CH 1</span>
+  <h2 style="font-size:1.1rem; font-weight:800; color:#fff; margin:0;">풀이 회고</h2>
+</div>
+
+<!-- ══════════════════════════════════════════
+     1. 문제 개요
+══════════════════════════════════════════ -->
+<div class="card" id="section-overview">
+  <div class="lpt-section-header">
+    <div class="lpt-section-number">1</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">문제 개요</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    배열에서 세 값을 골라 삼각형을 만들 수 있는 조합 중 둘레가 가장 큰 값을 구하는 문제다.
+    세 변 a &lt;= b &lt;= c가 삼각형을 이루려면 <code>a + b &gt; c</code> 조건만 확인하면 된다
+    - 가장 긴 변보다 나머지 두 변의 합이 커야 한다는 삼각부등식이다.
+  </p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    둘레를 최대화하려면 가능한 한 큰 값들로 조합을 만드는 게 유리하므로,<br>
+    정렬 후 가장 큰 값들부터 순서대로 조건을 검사하는 그리디 접근이 자연스럽다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     2. 풀이 - 정렬 + 뒤에서부터 탐색
+══════════════════════════════════════════ -->
+<div class="card" id="section-solution">
+  <div class="lpt-section-header">
+    <div class="lpt-section-number">2</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">풀이 - 정렬 + 뒤에서부터 탐색</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    오름차순 정렬 후 배열 끝에서부터 연속한 세 값 <code>nums[i-2], nums[i-1], nums[i]</code>를
+    삼각부등식으로 검사한다. 가장 긴 변이 nums[i]이므로 <code>nums[i] &lt; nums[i-1] + nums[i-2]</code>만
+    확인하면 되고, 조건을 만족하는 첫 조합이 곧 그 시점에서 만들 수 있는 최대 둘레다.
+  </p>
+  <div class="lpt-callout">
+    <strong>조건을 만족하지 않으면 nums[i]를 통째로 버려도 안전한 이유</strong>
+    정렬된 배열에서 nums[i]가 nums[i-1], nums[i-2]와 삼각형을 이루지 못하면,
+    nums[i]는 nums[i-1] + nums[i-2]보다 크거나 같다.
+    이때 nums[i-2] 자리에 더 작은 값을 넣으면 우변(합)은 더 작아지므로 조건은 오히려 더 나빠진다.
+    즉 nums[i]는 어떤 두 값과 묶여도 가장 긴 변으로 삼각형을 만들 수 없으므로 완전히 배제해도 된다.
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">LargestPerimeterTriangle.java</span>
+    </div>
+    <pre><code><span class="lpt-kw">public</span> <span class="lpt-kw">int</span> <span class="lpt-method">largestPerimeter</span>(<span class="lpt-kw">int</span>[] nums) {
+    <span class="lpt-type">Arrays</span>.<span class="lpt-method">sort</span>(nums);
+    <span class="lpt-kw">int</span> result = <span class="lpt-num">0</span>;
+    <span class="lpt-kw">for</span> (<span class="lpt-kw">int</span> i = nums.length - <span class="lpt-num">1</span>; i &gt;= <span class="lpt-num">2</span>; i--) {
+        <span class="lpt-kw">if</span> (nums[i] &lt; nums[i - <span class="lpt-num">1</span>] + nums[i - <span class="lpt-num">2</span>]) {
+            result = nums[i] + nums[i - <span class="lpt-num">1</span>] + nums[i - <span class="lpt-num">2</span>];
+            <span class="lpt-kw">break</span>;
+        }
+    }
+    <span class="lpt-kw">return</span> result;
+}</code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    끝까지 조건을 만족하는 조합이 하나도 없으면 삼각형을 만들 수 없다는 뜻이므로 result는 초기값 0을 그대로 반환한다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     3. 시간복잡도와 제출 결과
+══════════════════════════════════════════ -->
+<div class="card" id="section-result">
+  <div class="lpt-section-header">
+    <div class="lpt-section-number">3</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">시간복잡도와 제출 결과</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    정렬 O(n log n)이 지배적이고, 이후 탐색은 최악의 경우에도 O(n)이라 전체 시간복잡도는 O(n log n)이다.
+  </p>
+  <table class="lpt-table">
+    <tr><th>항목</th><th>결과</th></tr>
+    <tr><td>Runtime</td><td>11ms</td></tr>
+    <tr><td>Memory</td><td>상위 5.37%</td></tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════
+     4. Takeaway
+══════════════════════════════════════════ -->
+<div class="card" id="section-takeaway">
+  <div class="lpt-section-header">
+    <div class="lpt-section-number">4</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">Takeaway</h2>
+  </div>
+  <ul style="padding-left: 20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li>삼각형 성립 조건은 가장 긴 변 하나만 기준으로 <code>a + b &gt; c</code>만 확인하면 충분하다.</li>
+    <li>둘레 최대화가 목표이므로 정렬 후 가장 큰 값들부터 검사하는 그리디가 성립한다.</li>
+    <li>조건을 만족하지 않는 최댓값은 완전히 배제해도 안전하다 - 더 작은 값을 짝지어도 조건은 더 나빠질 뿐이다.</li>
+  </ul>
+</div>

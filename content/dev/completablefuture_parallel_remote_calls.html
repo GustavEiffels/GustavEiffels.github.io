@@ -1,0 +1,424 @@
+<!-- [2026-07-13] 순차 원격 호출 2회, CompletableFuture로 병렬화하기 -->
+<style>
+/* ── TOC ── */
+.report-toc {
+  position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+  background: var(--surface); border-left: 1px solid var(--border);
+  padding: 40px 25px; z-index: 1001;
+  transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+}
+.report-toc.active { right: 0; }
+.report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.report-toc ul { list-style: none; padding: 0; margin: 0; }
+.report-toc li { margin-bottom: 12px; line-height: 1.4; }
+.report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+.report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+.toc-backdrop {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+  z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+}
+.toc-backdrop.active { display: block; opacity: 1; }
+.toc-toggle-btn {
+  position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+  background: var(--accent); color: #fff; border: none; border-radius: 50%;
+  font-size: 1.5rem; cursor: pointer; z-index: 1002;
+  box-shadow: 0 4px 15px var(--accent-glow);
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+}
+.toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); box-shadow: 0 6px 20px var(--accent-glow); }
+@media (max-width: 768px) {
+  .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+}
+
+/* ── Scoped Styles ── */
+.cf-section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+.cf-section-number {
+  width: 32px; height: 32px; border-radius: 50%; background: var(--accent);
+  color: #fff; font-size: 13px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.cf-sub { font-size: 1rem; font-weight: 700; color: var(--green); margin: 24px 0 12px; }
+
+.cf-callout {
+  border-left: 4px solid var(--accent);
+  background: rgba(94,129,244,0.05);
+  border-radius: 0 10px 10px 0;
+  padding: 14px 18px; margin: 16px 0; font-size: 14px;
+  white-space: pre-line;
+}
+.cf-callout.warn  { border-color: var(--yellow); background: rgba(245,158,11,0.05); }
+.cf-callout.ok    { border-color: var(--green);  background: rgba(47,179,68,0.05); }
+.cf-callout.bad   { border-color: var(--red);    background: rgba(214,57,57,0.05); }
+.cf-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+.cf-timeline {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px;
+  padding: 18px 20px; margin: 16px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px; line-height: 1.9; white-space: pre; overflow-x: auto; color: #c8cde4;
+}
+
+.cf-summary {
+  background: linear-gradient(135deg, rgba(94,129,244,0.08), rgba(47,179,68,0.08));
+  border: 1px solid rgba(94,129,244,0.25);
+  border-radius: 12px; padding: 24px 28px; margin-bottom: 24px;
+}
+.cf-summary h3 { color: var(--green); font-size: 0.85rem; font-weight: 700; margin-bottom: 14px; letter-spacing: 1px; text-transform: uppercase; }
+.cf-summary ul { padding-left: 0; list-style: none; }
+.cf-summary ul li { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text); }
+.cf-summary ul li:last-child { border-bottom: none; }
+.cf-summary ul li::before { content: "→ "; color: var(--green); font-weight: 700; }
+
+/* Syntax coloring */
+.cf-kw  { color: #c792ea; }
+.cf-cls { color: #82aaff; }
+.cf-fn  { color: #82aaff; }
+.cf-str { color: #c3e88d; }
+.cf-cmt { color: #546e7a; font-style: italic; }
+.cf-ann { color: #f78c6c; }
+.cf-num { color: #f78c6c; }
+.cf-big { color: var(--accent); font-weight: 800; }
+.cf-dim { color: var(--text-muted); }
+</style>
+
+
+<h1>순차 원격 호출 2회, CompletableFuture로 병렬화하기</h1>
+
+<div class="card" style="text-align:center; background: linear-gradient(135deg, var(--surface), var(--surface2));">
+  <span class="badge badge-tag">Java</span>
+  <span class="badge badge-tag">Concurrency</span>
+  <span class="badge badge-tag">CompletableFuture</span>
+  <span class="badge badge-tag">ThreadPoolTaskExecutor</span>
+  <span class="badge badge-date">2026-07-13</span>
+  <p style="margin-top:14px; color:var(--text-muted); font-size:14px;">
+    서로 독립인 원격 호출을 순차로 실행하면 응답시간은 두 지연시간의 합이 된다.
+    병렬로 실행하면 max가 된다. 실측으로 확인하고, 되는 경우와 안 되는 경우를 정리한다.
+  </p>
+</div>
+
+
+<!-- ① 발견 -->
+<div class="card" id="cf-sec-discover">
+  <div class="cf-section-header">
+    <div class="cf-section-number">1</div>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">발견 — 왜 병목인가</h2>
+  </div>
+
+  <p>
+    코드를 보다가 이런 패턴을 발견했다. 하나의 API 응답을 만들기 위해
+    레거시 시스템(외부 API)을 <span class="point">연속으로 두 번</span> 호출하는 구조다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">순차 호출 — 리팩터링 전</span>
+    </div>
+    <pre><code><span class="cf-kw">public</span> ProductDetailResult <span class="cf-fn">getProductDetail</span>(String productId) {
+    <span class="cf-cmt">// 호출 ① 상품 스펙 조회 (~500ms)</span>
+    LegacyResponse spec = legacyClient.call(<span class="cf-str">"PRODUCT_SPEC"</span>, productId);
+    List&lt;SpecDto&gt; specs = parseSpec(spec);
+
+    <span class="cf-cmt">// 호출 ② 상품 리뷰 조회 (~400ms) — ①이 끝나야 시작됨</span>
+    LegacyResponse reviews = legacyClient.call(<span class="cf-str">"PRODUCT_REVIEWS"</span>, productId);
+    List&lt;ReviewDto&gt; reviewList = parseReviews(reviews);
+
+    <span class="cf-kw">return new</span> ProductDetailResult(specs, reviewList);   <span class="cf-cmt">// 총 ~900ms</span>
+}</code></pre>
+  </div>
+
+  <p>여기서 중요한 관찰은 코드가 아니라 <strong>두 호출의 관계</strong>다:</p>
+  <ul style="padding-left: 20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li>②는 ①의 결과를 <strong style="color:#fff;">전혀 사용하지 않는다</strong> — 입력(productId)만 같고 서로 독립</li>
+    <li>그런데 ②는 ①이 끝나기를 기다렸다가 시작한다</li>
+    <li>따라서 응답시간 = ① + ② = <strong style="color:#fff;">두 지연시간의 합</strong></li>
+  </ul>
+
+  <p>
+    레거시 API라 두 호출을 하나로 합치는 수정(서버 쪽 변경)은 불가능한 상황.
+    그렇다면 남는 선택지는 <strong>동시에 실행하는 것</strong>이다. 이론상 응답시간은
+    합(900ms)에서 max(500ms)로 줄어든다.
+  </p>
+</div>
+
+
+<!-- ② 해결 -->
+<div class="card" id="cf-sec-solve">
+  <div class="cf-section-header">
+    <div class="cf-section-number">2</div>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">해결 — 설계 결정 3가지</h2>
+  </div>
+
+  <p class="cf-sub" id="cf-sec-solve-1">2-1. 제출은 일찍, join은 늦게</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">병렬화 후 — 제출과 join의 위치가 핵심</span>
+    </div>
+    <pre><code><span class="cf-kw">public</span> ProductDetailResult <span class="cf-fn">getProductDetail</span>(String productId) {
+
+    <span class="cf-cmt">// [1] 제출은 가장 이른 지점 — 이 순간부터 ②가 풀 스레드에서 돌기 시작</span>
+    CompletableFuture&lt;LegacyResponse&gt; reviewsFuture = CompletableFuture.<span class="cf-fn">supplyAsync</span>(
+            () -&gt; legacyClient.call(<span class="cf-str">"PRODUCT_REVIEWS"</span>, productId),
+            legacyParallelExecutor);
+
+    <span class="cf-cmt">// [2] ①은 메인 스레드가 직접 실행 (②가 도는 동안)</span>
+    LegacyResponse spec = legacyClient.call(<span class="cf-str">"PRODUCT_SPEC"</span>, productId);
+
+    <span class="cf-cmt">// [3] ②를 기다리기 전에, 할 수 있는 일(①의 파싱)을 먼저 해둔다</span>
+    List&lt;SpecDto&gt; specs = parseSpec(spec);
+
+    <span class="cf-cmt">// [4] join은 결과가 필요한 지점 직전 — ②가 이미 끝났으면 대기 0</span>
+    LegacyResponse reviews;
+    <span class="cf-kw">try</span> {
+        reviews = reviewsFuture.<span class="cf-fn">join</span>();
+    } <span class="cf-kw">catch</span> (CompletionException e) {
+        <span class="cf-cmt">// 풀 스레드의 예외를 unwrap — 호출부의 기존 catch가 그대로 동작하도록</span>
+        <span class="cf-kw">if</span> (e.getCause() <span class="cf-kw">instanceof</span> RuntimeException re) <span class="cf-kw">throw</span> re;
+        <span class="cf-kw">throw</span> e;
+    }
+
+    <span class="cf-kw">return new</span> ProductDetailResult(specs, parseReviews(reviews));
+}</code></pre>
+  </div>
+
+  <p>
+    <code>supplyAsync</code>의 위치가 곧 <strong>②의 실행 시작 시점</strong>이다.
+    문법상 람다가 참조하는 변수들 선언 뒤여야 하고, 성능상 ① 실행 앞이어야 하므로
+    놓일 자리는 사실상 하나다. 반대로 <code>join()</code>은
+    <strong>메인 스레드가 결과를 기다리는</strong> 메서드이므로, 결과가 실제로
+    필요한 지점 직전까지 최대한 미룬다. 이 사이 구간이 길수록 메인 스레드가
+    "기다리는 대신 일하는" 시간이 늘어난다.
+  </p>
+
+  <div class="cf-timeline">메인 스레드:  [제출]──[① 실행 500ms]──[① 파싱]──[join ~0]──[② 파싱]──[리턴]
+                │                                  ↑
+                ▼                                  │
+풀 스레드:      [② 실행 400ms 완료 → future에 결과 저장]
+                                     → 전체 ≈ max(①, ②) = <span class="cf-big">500ms</span></div>
+
+  <p class="cf-sub" id="cf-sec-solve-2">2-2. caller-runs — 하나는 메인 스레드가 직접</p>
+
+  <p>
+    둘 다 <code>supplyAsync</code>로 던질 수도 있지만 그러면 메인 스레드는 join에서 놀기만 한다.
+    어차피 두 결과가 다 나올 때까지 리턴할 수 없다고 판단해서,
+    <strong>한쪽은 메인 스레드가 직접 실행</strong>하도록 했다.
+    전체 시간은 동일(max)인데 풀 스레드 소비는 절반으로 줄었다.
+  </p>
+
+  <table>
+    <tr><th>방식</th><th>동원 스레드</th><th>풀 스레드 소비</th><th>전체 시간</th></tr>
+    <tr><td>둘 다 비동기</td><td>3 (호출 1 + 풀 2)</td><td>2</td><td>max(①,②)</td></tr>
+    <tr><td><strong>한쪽만 비동기</strong></td><td><strong>2 (호출 1 + 풀 1)</strong></td><td><strong>1</strong></td><td><strong>max(①,②)</strong></td></tr>
+  </table>
+
+  <p>이 경험을 일반화해보면, N개를 병렬화할 때 <strong>N-1개만 풀에 던지고 1개는 직접 실행</strong>하는 쪽으로 하고 있다.</p>
+
+  <p class="cf-sub" id="cf-sec-solve-3">2-3. 포화 시 안전 강등 — CallerRunsPolicy</p>
+
+  <p>전용 executor는 작게 잡되, 가득 찼을 때의 동작을 명시적으로 설계했다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">ExecutorConfig.java</span>
+    </div>
+    <pre><code><span class="cf-ann">@Bean</span>
+<span class="cf-kw">public</span> ThreadPoolTaskExecutor <span class="cf-fn">legacyParallelExecutor</span>() {
+    ThreadPoolTaskExecutor executor = <span class="cf-kw">new</span> ThreadPoolTaskExecutor();
+    executor.setThreadNamePrefix(<span class="cf-str">"legacy-par-"</span>);
+    executor.setCorePoolSize(<span class="cf-num">0</span>);          <span class="cf-cmt">// 유휴 시 스레드 0 (60초 후 정리)</span>
+    executor.setMaxPoolSize(<span class="cf-num">4</span>);
+    executor.setQueueCapacity(<span class="cf-num">0</span>);         <span class="cf-cmt">// 큐에 쌓지 않음</span>
+    executor.setKeepAliveSeconds(<span class="cf-num">60</span>);
+    <span class="cf-cmt">// 풀 포화 시 메인 스레드가 직접 실행 → 순차 동작으로 강등될 뿐 실패/대기 없음</span>
+    executor.setRejectedExecutionHandler(<span class="cf-kw">new</span> ThreadPoolExecutor.CallerRunsPolicy());
+    executor.initialize();
+    <span class="cf-kw">return</span> executor;
+}</code></pre>
+  </div>
+
+  <p>
+    큐를 두지 않는 이유: 큐에 쌓이면 join이 "앞선 요청들의 작업"까지 기다리게 되어
+    지연이 전파된다. 큐 없이 <code>CallerRunsPolicy</code>로 떨어뜨리면 최악의 경우가
+    <strong>병렬화 이전과 동일한 순차 실행</strong>이라 도입 리스크가 0에 수렴한다.
+  </p>
+
+  <p class="cf-sub" id="cf-sec-pitfall">삽질 포인트 ① — @Primary가 이름 매칭을 이긴다</p>
+
+  <p><code>ThreadPoolTaskExecutor</code> 빈이 여러 개인 프로젝트라, 필드 이름만 믿고 주입했다가 문제를 겪었다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">이름이 같으니 되겠지? — 안 된다</span>
+    </div>
+    <pre><code><span class="cf-kw">private final</span> ThreadPoolTaskExecutor legacyParallelExecutor;  <span class="cf-cmt">// 이름이 같으니 되겠지?</span></code></pre>
+  </div>
+
+  <p>
+    Spring의 자동주입 우선순위는 <strong>@Primary &gt; @Priority &gt; 이름 매칭</strong>이다.
+    다른 executor에 <code>@Primary</code>가 붙어 있으면 이름과 무관하게 그쪽이 주입된다.
+    내 경우 1스레드짜리 웹 작업용 executor가 주입되어 병렬화가 조용히 무력화될 뻔했다.
+    게다가 lombok <code>@RequiredArgsConstructor</code>는 필드의 <code>@Qualifier</code>를
+    생성자 파라미터로 복사하지 않는다(lombok.config 설정 필요).
+    그래서 <strong>명시적 생성자 + @Qualifier</strong>로 바꿨다.
+  </p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">명시적 생성자 + @Qualifier</span>
+    </div>
+    <pre><code><span class="cf-kw">public</span> <span class="cf-fn">ProductService</span>(<span class="cf-ann">@Qualifier</span>(<span class="cf-str">"legacyParallelExecutor"</span>) ThreadPoolTaskExecutor executor) {
+    <span class="cf-kw">this</span>.legacyParallelExecutor = executor;
+}</code></pre>
+  </div>
+
+  <p class="cf-sub">삽질 포인트 ② — 풀 스레드의 예외는 포장돼서 나온다</p>
+
+  <p>
+    풀 스레드에서 던진 예외는 <code>join()</code>에서 <code>CompletionException</code>으로
+    <strong>감싸져서</strong> 나온다. 호출부에 <code>catch (MyBusinessException e)</code> 같은
+    기존 예외 처리가 있는데 unwrap을 안 했더니 전부 빗나갔다. 그래서 join을 try로 감싸
+    <code>getCause()</code>를 꺼내 rethrow하는 보일러플레이트를 추가했다.
+  </p>
+</div>
+
+
+<!-- ③ 검증 -->
+<div class="card" id="cf-sec-verify">
+  <div class="cf-section-header">
+    <div class="cf-section-number">3</div>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">검증 — 벤치마크와 정직한 해석</h2>
+  </div>
+
+  <p class="cf-sub">측정 설계</p>
+  <p>성능 비교는 측정 방법이 부실하면 숫자가 의미를 잃는다. 세 가지를 챙겼다:</p>
+  <ol style="padding-left: 20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li><strong style="color:#fff;">워밍업 1회 제외</strong> — 첫 호출은 커넥션 풀, 메타데이터 캐시, 서버 쪽 버퍼가 비어 있어 항상 느리다. 측정에 넣으면 결과가 왜곡된다.</li>
+    <li><strong style="color:#fff;">순차/병렬 번갈아 실행</strong> — 원격 서버의 부하 변동이 한쪽 결과에만 몰리지 않도록.</li>
+    <li><strong style="color:#fff;">결과 동등성 검증</strong> — 매 회차 순차/병렬 결과가 같은지 확인. 성능 이전에 "병렬화가 데이터를 깨뜨리지 않았다"는 증명이 먼저다.</li>
+  </ol>
+  <p>
+    성능 수치에는 assert를 두지 않았다. 네트워크 상황에 따라 역전될 수 있는 값에 assert를
+    걸면 CI에서 간헐적으로 깨지는 플레이키 테스트가 된다. 숫자는 로그로 판단한다.
+  </p>
+
+  <p class="cf-sub">실측 결과</p>
+  <table>
+    <tr><th></th><th>회차별 (ms)</th><th>평균</th><th>비고</th></tr>
+    <tr><td>BEFORE (순차)</td><td>63, 52, 62, 44, 46</td><td><strong>53.4ms</strong></td><td>① + ②</td></tr>
+    <tr><td>AFTER (병렬)</td><td>26, 26, 25, 25, 27</td><td><strong>25.8ms</strong></td><td>≈ max(①,②)</td></tr>
+  </table>
+  <p>
+    <span class="cf-big">51.7% 개선</span> — 두 호출이 각각 ~26ms로 비슷해서
+    이론값(합→max = 50%)에 정확히 수렴했다. 병렬 쪽의 편차가 더 작은 것(25~27ms)도 눈여겨볼 점.
+  </p>
+
+  <p class="cf-sub">정직한 해석</p>
+  <p>여기서 멈추면 반쪽짜리 결론이다.</p>
+  <div class="cf-callout bad">
+    <strong>개선율은 구조가 결정하고, 절대 이득은 호출이 느릴수록 커진다</strong>
+    개선율: 두 호출이 비슷하면 ~50%로 고정 (합→max의 구조적 결과).
+    절대 이득: 내 환경은 호출당 ~26ms라 27ms 단축에 그쳤다. 사용자가 체감할 수 있는 차이가 아니다.
+    같은 코드가 호출당 1초 걸리는 환경이었다면 1초를 아꼈을 것이다.
+  </div>
+  <p>
+    즉 이 패턴의 가치는 "얼마나 개선되는가(%)"가 아니라 <strong>"호출이 얼마나 느린가(ms)"</strong>에
+    비례한다고 봤다. 그래서 앞으로는 적용 전에 각 호출의 실제 소요시간부터 로그로 확인하려고 한다.
+    빠른 호출을 병렬화하면 "동작은 완벽한데 체감은 없는" 결과가 나올 것 같아서다.
+  </p>
+</div>
+
+
+<!-- ④ 일반화 -->
+<div class="card" id="cf-sec-general">
+  <div class="cf-section-header">
+    <div class="cf-section-number">4</div>
+    <h2 style="margin:0; border:none; padding:0; color:#fff; font-size:1.2rem;">일반화 — 언제 쓸지, 언제 안 쓸지 정리해봤다</h2>
+  </div>
+
+  <p class="cf-sub">내가 세운 판단 순서</p>
+  <div class="cf-callout">
+    <strong>⓪ 합칠 수 있으면 합치는 쪽을 먼저 생각했다</strong>
+    병렬화는 왕복 2회를 겹치는 것이고, 통합은 왕복을 1회로 줄이는 것이라 통합 쪽이 더 근본적인 해결이라고 봤다.
+    DB 쿼리라면 JOIN/UNION, 자체 API라면 엔드포인트 통합을 먼저 고려했다.
+    병렬화는 합칠 수 없을 때(레거시·외부 시스템·남의 코드) 꺼내는 도구로 삼았다.
+  </div>
+
+  <p>① 합칠 수 없다면, 다음 세 조건을 확인해보기로 했다:</p>
+
+  <table>
+    <tr><th>조건</th><th>확인 방법</th></tr>
+    <tr><td>상호 <strong>독립</strong> — 한쪽 결과가 다른 쪽 입력이 아님</td><td>호출 순서를 바꿔도 결과가 같은가</td></tr>
+    <tr><td><strong>읽기 전용 + 트랜잭션 밖</strong></td><td>쓰기가 있으면 원자성 상실</td></tr>
+    <tr><td>개당 <strong>충분히 느림</strong> (수십~수백 ms↑)</td><td>각 호출의 elapsed 로그 실측</td></tr>
+  </table>
+
+  <p class="cf-sub">내가 적용하지 않기로 한 경우</p>
+  <ul style="padding-left: 20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li><strong style="color:#fff;">쓰기 트랜잭션 안</strong>: Spring의 <code>@Transactional</code>은 ThreadLocal에
+        바인딩되어 <strong style="color:#fff;">스레드를 넘어가지 않는다</strong>. 풀 스레드의 작업은 별도 커넥션·별도
+        트랜잭션으로 돌아서, 호출부가 롤백돼도 같이 롤백되지 않고, 호출부의 미커밋 데이터도 보지 못한다.</li>
+    <li><strong style="color:#fff;">빠른 호출</strong>: 수 ms짜리 호출 2개를 병렬화하면 수 ms 아끼자고 스레드 넘김 비용을 내는 꼴이다.</li>
+    <li><strong style="color:#fff;">커넥션 풀 여유가 없을 때</strong>: 병렬 스레드도 커넥션을 하나씩 잡는다.
+        요청당 커넥션 2개 × 동시 요청 수가 풀 최대치 안에 있어야 한다.</li>
+  </ul>
+
+  <p class="cf-sub">내가 생각한 이상적인 후보: 조회 전용 프로시저</p>
+  <p>DB 저장 프로시저 중 <strong>조회만 하는</strong> 것들이 이 패턴에 잘 맞는다고 생각했다.</p>
+  <ul style="padding-left: 20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li>프로시저는 이미 굳어진 로직 덩어리라 <strong style="color:#fff;">합치기 어렵다</strong> (⓪ 탈락 → 병렬화를 먼저 검토)</li>
+    <li>무거운 집계 로직이 많아 <strong style="color:#fff;">개당 느린 경우가 흔했다</strong></li>
+    <li><strong style="color:#fff;">조회 전용</strong>이라는 조건 하나로 3대 위험이 한꺼번에 사라진다고 판단했다:
+        트랜잭션 원자성 문제(쓸 게 없음), 숨은 의존성(쓴 데이터를 읽을 일 없음), 락 경합(읽기 락끼리는 충돌 안 함)</li>
+  </ul>
+  <p>단, "이름은 조회용인데 내부에서 temp table에 INSERT하는" 프로시저를 본 적이 있어서 내부 확인은 한 번씩 해보고 있다.</p>
+
+  <div class="cf-callout ok">
+    <strong>내가 정리한 경험칙</strong>
+    느린 원격 호출은 병렬화를 검토하고, 느린 DB 쿼리는 쿼리부터 고치는 쪽으로 판단하고 있다.
+  </div>
+</div>
+
+
+<!-- 요약 -->
+<div class="cf-summary" id="cf-sec-summary">
+  <h3>요약</h3>
+  <ul>
+    <li>서로 독립인 원격 호출의 순차 실행은 응답시간이 합 — 병렬화하면 max</li>
+    <li>내가 잡은 구현 방향: 제출은 일찍, join은 늦게 + caller-runs(N-1개만 풀에) + CallerRunsPolicy(포화 시 순차로 안전 강등)</li>
+    <li>겪은 함정: @Primary가 이름 매칭을 이긴다(@Qualifier 명시로 해결), 풀 스레드의 예외는 CompletionException으로 감싸진다(unwrap 처리 추가)</li>
+    <li>실측 51.7% 개선 — 단 개선율은 구조가, 절대 이득은 호출 지연이 결정</li>
+    <li>적용 조건으로 삼은 것: 합칠 수 없음 + 독립 + 읽기 전용 + 개당 느림 → 조회 전용 프로시저를 좋은 후보로 봤다</li>
+  </ul>
+</div>
+
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#cf-sec-discover" onclick="toggleTOC()">1. 발견 — 왜 병목인가</a></li>
+    <li><a href="#cf-sec-solve" onclick="toggleTOC()">2. 해결 — 설계 결정 3가지</a></li>
+    <li><a href="#cf-sec-solve-1" onclick="toggleTOC()">&nbsp;&nbsp;2-1. 제출 일찍, join 늦게</a></li>
+    <li><a href="#cf-sec-solve-2" onclick="toggleTOC()">&nbsp;&nbsp;2-2. caller-runs</a></li>
+    <li><a href="#cf-sec-solve-3" onclick="toggleTOC()">&nbsp;&nbsp;2-3. 포화 시 안전 강등</a></li>
+    <li><a href="#cf-sec-pitfall" onclick="toggleTOC()">&nbsp;&nbsp;삽질 포인트 2개</a></li>
+    <li><a href="#cf-sec-verify" onclick="toggleTOC()">3. 검증 — 벤치마크</a></li>
+    <li><a href="#cf-sec-general" onclick="toggleTOC()">4. 일반화 — 적용 기준</a></li>
+    <li><a href="#cf-sec-summary" onclick="toggleTOC()">요약</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>
