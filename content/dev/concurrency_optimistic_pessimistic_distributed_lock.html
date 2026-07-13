@@ -561,6 +561,18 @@ A : version 2  -&gt; 작업을 수행하고 업데이트를 하려고 보니 ver
     <span class="lock-kw">finally</span>:
         release_lock(<span class="lock-str">f"account:{account_id}"</span>, token)</pre>
   </div>
+
+  <p class="lock-sub-title" id="lock-sec-granularity">락은 메서드가 아니라 row(자원) 단위로 건다</p>
+  <p>위 코드에서 <code>getLock("lock:account:" + accountId)</code>를 보면, key 안에 <code>accountId</code>가 들어가 있다. 이게 핵심이다 — <strong>메서드 이름으로 잠그는 게 아니라, 그 메서드가 실제로 건드리는 자원의 식별자로 잠근다.</strong> 만약 <code>getLock("lock:withdraw")</code>처럼 메서드 단위로 잠갔다면, 계좌 1번 출금과 계좌 2번 출금이 서로 아무 관계가 없는데도 같은 락을 두고 경합하게 된다.</p>
+
+  <div class="lock-callout">
+    <strong>DB 비관적 락과 같은 원리</strong>
+    <code>SELECT ... FOR UPDATE WHERE id = ?</code>도 테이블 전체가 아니라 특정 row만 잠근다. 분산락도 마찬가지다 — 락의 범위는 "실제로 충돌할 수 있는 단위"에 맞춰야 한다. 그보다 넓게 잡으면 서로 무관한 요청들이 이유 없이 줄을 서게 되고, 처리량만 떨어진다.
+  </div>
+
+  <p>그럼 언제 일부러 넓게(메서드/테이블 단위로) 잠그는가 — 보호하려는 불변조건이 row 하나가 아니라 <strong>여러 row에 걸쳐 있을 때</strong>다. 예를 들어 예약된 작업들을 주기적으로 정리하는 배치 스케줄러가 있고, 동시에 다른 스케줄러가 같은 테이블에 새 예약을 대량으로 써넣는 상황이라면, 이 둘이 지키려는 건 특정 row 하나가 아니라 테이블 전체의 일관된 상태다. 이런 경우엔 row 단위로 쪼개는 게 오히려 의미가 없고, 의도적으로 넓은 범위(예: <code>lock:scheduler</code>)로 잠가야 한다.</p>
+
+  <p>정리하면: 기본값은 row/엔티티 단위(key에 식별자 포함)로 좁게 잡고, 여러 row를 한꺼번에 건드리는 배치성 작업일 때만 의도적으로 넓힌다.</p>
 </div>
 
 <div class="card" id="lock-sec-fencing">
@@ -644,6 +656,41 @@ apply_withdraw(account_id, fencing_token, amount)</pre>
     하트비트/lease 갱신 — 작업이 오래 걸리면 살아있는 동안 주기적으로 TTL을 연장(Redisson의 watchdog이 자동으로 해줌).
     작업 자체를 멱등하게 설계하면 이중 실행이 나도 결과가 같아서 훨씬 덜 위험해진다.
   </div>
+
+  <p class="lock-sub-title" id="lock-sec-fencing-db">위 예시의 허점 — 비교 상태도 공유돼야 한다</p>
+  <p>위 <code>AccountRepository</code> 예시의 <code>lastFencingToken</code>은 <code>ConcurrentHashMap</code>, 즉 JVM 프로세스 메모리 안에 있다. 그런데 막으려는 경합은 <strong>서로 다른 인스턴스 A와 B 사이</strong>의 경합이다 — A와 B는 각자 다른 JVM이라 자기만의 <code>lastFencingToken</code> Map을 따로 갖는다. A가 뒤늦게 33번 토큰으로 <code>applyWithdraw</code>를 호출해도 A의 로컬 Map엔 B가 처리한 34번 기록이 아예 없으니 거부되지 않는다. <strong>"마지막 토큰"이라는 비교 기준 자체도 모든 인스턴스가 함께 보는 공유 저장소에 있어야</strong> fencing이 실제로 동작한다.</p>
+
+  <div class="lock-callout warn">
+    <strong>그래서 실전에서는 DB 컬럼으로 구현한다</strong>
+    메모리 Map은 개념 설명용 예시로만 유효하다. 여러 인스턴스를 실제로 방어하려면 "마지막 토큰"을 DB row에 저장하고, 그 비교와 갱신을 하나의 원자적 UPDATE 문으로 처리해야 한다.
+  </div>
+
+  <p class="lock-sub-title">실전 구현 — DB 컬럼 기반 CAS</p>
+  <p>토큰 비교는 애플리케이션 코드의 if문이 아니라 DB의 <code>WHERE</code> 절로 원자적으로 처리한다. 비교(체크)와 갱신(쓰기)이 한 문장이라 그 사이에 다른 트랜잭션이 끼어들 틈이 없다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">fencing token CAS</span>
+    </div>
+    <pre><code><span class="lock-kw">UPDATE</span> account
+<span class="lock-kw">SET</span> balance = :newBalance, last_fencing_token = :myToken
+<span class="lock-kw">WHERE</span> id = :accountId
+  <span class="lock-kw">AND</span> last_fencing_token &lt; :myToken;
+
+<span class="lock-com">-- affected rows == 1 -&gt; 내가 최신, 반영 성공</span>
+<span class="lock-com">-- affected rows == 0 -&gt; 이미 더 큰 토큰이 다녀감, 나는 stale -&gt; 무시</span></code></pre>
+  </div>
+
+  <p>이 체크와 실제 잔액 반영이 <strong>같은 UPDATE 문(=같은 트랜잭션)</strong>이라는 게 핵심이다. "먼저 토큰만 확인하고 커밋 → 나중에 잔액을 반영"처럼 두 단계로 쪼개면, 체크를 통과한 직후부터 잔액 반영이 끝날 때까지가 다시 무방비 구간이 된다 — fencing token으로 막으려던 것과 똑같은 종류의 틈이 재발한다.</p>
+
+  <p class="lock-sub-title">토큰 발급용 key에는 TTL을 걸면 안 된다</p>
+  <p>락 key(<code>lock:account:1</code>)는 TTL이 있어야 하지만, 토큰 카운터 key(<code>fencing:account:1</code>)는 TTL 없이 영구히 유지돼야 한다. 카운터가 중간에 만료돼 리셋되면 그 뒤 발급되는 토큰이 DB에 이미 저장된 값보다 작아지고, 이후 정상 요청까지 전부 "나보다 큰 토큰이 이미 있다"며 영원히 거부당하는 가용성 장애로 이어진다.</p>
+
+  <div class="lock-callout">
+    <strong>핵심 통찰 — "원래 락을 잡았던 쪽(A)이 이겨야 하는가?"</strong>
+    아니다. TTL이 끝나는 순간 A는 시스템 규칙상 이미 자격을 잃은 것이고, 그 이후엔 B가 정당한 새 소유자다. A가 진짜 살아있는지 죽었는지는 시스템도 B도 판단할 수 없기 때문에, "기다렸다가 만료되면 다음 사람에게 넘긴다"는 규칙 자체가 최선이다. Fencing token은 A를 이기게 해주는 장치가 아니라, <strong>이미 자격을 잃은 A가 뒤늦게 깨어나 B의 정당한 작업 결과를 덮어쓰지 못하게</strong> 막아주는 장치일 뿐이다.
+  </div>
 </div>
 
 <!-- ── 정리 ── -->
@@ -674,7 +721,9 @@ apply_withdraw(account_id, fencing_token, amount)</pre>
     <li><a href="#lock-sec-optimistic" onclick="toggleTOC()">2. 낙관적 락</a></li>
     <li><a href="#lock-sec-pessimistic" onclick="toggleTOC()">3. 비관적 락</a></li>
     <li><a href="#lock-sec-distributed" onclick="toggleTOC()">4. 분산락</a></li>
-    <li><a href="#lock-sec-fencing" onclick="toggleTOC()">4-1. TTL과 Fencing Token</a></li>
+    <li><a href="#lock-sec-granularity" onclick="toggleTOC()">4-1. 락 범위 — row 단위 vs 메서드 단위</a></li>
+    <li><a href="#lock-sec-fencing" onclick="toggleTOC()">4-2. TTL과 Fencing Token</a></li>
+    <li><a href="#lock-sec-fencing-db" onclick="toggleTOC()">4-3. DB CAS 실전 구현</a></li>
     <li><a href="#lock-sec-summary" onclick="toggleTOC()">정리. 3가지 비교</a></li>
   </ul>
 </nav>
