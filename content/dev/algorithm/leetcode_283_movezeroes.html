@@ -1,0 +1,203 @@
+<!-- [2026-07-15] LeetCode 283 - Move Zeroes -->
+<style>
+  .mz-section-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+  }
+  .mz-section-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .mz-callout {
+    border-left: 4px solid var(--accent);
+    background: rgba(94, 129, 244, 0.05);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 16px 0;
+    font-size: 14px; white-space: pre-line;
+  }
+  .mz-callout.bad { border-color: var(--red); background: rgba(214, 57, 57, 0.05); }
+  .mz-callout.ok  { border-color: var(--green); background: rgba(47, 179, 68, 0.05); }
+  .mz-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+  .mz-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .mz-table th {
+    background: var(--surface2); color: var(--accent); font-weight: 700;
+    padding: 8px 14px; text-align: left; border-bottom: 2px solid var(--border);
+  }
+  .mz-table td {
+    padding: 7px 14px; border-bottom: 1px solid var(--border);
+    color: var(--text-muted); font-family: 'JetBrains Mono', monospace;
+  }
+  .mz-table tr:last-child td { border-bottom: none; }
+  .mz-table td.bad { color: var(--red); }
+  .mz-table td.ok  { color: var(--green); font-weight: 700; }
+
+  .mz-kw     { color: #c792ea; }
+  .mz-num    { color: #f78c6c; }
+  .mz-type   { color: #82aaff; }
+  .mz-method { color: #82aaff; }
+  .mz-cmt    { color: #6b7089; }
+</style>
+
+<div class="card">
+  <div style="margin-bottom:8px;">
+    <span class="badge badge-tag">LeetCode · Easy · Array / Two Pointer</span>
+  </div>
+  <h1 style="font-size:1.6rem; font-weight:800; margin-bottom:10px;">
+    Move Zeroes
+  </h1>
+  <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.7;">
+    Queue 기반 풀이를 먼저 통과시킨 뒤, in-place 조건을 만족시키기 위해 투 포인터로 개선한 회고
+  </p>
+  <div class="meta" style="margin-top: 14px; font-size: 12px; color: var(--text-muted);">
+    <span>언어: Java</span>
+    <span style="margin: 0 8px;">분류: Array / Two Pointer</span>
+    <span>핵심 기법: 느린 포인터로 non-zero 삽입 위치를 추적하며 in-place swap</span>
+  </div>
+  <p style="margin-top: 10px;">
+    <a href="https://leetcode.com/problems/move-zeroes/description/" target="_blank" rel="noopener" style="color: var(--accent); font-size: 13px; text-decoration: none;">
+      leetcode.com/problems/move-zeroes
+    </a>
+  </p>
+</div>
+
+<!-- 1. 문제 개요 -->
+<div class="card" id="section-overview">
+  <div class="mz-section-header">
+    <div class="mz-section-number">1</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">문제와 손으로 먼저 정리한 접근</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    정수 배열 <code>nums</code>가 주어졌을 때, 0이 아닌 값들의 상대 순서는 유지한 채
+    모든 0을 배열 뒤쪽으로 옮기는 문제다. 배열을 직접 수정(in-place)해야 하며 반환값은 없다.<br>
+    예시: <code>[0, 1, 0, 3, 12]</code> → <code>[1, 3, 12, 0, 0]</code>
+  </p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    코드를 바로 짜기 전에 노트에 흐름을 먼저 적었다.
+    배열을 한 번 순회하면서 값이 0인 위치를 확인하고, 원본과 같은 크기가 되도록
+    0이 아닌 값들을 먼저 큐에 담은 뒤 모자란 만큼 0을 뒤에 채워 넣는다.
+    그 다음 큐에서 순서대로 꺼내 배열에 다시 덮어쓴다.
+  </p>
+  <div class="mz-callout ok">
+    <strong>핵심 아이디어</strong>
+    0이 아닌 값만 먼저 큐에 쌓고, 부족한 자리를 0으로 채운 뒤 통째로 되돌려 쓰면
+    순서를 유지하면서 0을 뒤로 보낼 수 있다.
+  </div>
+</div>
+
+<!-- 2. 1차 풀이 - Queue -->
+<div class="card" id="section-queue">
+  <div class="mz-section-header">
+    <div class="mz-section-number">2</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">1차 풀이 — Queue 기반</h2>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">MoveZeroes.java (Queue)</span>
+    </div>
+    <pre><code><span class="mz-kw">public</span> <span class="mz-kw">void</span> <span class="mz-method">moveZeroes</span>(<span class="mz-kw">int</span>[] nums) {
+    <span class="mz-type">Queue</span>&lt;<span class="mz-type">Integer</span>&gt; queue = <span class="mz-kw">new</span> <span class="mz-type">LinkedList</span>&lt;&gt;();
+    <span class="mz-kw">for</span> (<span class="mz-kw">int</span> num : nums) {
+        <span class="mz-kw">if</span> (num != <span class="mz-num">0</span>) {
+            queue.<span class="mz-method">offer</span>(num);
+        }
+    }
+    <span class="mz-kw">while</span> (nums.length != queue.size()) {
+        queue.<span class="mz-method">offer</span>(<span class="mz-num">0</span>);
+    }
+    <span class="mz-kw">for</span> (<span class="mz-kw">int</span> i = <span class="mz-num">0</span>; i &lt; nums.length; i++) {
+        nums[i] = queue.<span class="mz-method">poll</span>();
+    }
+}</code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    0이 아닌 값을 큐에 순서대로 적재하고, 큐 크기가 배열 길이와 같아질 때까지 0으로 채운 뒤,
+    큐에서 순서대로 꺼내 배열에 되돌려 쓴다. 노트에 적은 계획을 그대로 옮긴 구현이다.
+  </p>
+  <table class="mz-table">
+    <tr><th>항목</th><th>결과</th><th>Beats</th></tr>
+    <tr><td>Runtime</td><td>5 ms</td><td class="bad">8.66%</td></tr>
+    <tr><td>Memory</td><td>47.82 MB</td><td>38.42%</td></tr>
+  </table>
+  <div class="mz-callout bad">
+    <strong>왜 느린가</strong>
+    LinkedList 기반 Queue는 원소마다 Integer 오토박싱과 노드 할당이 발생한다.
+    배열을 그 자리에서 바로 조작하는 방식보다 부가 비용이 크고,
+    큐에 값을 다시 채워 넣는 만큼 O(n)의 추가 공간도 쓴다.
+  </div>
+</div>
+
+<!-- 3. 2차 풀이 - Two Pointer -->
+<div class="card" id="section-twopointer">
+  <div class="mz-section-header">
+    <div class="mz-section-number">3</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">2차 풀이 — Two Pointer (in-place)</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    LeetCode 283은 원 문제에 in-place, O(1) 추가 공간이라는 follow-up 조건이 붙어 있다.
+    큐 없이 배열 안에서만 값을 옮기려면 두 개의 포인터가 필요하다.
+    <code>insertPos</code>는 "다음 non-zero 값이 놓여야 할 위치"를 가리키는 느린 포인터이고,
+    <code>i</code>는 배열 전체를 훑는 빠른 포인터다.
+    <code>nums[i]</code>가 0이 아니면 <code>insertPos</code> 위치와 swap하고 한 칸 전진시킨다.
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">MoveZeroes.java (Two Pointer)</span>
+    </div>
+    <pre><code><span class="mz-kw">public</span> <span class="mz-kw">void</span> <span class="mz-method">moveZeroesTwoPointer</span>(<span class="mz-kw">int</span>[] nums) {
+    <span class="mz-kw">int</span> insertPos = <span class="mz-num">0</span>; <span class="mz-cmt">// 다음 non-zero가 들어갈 위치</span>
+    <span class="mz-kw">for</span> (<span class="mz-kw">int</span> i = <span class="mz-num">0</span>; i &lt; nums.length; i++) {
+        <span class="mz-kw">if</span> (nums[i] != <span class="mz-num">0</span>) {
+            <span class="mz-kw">int</span> temp = nums[insertPos];
+            nums[insertPos] = nums[i];
+            nums[i] = temp;
+            insertPos++;
+        }
+    }
+}</code></pre>
+  </div>
+  <table class="mz-table">
+    <tr><th>i</th><th>nums[i]</th><th>동작</th><th>결과 배열</th><th>insertPos</th></tr>
+    <tr><td>0</td><td>0</td><td>skip</td><td>[0, 1, 0, 3, 12]</td><td>0</td></tr>
+    <tr><td>1</td><td>1</td><td class="ok">swap(0, 1)</td><td>[1, 0, 0, 3, 12]</td><td>1</td></tr>
+    <tr><td>2</td><td>0</td><td>skip</td><td>[1, 0, 0, 3, 12]</td><td>1</td></tr>
+    <tr><td>3</td><td>3</td><td class="ok">swap(1, 3)</td><td>[1, 3, 0, 0, 12]</td><td>2</td></tr>
+    <tr><td>4</td><td>12</td><td class="ok">swap(2, 4)</td><td>[1, 3, 12, 0, 0]</td><td>3</td></tr>
+  </table>
+</div>
+
+<!-- 4. 제출 결과 비교 -->
+<div class="card" id="section-result">
+  <div class="mz-section-header">
+    <div class="mz-section-number">4</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">제출 결과 비교</h2>
+  </div>
+  <table class="mz-table">
+    <tr><th>버전</th><th>Runtime</th><th>Runtime Beats</th><th>Memory</th><th>Memory Beats</th></tr>
+    <tr><td>Queue 기반</td><td>5 ms</td><td class="bad">8.66%</td><td>47.82 MB</td><td>38.42%</td></tr>
+    <tr><td>Two Pointer</td><td class="ok">2 ms</td><td class="ok">92.18%</td><td class="ok">47.60 MB</td><td class="ok">88.34%</td></tr>
+  </table>
+  <div class="mz-callout ok">
+    <strong>개선 결과</strong>
+    추가 자료구조(Queue)를 없애고 배열 내부 swap만으로 풀자 런타임 Beats가 8.66% → 92.18%로,
+    메모리 Beats가 38.42% → 88.34%로 올랐다. 정답 로직은 같지만 공간 복잡도가 O(n) → O(1)로 바뀐 효과다.
+  </div>
+</div>
+
+<!-- 5. Takeaway -->
+<div class="card" id="section-takeaway">
+  <div class="mz-section-header">
+    <div class="mz-section-number">5</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">Takeaway</h2>
+  </div>
+  <ul style="padding-left: 20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li>0이 아닌 값을 앞으로 모으고 나머지를 0으로 채운다는 아이디어는 큐로도, in-place swap으로도 구현 가능하다.</li>
+    <li>Queue(LinkedList) 방식은 정답이지만 오토박싱·노드 할당·O(n) 추가 공간 때문에 런타임/메모리 모두 하위권이었다.</li>
+    <li>투 포인터(insertPos + i)는 배열 안에서만 swap하므로 O(1) 추가 공간, 즉 in-place follow-up 조건을 만족한다.</li>
+  </ul>
+</div>

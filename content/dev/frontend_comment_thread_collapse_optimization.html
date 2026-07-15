@@ -1,0 +1,507 @@
+<!-- [2026-07-15] Frontend — 댓글 스레드 접기/펴기 계산 최적화 -->
+<style>
+  .report-toc {
+    position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+    background: var(--surface); border-left: 1px solid var(--border);
+    padding: 40px 25px; z-index: 1001;
+    transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+  }
+  .report-toc.active { right: 0; }
+  .report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .report-toc ul { list-style: none; padding: 0; margin: 0; }
+  .report-toc li { margin-bottom: 12px; line-height: 1.4; }
+  .report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+  .report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+  .toc-backdrop {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+    z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+  }
+  .toc-backdrop.active { display: block; opacity: 1; }
+  .toc-toggle-btn {
+    position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+    background: var(--accent); color: #fff; border: none; border-radius: 50%;
+    font-size: 1.5rem; cursor: pointer; z-index: 1002;
+    box-shadow: 0 4px 15px var(--accent-glow);
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+  }
+  .toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); }
+  @media (max-width: 768px) {
+    .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+  }
+
+  .ctc-section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .ctc-section-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff; font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+  }
+  .ctc-callout {
+    border-left: 4px solid var(--accent); background: rgba(94, 129, 244, 0.05);
+    border-radius: 0 10px 10px 0; padding: 14px 18px; margin: 16px 0;
+    font-size: 14px; white-space: pre-line;
+  }
+  .ctc-callout.bad { border-color: var(--red); background: rgba(214, 57, 57, 0.05); }
+  .ctc-callout.ok  { border-color: var(--green); background: rgba(47, 179, 68, 0.05); }
+  .ctc-callout.warn { border-color: var(--yellow); background: rgba(245, 158, 11, 0.05); }
+  .ctc-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+  .ctc-diagram {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px 22px; margin: 16px 0; font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px; line-height: 1.75; white-space: pre; overflow-x: auto; color: var(--text);
+  }
+
+  .ctc-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .ctc-table th {
+    background: var(--surface2); color: var(--accent); font-weight: 700;
+    padding: 8px 14px; text-align: left; border-bottom: 2px solid var(--border);
+  }
+  .ctc-table td {
+    padding: 7px 14px; border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .ctc-table tr:last-child td { border-bottom: none; }
+  .ctc-table td.bad { color: var(--red); }
+  .ctc-table td.ok  { color: var(--green); font-weight: 700; }
+
+  .ctc-kw  { color: #c792ea; }
+  .ctc-str { color: #c3e88d; }
+  .ctc-cmt { color: #6b7089; }
+  .ctc-hl-bad, .ctc-hl-good { display: inline-block; width: 100%; }
+  .ctc-hl-bad  { background: rgba(214, 57, 57, 0.1); }
+  .ctc-hl-good { background: rgba(47, 179, 68, 0.1); }
+
+  .ctc-summary {
+    background: linear-gradient(135deg, rgba(94,129,244,0.08), rgba(47,179,68,0.08));
+    border: 1px solid rgba(94,129,244,0.25); border-radius: 12px;
+    padding: 24px 28px; margin-bottom: 24px;
+  }
+  .ctc-summary h3 { color: var(--green); font-size: 0.85rem; font-weight: 700; margin-bottom: 14px; letter-spacing: 1px; text-transform: uppercase; }
+  .ctc-summary ul { padding-left: 0; list-style: none; }
+  .ctc-summary ul li { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text); }
+  .ctc-summary ul li:last-child { border-bottom: none; }
+  .ctc-summary ul li::before { content: "→ "; color: var(--green); font-weight: 700; }
+</style>
+
+<h1>Frontend — 댓글 스레드 접기/펴기 계산 최적화</h1>
+
+<div class="card" style="text-align:center; background: linear-gradient(135deg, var(--surface), var(--surface2));">
+  <span class="badge badge-tag">Frontend</span>
+  <span class="badge badge-tag">알고리즘</span>
+  <span class="badge badge-tag">useMemo</span>
+  <span class="badge badge-tag">그래프 순회</span>
+  <span class="badge badge-date">2026-07-15</span>
+  <p style="margin-top:14px; color:var(--text-muted); font-size:14px;">
+    인접 리스트 재사용 · 방문 Set 공유 · shift→pop · useMemo — 느려지는 상황을 재현하고 하나씩 고쳐본다
+  </p>
+  <p style="margin-top:8px; color:var(--text-muted); font-size:12px;">
+    대상 예시: 대댓글이 있는 댓글 스레드 뷰어(실제 코드가 아닌 개념 설명용 analogy)
+  </p>
+</div>
+
+<div class="card" style="border-left: 3px solid var(--yellow);">
+  <p style="font-size:13px; color:var(--yellow);">
+    범위: <strong>계산(자료구조) 단계</strong>만 다룬다. 계산 결과를 화면에 반영하는 그리기(렌더링) 단계는
+    <a onclick="loadContent('dev/frontend_card_render_memoization')" style="color:var(--accent); cursor:pointer;">카드 리스트 렌더링 메모이제이션 최적화</a> 문서 참고.
+    이 문서는 그 이전, "어떤 댓글을 숨길지"를 구하는 단계에서 벌어지는 문제를 다룬다.
+  </p>
+</div>
+
+<!-- CH 0 -->
+<div class="card" id="ch0">
+  <div class="ctc-section-header">
+    <div class="ctc-section-number">0</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">배경</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    대댓글이 많은 게시판, 이슈 트래커의 스레드형 댓글, 협업 툴의 답글 체인처럼
+    <strong>부모-자식 관계를 가진 항목을 재귀적으로 접고 펼치는 UI</strong>를 만들다 보면
+    실무에서 자주 마주치는 성능 함정이 하나 있는데, 그걸 재현한 예제로 이 글을 시작한다.
+  </p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    게시글 상세 화면에서 <strong>대댓글이 많은 스레드는 기본적으로 접힌 상태</strong>로 시작한다고 하자.
+    "답글 보기"를 누르기 전까지는 자식 댓글이 화면에 안 보이는, 흔히 보는 UI다.
+  </p>
+  <div class="ctc-diagram">        post (게시글)
+       /    \
+     c1      c2
+    /  \       \
+  c3    c4      c5
+                  \
+                   c6
+
+comments 배열 ({id, parentId} 형태):
+[ c1{post}, c2{post}, c3{c1}, c4{c1}, c5{c2}, c6{c5} ]   // N = 6개</div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    핵심 변수 두 가지:
+    <code>collapsedThreadIds: Set&lt;string&gt;</code> — "지금 접혀 있는 댓글 id 목록". 댓글 자신은 화면에 보이고,
+    그 댓글의 답글만 숨겨진다는 뜻.
+    <code>replyIndex: Map&lt;commentId, replyId[]&gt;</code> — "댓글 id → 바로 아래 답글 id 배열" 관계표.
+    (아래 이름 <code>replyIndex</code>, <code>collapsedThreadIds</code> 등은 전부 예시용이며 실제 코드가 아니다.)
+  </p>
+</div>
+
+<!-- CH 1 -->
+<div class="card" id="ch1">
+  <div class="ctc-section-header">
+    <div class="ctc-section-number">1</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">상황 재현 — 무엇이 느렸나</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    화면을 그리는 컴포넌트에는 <strong>접힌 스레드들의 모든 답글 id 집합(hiddenIds)</strong>을 계산해
+    필터로 숨기는 <code>computeVisibleComments</code> 같은 함수가 있다. 아래는 이 역할을 하는 코드를
+    실무에서 흔히 보이는 형태로 재현한 것이다.
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">computeVisibleComments.js (Before)</span>
+    </div>
+    <pre><code><span class="ctc-cmt">// 댓글 하나의 모든 답글 id를 모아서 반환하는 "자기 완결형" 함수</span>
+<span class="ctc-kw">function</span> getHiddenReplyIds(commentId, comments) {
+<span class="ctc-hl-bad">  <span class="ctc-cmt">// 호출될 때마다 매번 새로 만드는 "부모 → 답글 목록" 색인</span></span>
+<span class="ctc-hl-bad">  <span class="ctc-kw">const</span> replyIndex = <span class="ctc-kw">new</span> Map();</span>
+<span class="ctc-hl-bad">  <span class="ctc-kw">for</span> (<span class="ctc-kw">const</span> c <span class="ctc-kw">of</span> comments) {</span>
+<span class="ctc-hl-bad">    <span class="ctc-kw">if</span> (!c.parentId) <span class="ctc-kw">continue</span>;</span>
+<span class="ctc-hl-bad">    <span class="ctc-kw">if</span> (!replyIndex.has(c.parentId)) replyIndex.set(c.parentId, []);</span>
+<span class="ctc-hl-bad">    replyIndex.get(c.parentId).push(c.id);</span>
+<span class="ctc-hl-bad">  }</span>
+
+<span class="ctc-hl-bad">  <span class="ctc-cmt">// 호출될 때마다 매번 새로 만드는 "이미 방문한 댓글" 집합</span></span>
+<span class="ctc-hl-bad">  <span class="ctc-kw">const</span> visited = <span class="ctc-kw">new</span> Set();</span>
+  <span class="ctc-kw">const</span> toVisit = [commentId];
+  <span class="ctc-kw">while</span> (toVisit.length &gt; 0) {
+<span class="ctc-hl-bad">    <span class="ctc-kw">const</span> cur = toVisit.shift();          <span class="ctc-cmt">// 맨 앞에서 뺀다</span></span>
+    <span class="ctc-kw">for</span> (<span class="ctc-kw">const</span> replyId <span class="ctc-kw">of</span> replyIndex.get(cur) ?? []) {
+      visited.add(replyId);
+      toVisit.push(replyId);
+    }
+  }
+  <span class="ctc-kw">return</span> visited;
+}
+
+<span class="ctc-cmt">// 접힌 스레드들의 답글을 전부 모아 화면에서 숨기는 함수</span>
+<span class="ctc-kw">function</span> computeVisibleComments(allComments, collapsedThreadIds) {
+  <span class="ctc-kw">const</span> hiddenIds = <span class="ctc-kw">new</span> Set();
+<span class="ctc-hl-bad">  <span class="ctc-kw">for</span> (<span class="ctc-kw">const</span> id <span class="ctc-kw">of</span> collapsedThreadIds) {          <span class="ctc-cmt">// 접힌 스레드가 800개면</span></span>
+<span class="ctc-hl-bad">    getHiddenReplyIds(id, allComments).forEach((d) =&gt; hiddenIds.add(d));  <span class="ctc-cmt">// ← 800번 호출</span></span>
+<span class="ctc-hl-bad">  }</span>
+
+<span class="ctc-hl-bad">  <span class="ctc-cmt">// "답글 있는 댓글 집합"을 위해 comments 배열을 또 한 번 순회</span></span>
+<span class="ctc-hl-bad">  <span class="ctc-kw">const</span> hasRepliesSet = <span class="ctc-kw">new</span> Set(allComments.filter((c) =&gt; c.parentId).map((c) =&gt; c.parentId));</span>
+
+  <span class="ctc-kw">return</span> {
+    visibleComments: allComments.filter((c) =&gt; !hiddenIds.has(c.id)),
+    hasReplies: (id) =&gt; hasRepliesSet.has(id),
+  };
+}</code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    컴포넌트 쪽에서 이 함수들을 호출하는 코드:
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">CommentThread.jsx (Before)</span>
+    </div>
+    <pre><code><span class="ctc-cmt">// 답글 미리보기를 열 때마다 호출</span>
+<span class="ctc-hl-bad"><span class="ctc-kw">const</span> hiddenIds = getHiddenReplyIds(commentId, allComments);</span>
+
+<span class="ctc-cmt">// 댓글을 클릭할 때마다 호출</span>
+<span class="ctc-hl-bad"><span class="ctc-kw">const</span> hasReplies = allComments.some((c) =&gt; c.parentId === commentId);</span></code></pre>
+  </div>
+  <div class="ctc-callout bad">
+    <strong>이 코드가 왜 문제인가</strong>
+    댓글 2,000개짜리 스레드(접힌 스레드 800개)라고 하면 — 접기/펴기를 한 번 클릭할 때마다
+    getHiddenReplyIds가 800번 호출되고, 그때마다 replyIndex를 처음부터 다시 만드느라
+    comments 배열을 800번 훑는다. 단순 계산으로도 배열 스캔만 160만 회. 여기에 미리보기
+    호버·클릭마다 반복되는 추가 스캔까지 더하면 클릭 한 번에 수백만 번 단위의 불필요한 연산이 쌓인다.
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    이런 일이 벌어지는 이유는 하나로 요약된다: <strong>"항목 1개를 처리하는 함수" 안에 "전체를 준비하는
+    계산"이 함께 들어 있어서</strong>다. <code>getHiddenReplyIds(commentId, comments)</code>는 댓글 하나만
+    다루는 것처럼 보이지만, 그 안에서 매번 스레드 전체의 관계표(replyIndex)를 새로 만든다.
+    이 함수를 <code>collapsedThreadIds</code> 개수만큼 루프에서 호출하는 순간, "전체 준비"가 호출
+    횟수만큼 그대로 반복된다 — 함수 하나만 보거나 호출부 하나만 봐서는 눈에 띄지 않는 함정이다.
+  </p>
+  <ol style="padding-left:20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li><strong>replyIndex를 호출마다 다시 그린다</strong> — 접힌 스레드 수만큼 똑같은 색인을 반복 생성 (→ Chapter 2)</li>
+    <li><strong>Set을 공유하지 않는다</strong> — 조상이 이미 방문한 답글을 자식이 또 방문 (→ Chapter 3)</li>
+    <li><strong>toVisit.shift()로 맨 앞에서 뺀다</strong> — 목록이 길수록 매번 전체가 한 칸씩 밀림 (→ Chapter 4)</li>
+    <li><strong>컴포넌트에서 매번 다시 호출한다</strong> — useMemo 없이 렌더/클릭마다 재계산 (→ Chapter 5)</li>
+    <li><strong>같은 정보를 두 번 만든다</strong> — hasRepliesSet을 위해 comments를 또 순회 (→ Chapter 6)</li>
+  </ol>
+</div>
+
+<!-- CH 2 -->
+<div class="card" id="ch2">
+  <div class="ctc-section-header">
+    <div class="ctc-section-number">2</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">개선 1 — replyIndex는 한 번만 만든다</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    comments 배열은 (자식, 부모) 쌍의 나열이라 "c1의 답글이 누구지?"에 바로 답할 수 없다.
+    그래서 순회 전에 <strong>부모 → 답글 목록 색인(replyIndex)</strong>을 만드는 것 자체는 맞는 접근이다.
+    문제는 이 색인을 <code>getHiddenReplyIds</code> 함수 안에, 즉 <strong>호출될 때마다</strong> 만들었다는 것.
+  </p>
+  <div class="ctc-diagram">replyIndex = { post: [c1, c2],  c1: [c3, c4],  c2: [c5],  c5: [c6] }</div>
+  <div class="ctc-callout warn">
+    <strong>문제</strong>
+    Chapter 1의 코드는 "이 댓글 밑에 누가 있어?"를 물을 때마다 comments 배열을 처음부터 끝까지 읽어
+    replyIndex를 새로 만들었다. 접힌 스레드가 800개면 같은 색인을 800번 만든 셈.
+  </div>
+  <span class="badge badge-tag">AFTER</span>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">buildReplyIndex.js</span>
+    </div>
+    <pre><code><span class="ctc-kw">function</span> buildReplyIndex(comments) {
+  <span class="ctc-kw">const</span> replyIndex = <span class="ctc-kw">new</span> Map();
+  <span class="ctc-kw">for</span> (<span class="ctc-kw">const</span> c <span class="ctc-kw">of</span> comments) {
+    <span class="ctc-kw">if</span> (!c.parentId) <span class="ctc-kw">continue</span>;
+    <span class="ctc-kw">if</span> (!replyIndex.has(c.parentId)) replyIndex.set(c.parentId, []);
+    replyIndex.get(c.parentId).push(c.id);
+  }
+  <span class="ctc-kw">return</span> replyIndex;
+}
+
+<span class="ctc-kw">function</span> computeVisibleComments(allComments, collapsedThreadIds) {
+<span class="ctc-hl-good">  <span class="ctc-kw">const</span> replyIndex = buildReplyIndex(allComments);  <span class="ctc-cmt">// ← 딱 1번만 생성</span></span>
+  <span class="ctc-kw">const</span> hiddenIds = <span class="ctc-kw">new</span> Set();
+<span class="ctc-hl-good">  <span class="ctc-kw">for</span> (<span class="ctc-kw">const</span> id <span class="ctc-kw">of</span> collapsedThreadIds) collectHiddenReplyIds(id, replyIndex, hiddenIds);</span>
+}</code></pre>
+  </div>
+  <div class="ctc-callout ok">
+    <strong>원칙</strong>
+    입력(comments)이 같으면 결과가 항상 같은 계산은 반복문 밖으로 꺼낸다(호이스팅).
+  </div>
+</div>
+
+<!-- CH 3 -->
+<div class="card" id="ch3">
+  <div class="ctc-section-header">
+    <div class="ctc-section-number">3</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">개선 2 — hiddenIds(방문 Set)를 공유해서 중복 순회 제거</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    접힌 스레드끼리 포함 관계(접힌 댓글의 답글 중에 또 접힌 댓글이 있는 경우)가 있을 수 있다:
+  </p>
+  <div class="ctc-diagram">c1 (접힘)
+ ├─ r1
+ └─ c2 (접힘)
+     ├─ r2
+     └─ r3</div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    <code>collectHiddenReplyIds(c1, replyIndex, hiddenIds)</code> → <code>hiddenIds = {r1, c2, r2, r3}</code> (c1의 답글 전부).
+    이어서 <code>collectHiddenReplyIds(c2, replyIndex, hiddenIds)</code> → r2, r3이 이미 hiddenIds에 있어서 즉시 스킵.
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">collectHiddenReplyIds.js</span>
+    </div>
+    <pre><code><span class="ctc-kw">function</span> collectHiddenReplyIds(commentId, replyIndex, hiddenIds) {
+  <span class="ctc-kw">const</span> toVisit = [commentId];
+  <span class="ctc-kw">while</span> (toVisit.length &gt; 0) {
+    <span class="ctc-kw">const</span> cur = toVisit.pop();
+    <span class="ctc-kw">for</span> (<span class="ctc-kw">const</span> replyId <span class="ctc-kw">of</span> replyIndex.get(cur) ?? []) {
+<span class="ctc-hl-good">      <span class="ctc-kw">if</span> (!hiddenIds.has(replyId)) {   <span class="ctc-cmt">// 이미 방문했나?</span></span>
+        hiddenIds.add(replyId);
+        toVisit.push(replyId);
+      }
+    }
+  }
+}</code></pre>
+  </div>
+  <div class="ctc-callout bad">
+    <strong>흔한 오해 바로잡기 — "hiddenIds를 공유하면 남의 댓글까지 숨기는 거 아닌가?"</strong>
+    아니다. 탐색 범위 자체는 언제나 <code>replyIndex.get(cur)</code>(실제 답글 구조)로만 결정된다.
+    <code>hiddenIds.has(replyId)</code> 체크는 "이미 아는 답글이니 더 안 내려가도 됨"을 판단할 뿐, 탐색을 남의
+    스레드로 확장시키지 않는다. c2가 c1의 답글인 경우 c2의 답글 r2, r3은 c2 입장에서도 진짜 자기
+    답글이라 겹치는 게 당연한 것 — 무관한 댓글이 섞이는 게 아니다.
+  </div>
+</div>
+
+<!-- CH 4 -->
+<div class="card" id="ch4">
+  <div class="ctc-section-header">
+    <div class="ctc-section-number">4</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">개선 3 — queue(shift) → stack(pop)</h2>
+  </div>
+  <span class="badge badge-warning">BEFORE (Chapter 1)</span>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Before</span>
+    </div>
+    <pre><code><span class="ctc-kw">const</span> toVisit = [commentId];
+<span class="ctc-kw">const</span> cur = toVisit.shift();   <span class="ctc-cmt">// 배열 맨 앞 제거 = 나머지 전부 한 칸씩 당김 → O(n)</span></code></pre>
+  </div>
+  <span class="badge badge-tag">AFTER</span>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">After</span>
+    </div>
+    <pre><code><span class="ctc-kw">const</span> toVisit = [commentId];
+<span class="ctc-kw">const</span> cur = toVisit.pop();     <span class="ctc-cmt">// 배열 맨 뒤 제거 = 아무도 안 움직임 → O(1)</span></code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    최종적으로 구하는 건 <strong>순서 없는 Set</strong>이라, 답글을 위쪽부터 훑든 아래쪽부터 훑든 결국 방문하는
+    댓글 집합은 완전히 동일하다. 결과는 그대로 두고 연산만 싸게 바꾼 변경이다.
+  </p>
+</div>
+
+<!-- CH 5 -->
+<div class="card" id="ch5">
+  <div class="ctc-section-header">
+    <div class="ctc-section-number">5</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">개선 4 — 컴포넌트 쪽, useMemo로 결과 재사용</h2>
+  </div>
+  <span class="badge badge-warning">BEFORE (Chapter 1)</span>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Before</span>
+    </div>
+    <pre><code><span class="ctc-kw">const</span> handleReplyPreviewHover = useCallback((commentId) =&gt; {
+  <span class="ctc-kw">const</span> hiddenIds = getHiddenReplyIds(commentId, allComments);
+  <span class="ctc-cmt">// ← 미리보기 표시할 때마다 allComments를 처음부터 순회</span>
+}, [allComments]);
+
+<span class="ctc-kw">const</span> handleCommentClick = useCallback((commentId) =&gt; {
+  <span class="ctc-kw">const</span> hasReplies = allComments.some((c) =&gt; c.parentId === commentId);
+  <span class="ctc-cmt">// ← 클릭할 때마다 배열을 처음부터 한 줄씩 확인</span>
+}, [allComments]);</code></pre>
+  </div>
+  <span class="badge badge-tag">AFTER</span>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">After</span>
+    </div>
+    <pre><code><span class="ctc-kw">const</span> replyIndex = useMemo(() =&gt; buildReplyIndex(allComments), [allComments]);
+
+<span class="ctc-kw">const</span> handleReplyPreviewHover = useCallback((commentId) =&gt; {
+  <span class="ctc-kw">const</span> hiddenIds = <span class="ctc-kw">new</span> Set();
+  collectHiddenReplyIds(commentId, replyIndex, hiddenIds);  <span class="ctc-cmt">// 이미 있는 색인 조회만</span>
+}, [replyIndex]);
+
+<span class="ctc-kw">const</span> handleCommentClick = useCallback((commentId) =&gt; {
+  <span class="ctc-kw">if</span> (!replyIndex.has(commentId)) <span class="ctc-kw">return</span>;   <span class="ctc-cmt">// O(1) 해시 조회</span>
+}, [replyIndex]);</code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    <strong>useMemo가 정확히 어떻게 이걸 막았나</strong> — React는 렌더링마다 이전 의존성(<code>allComments</code>)과 이번 <code>allComments</code>를 참조 비교한다.
+    호버·클릭은 다른 state(<code>setSelectedCommentId</code> 등)를 바꿔 리렌더시키지만, 이때
+    <code>comments</code>/<code>collapsedThreadIds</code>는 그대로이므로 <code>allComments</code> 참조도 그대로
+    유지된다 → <code>buildReplyIndex</code>를 재실행하지 않고 캐시된 Map을 그대로 반환한다.
+  </p>
+  <div class="ctc-callout ok">
+    <strong>전제조건</strong>
+    allComments가 상위 useMemo의 결과라 참조가 안정적이어야 한다. useMemo 체인은 위에서부터 참조 안정성이
+    유지돼야 효과가 있다.
+  </div>
+</div>
+
+<!-- CH 6 -->
+<div class="card" id="ch6">
+  <div class="ctc-section-header">
+    <div class="ctc-section-number">6</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">개선 5 — 덤, 같은 정보를 두 번 만들지 않기</h2>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">hasReplies.js</span>
+    </div>
+    <pre><code><span class="ctc-cmt">// Before (Chapter 1): "답글 있는 댓글 집합"을 위해 comments 전체를 또 한 번 순회</span>
+<span class="ctc-hl-bad"><span class="ctc-kw">const</span> hasRepliesSet = <span class="ctc-kw">new</span> Set(allComments.filter((c) =&gt; c.parentId).map((c) =&gt; c.parentId));</span>
+
+<span class="ctc-cmt">// After: replyIndex 의 key 가 곧 "답글 있는 댓글" — 이미 있는 정보 재사용</span>
+<span class="ctc-hl-good"><span class="ctc-kw">const</span> hasReplies = (commentId) =&gt; replyIndex.has(commentId);</span></code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    replyIndex에 key로 있다 = 답글이 있다는 뜻이다. 같은 정보를 두 개의 자료구조로 표현하지 않는다.
+  </p>
+</div>
+
+<!-- CH 7 -->
+<div class="card" id="ch7">
+  <div class="ctc-section-header">
+    <div class="ctc-section-number">7</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">성능 요약</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    댓글 2,000개짜리 스레드(접힌 스레드 800개 가정)에서 접기/펴기 클릭 1회당:
+  </p>
+  <table class="ctc-table">
+    <tr><th>구분</th><th>Before</th><th>After</th></tr>
+    <tr><td>replyIndex 생성</td><td class="bad">800번(전체 순회 160만 회)</td><td class="ok">1번(2,000회)</td></tr>
+    <tr><td>답글 순회</td><td class="bad">중복 방문 다수(최악 O(N²))</td><td class="ok">댓글당 최대 1회</td></tr>
+    <tr><td>큐/스택 연산</td><td class="bad">shift O(n)</td><td class="ok">pop O(1)</td></tr>
+    <tr><td>클릭 시 답글 존재 판단</td><td class="bad">Array.some O(N)</td><td class="ok">Map.has O(1)</td></tr>
+  </table>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    <strong>왜 안전한가(회귀 위험 없음)</strong> — hiddenIds = "접힌 스레드들의 답글 합집합" — Set을 각자 만들어 합치든 하나에 누적하든, 순회 순서를
+    바꾸든 집합으로서 결과는 동일하다. <code>hasReplies</code> = replyIndex의 key 집합 = 답글이 있는
+    <code>parentId</code> 집합, 정의상 같다. 즉 계산 방법만 바꾸고 결과는 그대로 유지한 리팩터링이다.
+  </p>
+</div>
+
+<!-- CH 8 -->
+<div class="card" id="ch8">
+  <div class="ctc-section-header">
+    <div class="ctc-section-number">8</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">일반화 — 다른 코드에도 적용 가능한 패턴</h2>
+  </div>
+  <ul style="padding-left:20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li><strong>불변 계산 호이스팅</strong> — 입력이 안 변하는 계산은 함수/반복문 밖으로.</li>
+    <li><strong>방문 상태 공유</strong> — 반복 호출들이 "방문 여부" Set을 공유하면 중복 순회 자동 차단.</li>
+    <li><strong>순서가 필요 없으면 싼 쪽 끝에서</strong> — 집합만 필요하면 shift 대신 pop.</li>
+    <li><strong>렌더 간 재사용은 useMemo</strong> — 단, deps의 참조 안정성이 전제.</li>
+    <li><strong>원본 데이터 vs 파생값 구분</strong> — 재계산 불가능은 useState, 재계산 가능은 useMemo, 외부 동기화는 useEffect.</li>
+  </ul>
+</div>
+
+<div class="ctc-summary">
+  <h3>핵심 정리</h3>
+  <ul>
+    <li>"항목 1개 처리 함수" 안에 준비 작업을 넣지 않는다 — 루프에서 호출되는 순간 준비가 N번 중복된다</li>
+    <li>불변 계산(replyIndex)은 반복문 밖으로 호이스팅, 방문 상태(Set)는 호출 간에 공유</li>
+    <li>집합만 필요하면 shift 대신 pop — 순서가 필요 없는 곳에 굳이 비싼 연산을 쓰지 않는다</li>
+    <li>useMemo 체인은 deps 참조 안정성이 전제 — 위쪽이 매 렌더 새 배열이면 무용지물</li>
+    <li>같은 정보를 두 자료구조로 중복 계산하지 않는다 — 이미 만든 색인의 key를 재사용한다</li>
+  </ul>
+</div>
+
+<p style="text-align:right; font-size:0.8rem; color:var(--text-muted); margin-top:30px;">
+  계산 결과를 화면에 반영하는 그리기(렌더링) 단계의 최적화는
+  <a onclick="loadContent('dev/frontend_card_render_memoization')" style="color:var(--accent); cursor:pointer;">카드 리스트 렌더링 메모이제이션 최적화</a> 문서 참고.
+</p>
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#ch0" onclick="toggleTOC()">0. 배경</a></li>
+    <li><a href="#ch1" onclick="toggleTOC()">1. 상황 재현</a></li>
+    <li><a href="#ch2" onclick="toggleTOC()">2. replyIndex 한 번만</a></li>
+    <li><a href="#ch3" onclick="toggleTOC()">3. hiddenSet 공유</a></li>
+    <li><a href="#ch4" onclick="toggleTOC()">4. shift → pop</a></li>
+    <li><a href="#ch5" onclick="toggleTOC()">5. useMemo 캐싱</a></li>
+    <li><a href="#ch6" onclick="toggleTOC()">6. 중복 정보 제거</a></li>
+    <li><a href="#ch7" onclick="toggleTOC()">7. 성능 요약</a></li>
+    <li><a href="#ch8" onclick="toggleTOC()">8. 일반화 패턴</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>

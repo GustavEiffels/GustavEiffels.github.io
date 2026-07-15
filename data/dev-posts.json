@@ -1,5 +1,29 @@
 [
   {
+    "date": "2026-07-15",
+    "title": "Frontend — 카드 리스트 렌더링 메모이제이션 최적화",
+    "file": "dev/frontend_card_render_memoization",
+    "category": "record"
+  },
+  {
+    "date": "2026-07-15",
+    "title": "Frontend — 댓글 스레드 접기/펴기 계산 최적화",
+    "file": "dev/frontend_comment_thread_collapse_optimization",
+    "category": "record"
+  },
+  {
+    "date": "2026-07-15",
+    "title": "[코딩테스트] LeetCode 283 - Move Zeroes (Two Pointer, Java)",
+    "file": "dev/algorithm/leetcode_283_movezeroes",
+    "category": "algorithm"
+  },
+  {
+    "date": "2026-07-15",
+    "title": "[코딩테스트] LeetCode 495 - Teemo Attacking (배열/시뮬레이션, Java)",
+    "file": "dev/algorithm/leetcode_495_teemoattacking",
+    "category": "algorithm"
+  },
+  {
     "date": "2026-07-13",
     "title": "순차 원격 호출 2회, CompletableFuture로 병렬화하기",
     "file": "dev/completablefuture_parallel_remote_calls",

@@ -1,0 +1,471 @@
+<!-- [2026-07-15] Frontend — 카드 리스트 렌더링 메모이제이션 최적화 -->
+<style>
+  .report-toc {
+    position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+    background: var(--surface); border-left: 1px solid var(--border);
+    padding: 40px 25px; z-index: 1001;
+    transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+  }
+  .report-toc.active { right: 0; }
+  .report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .report-toc ul { list-style: none; padding: 0; margin: 0; }
+  .report-toc li { margin-bottom: 12px; line-height: 1.4; }
+  .report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+  .report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+  .toc-backdrop {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+    z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+  }
+  .toc-backdrop.active { display: block; opacity: 1; }
+  .toc-toggle-btn {
+    position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+    background: var(--accent); color: #fff; border: none; border-radius: 50%;
+    font-size: 1.5rem; cursor: pointer; z-index: 1002;
+    box-shadow: 0 4px 15px var(--accent-glow);
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+  }
+  .toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); }
+  @media (max-width: 768px) {
+    .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+  }
+
+  .crm-section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .crm-section-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff; font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+  }
+  .crm-callout {
+    border-left: 4px solid var(--accent); background: rgba(94, 129, 244, 0.05);
+    border-radius: 0 10px 10px 0; padding: 14px 18px; margin: 16px 0;
+    font-size: 14px; white-space: pre-line;
+  }
+  .crm-callout.bad { border-color: var(--red); background: rgba(214, 57, 57, 0.05); }
+  .crm-callout.ok  { border-color: var(--green); background: rgba(47, 179, 68, 0.05); }
+  .crm-callout.warn { border-color: var(--yellow); background: rgba(245, 158, 11, 0.05); }
+  .crm-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+  .crm-diagram {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px 22px; margin: 16px 0; font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px; line-height: 1.75; white-space: pre; overflow-x: auto; color: var(--text);
+  }
+
+  .crm-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .crm-table th {
+    background: var(--surface2); color: var(--accent); font-weight: 700;
+    padding: 8px 14px; text-align: left; border-bottom: 2px solid var(--border);
+  }
+  .crm-table td {
+    padding: 7px 14px; border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .crm-table tr:last-child td { border-bottom: none; }
+  .crm-table td.bad { color: var(--red); }
+  .crm-table td.ok  { color: var(--green); font-weight: 700; }
+
+  .crm-kw  { color: #c792ea; }
+  .crm-str { color: #c3e88d; }
+  .crm-cmt { color: #6b7089; }
+  .crm-hl-bad, .crm-hl-good { display: inline-block; width: 100%; }
+  .crm-hl-bad  { background: rgba(214, 57, 57, 0.1); }
+  .crm-hl-good { background: rgba(47, 179, 68, 0.1); }
+
+  .crm-summary {
+    background: linear-gradient(135deg, rgba(94,129,244,0.08), rgba(47,179,68,0.08));
+    border: 1px solid rgba(94,129,244,0.25); border-radius: 12px;
+    padding: 24px 28px; margin-bottom: 24px;
+  }
+  .crm-summary h3 { color: var(--green); font-size: 0.85rem; font-weight: 700; margin-bottom: 14px; letter-spacing: 1px; text-transform: uppercase; }
+  .crm-summary ul { padding-left: 0; list-style: none; }
+  .crm-summary ul li { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text); }
+  .crm-summary ul li:last-child { border-bottom: none; }
+  .crm-summary ul li::before { content: "→ "; color: var(--green); font-weight: 700; }
+</style>
+
+<h1>Frontend — 카드 리스트 렌더링 메모이제이션 최적화</h1>
+
+<div class="card" style="text-align:center; background: linear-gradient(135deg, var(--surface), var(--surface2));">
+  <span class="badge badge-tag">Frontend</span>
+  <span class="badge badge-tag">React</span>
+  <span class="badge badge-tag">memo</span>
+  <span class="badge badge-tag">DOM 가상화</span>
+  <span class="badge badge-date">2026-07-15</span>
+  <p style="margin-top:14px; color:var(--text-muted); font-size:14px;">
+    클로저와 memo 무력화 · 비교 함수 설계 · DOM 가상화 — "계산"과 "그리기"를 분리해서 본다
+  </p>
+  <p style="margin-top:8px; color:var(--text-muted); font-size:12px;">
+    대상 예시: 카드 리스트를 그리는 가상의 컴포넌트(실제 코드가 아닌 개념 설명용 analogy)
+  </p>
+</div>
+
+<div class="card" style="border-left: 3px solid var(--yellow);">
+  <p style="font-size:13px; color:var(--yellow);">
+    범위: <strong>그리기(렌더링) 단계</strong>만 다룬다. 자료구조 계산 단계(부모-자식 맵 재사용, 방문 Set 공유 등)는
+    <a onclick="loadContent('dev/frontend_comment_thread_collapse_optimization')" style="color:var(--accent); cursor:pointer;">댓글 스레드 접기/펴기 계산 최적화</a> 문서 참고.
+    이 문서는 그 계산이 끝난 이후, 결과를 화면에 반영하는 단계에서 벌어지는 문제를 다룬다.
+  </p>
+</div>
+
+<!-- CH 0 -->
+<div class="card" id="ch0">
+  <div class="crm-section-header">
+    <div class="crm-section-number">0</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">배경 — "계산"과 "그리기"는 다른 단계</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    카드 100장을 리스트로 그리는 컴포넌트가 있다고 하자. 카드 하나를 클릭하면 그 카드의
+    상세 설명(detail)을 펼치거나 접는다. 계산 단계(어떤 카드가 펼쳐져 있는지 파악하는 로직)를
+    아무리 잘 최적화해도, 그 결과를 화면에 반영하는 단계에서 다시 병목이 생길 수 있다.
+  </p>
+  <div class="crm-diagram">카드 클릭
+  │
+  ├─ [계산 단계]  openIds(펼쳐진 카드 id 집합) 갱신 + 카드 배열 재생성(.map())
+  │     자바스크립트 배열/객체를 새로 만드는 순수 연산.
+  │     매번 전체 재실행되는 게 정상 — 다른 카드도 같은 배열 안에서 함께 관리되므로 불가피.
+  │
+  └─ [그리기 단계]  React가 "이 컴포넌트를 실제로 다시 그릴지" 판단 + 브라우저가 DOM 갱신
+        여기가 이번 문서의 대상</div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    "카드 배열을 매번 새로 만드는 것" 자체는 문제가 아니다. 문제는
+    <strong>"새 배열 = 카드 100장 전부 다시 그려야 한다"</strong>로 이어지는 부분이다.
+  </p>
+</div>
+
+<!-- CH 1 -->
+<div class="card" id="ch1">
+  <div class="crm-section-header">
+    <div class="crm-section-number">1</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">React는 참조로만 비교한다</h2>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">reference-equality.js</span>
+    </div>
+    <pre><code><span class="crm-kw">const</span> a = { name: <span class="crm-str">'X'</span> };
+<span class="crm-kw">const</span> b = { name: <span class="crm-str">'X'</span> };
+a === b   <span class="crm-cmt">// false — 내용이 같아도 다른 객체</span></code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    카드 배열의 <code>.map()</code>은 펼침 상태가 바뀔 때마다 <strong>모든 카드</strong>의 <code>props</code> 객체를 새로 만든다.
+    <code>memo</code> 없이는 React가 "새 참조 = 다시 그려야 함"이라고 판단해서, 내용이 하나도 안 바뀐 카드까지
+    전부 리렌더한다.
+  </p>
+</div>
+
+<!-- CH 2 -->
+<div class="card" id="ch2">
+  <div class="crm-section-header">
+    <div class="crm-section-number">2</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">상황 재현 — Before 코드</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    카드 하나를 그리는 컴포넌트와, 그 카드들을 나열하는 리스트 컴포넌트를 실무에서 흔히 보이는 형태로 재현한다.
+    (아래 이름 <code>Card</code>, <code>openIds</code>, <code>onToggleDetail</code>은 전부 예시용이며 실제 코드가 아니다.)
+  </p>
+  <span class="badge badge-warning">BEFORE</span>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">CardList.jsx (Before)</span>
+    </div>
+    <pre><code><span class="crm-cmt">// memo 없음 — 부모가 리렌더되면 무조건 같이 리렌더된다</span>
+<span class="crm-kw">function</span> Card({ data }) {
+  <span class="crm-kw">return</span> (
+    &lt;div onClick={() =&gt; data.onToggleDetail()}&gt;
+      {data.title}
+      {data.detailOpen &amp;&amp; &lt;p&gt;{data.description}&lt;/p&gt;}
+    &lt;/div&gt;
+  );
+}
+
+<span class="crm-kw">const</span> renderedCards = useMemo(
+  () =&gt;
+    cards.map((c) =&gt; ({
+      ...c,
+<span class="crm-hl-bad">      detailOpen: openIds.has(c.id),</span>
+<span class="crm-hl-bad">      onToggleDetail: () =&gt; toggleDetail(c.id),   <span class="crm-cmt">// ← 클로저 ①: 카드마다 매번 새 함수</span></span>
+    })),
+  [cards, openIds, toggleDetail],
+);
+
+<span class="crm-cmt">// 화면 밖 카드도 전부 DOM에 존재</span>
+<span class="crm-hl-bad">&lt;CardCanvas items={renderedCards} /&gt;</span></code></pre>
+  </div>
+  <div class="crm-callout bad">
+    <strong>핵심 문제 3가지</strong>
+    ① Card에 memo 자체가 없어서 부모가 리렌더되면 무조건 다 같이 다시 그려진다.
+    ② onToggleDetail이 매 렌더마다 카드별로 새 클로저를 만든다.
+    ③ 화면 밖에 있는 카드도 DOM에 그대로 존재한다.
+  </div>
+</div>
+
+<!-- CH 3 -->
+<div class="card" id="ch3">
+  <div class="crm-section-header">
+    <div class="crm-section-number">3</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">왜 클로저가 memo를 무력화시키는가</h2>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">closure-identity.js</span>
+    </div>
+    <pre><code><span class="crm-kw">const</span> f1 = () =&gt; toggleDetail(<span class="crm-str">'c3'</span>);  <span class="crm-cmt">// 1번째 렌더 때 생성</span>
+<span class="crm-kw">const</span> f2 = () =&gt; toggleDetail(<span class="crm-str">'c3'</span>);  <span class="crm-cmt">// 2번째 렌더 때 생성</span>
+f1 === f2   <span class="crm-cmt">// false — 하는 일이 완전히 같은데도!</span></code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    함수는 "내용이 같은가"를 비교할 방법이 원리적으로 없다(참조 비교만 가능하다). <code>.toString()</code>으로도
+    안 통한다 — 소스 텍스트는 모든 카드에서 완전히 똑같아서, 실제로 캡처된 값(<code>c.id</code>)은 텍스트로 안 보인다.
+  </p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    <strong>클로저를 쓴 것 자체가 문제는 아니다.</strong>
+    Before/After 둘 다 "클로저는 렌더링 시점에 만들어지고, 실제 실행은 나중에 클릭했을 때"라는 패턴은 동일하다.
+    진짜 차이는 <strong>그 클로저가 어디서 만들어지고, memo가 비교하는 props 안에 들어가는가</strong>다.
+  </p>
+  <table class="crm-table">
+    <tr><th></th><th>Before</th><th>After</th></tr>
+    <tr><td>클로저가 만들어지는 곳</td><td>부모의 .map() — 보이는 카드 전체</td><td>카드 자기 자신의 렌더 안 — 1개분만</td></tr>
+    <tr><td>memo가 비교하는 props에 들어가나</td><td>들어감 → 비교 대상이 됨</td><td>안 들어감 → 비교와 무관</td></tr>
+    <tr><td>몇 개 만들어지나</td><td>토글 1번에 보이는 카드 전부(예: 100개)</td><td>실제로 재렌더된 카드만(예: 1~2개)</td></tr>
+  </table>
+  <div class="crm-callout bad">
+    <strong>정확한 원인</strong>
+    memo가 비교해야 하는 props라는 그릇 안에, 매번 새로 만들어지는 클로저를 넣어서 문제였다.
+    이 필드를 비교에 넣는 순간 비교 함수 전체가 항상 false를 리턴하게 되어 memo가 무력화된다.
+  </div>
+</div>
+
+<!-- CH 4 -->
+<div class="card" id="ch4">
+  <div class="crm-section-header">
+    <div class="crm-section-number">4</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">수정 ① — 클로저 제거</h2>
+  </div>
+  <span class="badge badge-warning">BEFORE</span>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">Before</span>
+    </div>
+    <pre><code>data: { ...c, onToggleDetail: () =&gt; toggleDetail(c.id) }</code></pre>
+  </div>
+  <span class="badge badge-tag">AFTER</span>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">After</span>
+    </div>
+    <pre><code>data: { ...c, onToggleDetail: toggleDetail }   <span class="crm-cmt">// 안정 참조 그대로 전달</span>
+
+<span class="crm-kw">const</span> Card = memo(<span class="crm-kw">function</span> Card({ id, data }) {
+  <span class="crm-kw">return</span> &lt;div onClick={() =&gt; data.onToggleDetail(id)}&gt;   <span class="crm-cmt">// 호출 시점에 id를 인자로</span>
+    ...
+  &lt;/div&gt;;
+}, cardPropsEqual);</code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    <code>toggleDetail</code>은 <code>useCallback(fn, [])</code>로 만들어져서 컴포넌트가 살아있는 동안 항상
+    같은 함수 객체다. 카드 100개 모두 <strong>같은 참조를 공유</strong>하게 되어 비교할 필요조차 없어진다.
+  </p>
+</div>
+
+<!-- CH 5 -->
+<div class="card" id="ch5">
+  <div class="crm-section-header">
+    <div class="crm-section-number">5</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">수정 ② — memo + 비교 함수</h2>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">cardPropsEqual.js</span>
+    </div>
+    <pre><code><span class="crm-kw">function</span> cardPropsEqual(prev, next) {
+  <span class="crm-kw">const</span> a = prev.data;
+  <span class="crm-kw">const</span> b = next.data;
+  <span class="crm-kw">return</span> (
+    prev.id === next.id &amp;&amp;
+    a.title === b.title &amp;&amp;
+    a.description === b.description &amp;&amp;
+    !!a.detailOpen === !!b.detailOpen
+<span class="crm-hl-good">    <span class="crm-cmt">// onToggleDetail 은 의도적으로 제외 — 항상 안정 참조라 비교 불필요</span></span>
+  );
+}
+
+<span class="crm-kw">const</span> Card = memo(<span class="crm-kw">function</span> Card({ id, data }) { ... }, cardPropsEqual);</code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    <strong>memo(function X(...) {...}, compareFn) 문법</strong> — 컴포넌트 함수를 변수에 담기 전에 <code>memo()</code>의 인자로 먼저 통과시키는 패턴이다.
+    소스코드 어디에도 <code>cardPropsEqual(a, b)</code>를 직접 호출하는 줄은 없다. <code>memo(...)</code>로
+    등록해두면 React가 새 props를 내려줄 때마다 <strong>내부적으로 자동 호출</strong>한다.
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">shallow-copy.js</span>
+    </div>
+    <pre><code><span class="crm-kw">const</span> copy = { ...card };
+copy === card                  <span class="crm-cmt">// false (껍데기는 새 객체)</span>
+copy.description === card.description   <span class="crm-cmt">// true! (원본 문자열/객체 참조는 그대로)</span></code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    <code>.map()</code>이 만드는 건 <code>data</code>라는 껍데기뿐이고, 안의 필드는 원본 데이터의 참조를
+    그대로 물고 있다(얕은 복사). 그래서 얕은 <code>===</code> 비교만으로 충분하다.
+  </p>
+</div>
+
+<!-- CH 6 -->
+<div class="card" id="ch6">
+  <div class="crm-section-header">
+    <div class="crm-section-number">6</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">전체 그림 — "일단 다 새로 만들고, 바뀐 것만 화면에 반영"</h2>
+  </div>
+  <div class="crm-diagram">[1] .map() 이 카드 100장을 조건 없이 통째로 새로 생성
+    (Card/memo의 존재를 모름 — 전부 새 객체)
+        │ (완전히 끝난 뒤, 별개의 단계로)
+        ▼
+[2] React가 이 배열로 &lt;Card&gt; 엘리먼트를 하나씩 순회
+    → 각 카드마다 cardPropsEqual(이전, 새것) 호출
+    → true(안 바뀜) → 화면에 그려져 있던 카드 그대로 유지
+    → false(바뀜)   → 그 카드만 실제로 다시 그려짐</div>
+  <div class="crm-callout ok">
+    <strong>비유</strong>
+    서류(데이터)는 100장 전부 새로 인쇄하지만, 게시판(화면)에는 내용이 실제로 바뀐 서류만
+    뽑아서 갈아 끼우고 나머지는 그대로 둔다.
+  </div>
+</div>
+
+<!-- CH 7 -->
+<div class="card" id="ch7">
+  <div class="crm-section-header">
+    <div class="crm-section-number">7</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">수정 ③ — 화면 밖 카드는 그리지 않는다 (DOM 가상화)</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    Chapter 4~5(memo)와는 완전히 다른 층위의 최적화다.
+  </p>
+  <div class="crm-diagram">① ② (memo + cardPropsEqual)
+   → DOM 노드 100장은 그대로 존재
+   → "내용이 안 바뀐 것"은 리렌더(JSX 재평가)를 건너뜀
+   → "다시 그리는 비용"을 줄임
+
+③ (가상화)
+   → 애초에 DOM 노드 자체를 뷰포트에 보이는 ~15장만 만듦
+   → 화면 밖 85장은 존재 자체가 없음(mount 안 됨)
+   → "존재하는 것 자체의 비용"을 줄임</div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    브라우저에서 DOM 노드는 화면에 안 보여도 스타일 계산·레이아웃 계산·메모리를 차지한다.
+    memo를 아무리 잘 써도 이 비용은 못 줄인다.
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">virtualization.jsx</span>
+    </div>
+    <pre><code>&lt;CardCanvas items={renderedCards} renderOnlyVisible /&gt;</code></pre>
+  </div>
+  <div class="crm-callout warn">
+    <strong>트레이드오프</strong>
+    스크롤 애니메이션 중 뷰포트가 움직이며 경계에서 mount/unmount가 반복될 수 있다.
+    카드 수가 적은 리스트에선 오히려 스크롤이 미세하게 덜 부드러울 수 있음 — 그 경우 이 옵션 한 줄만 빼면 된다.
+  </div>
+</div>
+
+<!-- CH 8 -->
+<div class="card" id="ch8">
+  <div class="crm-section-header">
+    <div class="crm-section-number">8</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">이번 최적화와 무관한 부분 구분하기</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    같은 리스트 컴포넌트 안에 있어도 이번 최적화 대상이 아닌 상태가 섞여 있을 수 있다.
+    무엇이 대상이고 무엇이 아닌지 구분해두면, 나중에 코드를 다시 볼 때 "이건 왜 안 고쳤지?"라는
+    혼란을 막을 수 있다.
+  </p>
+  <table class="crm-table">
+    <tr><th></th><th>대상</th><th>상태</th><th>함수</th><th>이번 최적화 대상?</th></tr>
+    <tr><td>카드 선택</td><td>카드 하나 강조 표시</td><td>selectedId</td><td>onSelectCard</td><td><strong>아님</strong></td></tr>
+    <tr><td>상세 펼침</td><td>카드 하나의 detail 내용</td><td>openIds</td><td>onToggleDetail</td><td><strong>이번 문서 전체</strong></td></tr>
+  </table>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    <code>onSelectCard</code>는 <code>.map()</code> 안에서 카드마다 만들어지는 함수가 아니라
+    <code>&lt;CardCanvas onItemClick={onSelectCard} /&gt;</code>처럼 리스트 전체에 하나만 연결되는 핸들러다.
+    <code>CardCanvas</code>가 클릭된 카드 정보를 인자로 직접 넘겨주므로 클로저 문제 자체가 없다.
+  </p>
+</div>
+
+<!-- CH 9 -->
+<div class="card" id="ch9">
+  <div class="crm-section-header">
+    <div class="crm-section-number">9</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">성능 요약</h2>
+  </div>
+  <table class="crm-table">
+    <tr><th>구분</th><th>Before</th><th>After</th></tr>
+    <tr><td>memo 여부</td><td class="bad">없음 — 부모 리렌더 시 카드 전부 무조건 재실행</td><td class="ok">memo(Component, cardPropsEqual)</td></tr>
+    <tr><td>onToggleDetail</td><td class="bad">토글마다 보이는 카드 수만큼 클로저 재생성</td><td class="ok">안정 참조 공유, 재생성 없음</td></tr>
+    <tr><td>실제 리렌더되는 카드 수</td><td class="bad">매번 전체(예: 100개)</td><td class="ok">실제로 값이 바뀐 것만(예: 1~2개)</td></tr>
+    <tr><td>DOM에 존재하는 카드 수</td><td class="bad">전체(화면 밖 포함)</td><td class="ok">뷰포트와 겹치는 것만</td></tr>
+  </table>
+</div>
+
+<!-- CH 10 -->
+<div class="card" id="ch10">
+  <div class="crm-section-header">
+    <div class="crm-section-number">10</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">일반화 — 다른 코드에도 적용 가능한 패턴</h2>
+  </div>
+  <ul style="padding-left:20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li><strong>파생물 재계산 구조 + memo는 세트</strong> — "매번 새 객체" 설계를 유지하려면 "내용 같으면 skip"을 memo로 별도 선언해야 한다.</li>
+    <li><strong>memo 하려면 먼저 클로저부터 제거</strong> — 항목별 <code>() =&gt; handle(id)</code>는 매번 새 함수라 어떤 비교도 무력화시킨다.</li>
+    <li><strong>클로저 자체가 아니라 "어디 있는가"가 문제</strong> — memo가 비교하는 props 안에 있으면 위험하다.</li>
+    <li><strong>비교 함수엔 화면 반영 값 전부</strong> — 하나라도 빼먹으면 stale 렌더 버그가 생긴다.</li>
+    <li><strong>"다시 그리기 비용"과 "존재 비용"은 다른 문제</strong> — memo는 전자만, DOM 가상화는 후자를 해결한다.</li>
+  </ul>
+</div>
+
+<div class="crm-summary">
+  <h3>핵심 정리</h3>
+  <ul>
+    <li>계산 결과가 매번 새 객체인 것 자체는 문제가 아니다 — "새 참조 = 무조건 다시 그림"으로 이어지는 게 문제다</li>
+    <li>함수는 내용이 아니라 참조로만 비교된다 — 항목마다 만드는 인라인 콜백은 memo를 항상 깨뜨린다</li>
+    <li>콜백을 상위에서 안정 참조로 내려주고, 호출 시점에 id를 인자로 넘기면 클로저 없이도 같은 동작을 유지할 수 있다</li>
+    <li>비교 함수(compareFn)에는 화면에 실제로 반영되는 값만 넣고, 항상 같은 안정 참조인 콜백은 뺀다</li>
+    <li>"다시 그리는 비용"은 memo, "DOM에 존재하는 비용"은 가상화 — 서로 다른 층위의 최적화다</li>
+  </ul>
+</div>
+
+<p style="text-align:right; font-size:0.8rem; color:var(--text-muted); margin-top:30px;">
+  자료구조 계산 단계(부모-자식 맵 재사용, 방문 Set 공유, useMemo 캐싱)의 최적화는
+  <a onclick="loadContent('dev/frontend_comment_thread_collapse_optimization')" style="color:var(--accent); cursor:pointer;">댓글 스레드 접기/펴기 계산 최적화</a> 문서 참고.
+</p>
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#ch0" onclick="toggleTOC()">0. 배경</a></li>
+    <li><a href="#ch1" onclick="toggleTOC()">1. 참조 비교</a></li>
+    <li><a href="#ch2" onclick="toggleTOC()">2. 상황 재현</a></li>
+    <li><a href="#ch3" onclick="toggleTOC()">3. 클로저가 memo를 무력화</a></li>
+    <li><a href="#ch4" onclick="toggleTOC()">4. 클로저 제거</a></li>
+    <li><a href="#ch5" onclick="toggleTOC()">5. memo + 비교 함수</a></li>
+    <li><a href="#ch6" onclick="toggleTOC()">6. 전체 그림</a></li>
+    <li><a href="#ch7" onclick="toggleTOC()">7. 가상화</a></li>
+    <li><a href="#ch8" onclick="toggleTOC()">8. 무관한 부분 구분</a></li>
+    <li><a href="#ch9" onclick="toggleTOC()">9. 성능 요약</a></li>
+    <li><a href="#ch10" onclick="toggleTOC()">10. 일반화 패턴</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>

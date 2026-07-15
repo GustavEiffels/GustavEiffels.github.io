@@ -1,0 +1,173 @@
+<!-- [2026-07-15] LeetCode 495 - Teemo Attacking -->
+<style>
+  .ta-section-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+  }
+  .ta-section-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .ta-callout {
+    border-left: 4px solid var(--accent);
+    background: rgba(94, 129, 244, 0.05);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 16px 0;
+    font-size: 14px; white-space: pre-line;
+  }
+  .ta-callout.warn { border-color: var(--yellow); background: rgba(245, 158, 11, 0.05); }
+  .ta-callout.ok   { border-color: var(--green); background: rgba(47, 179, 68, 0.05); }
+  .ta-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+  .ta-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .ta-table th {
+    background: var(--surface2); color: var(--accent); font-weight: 700;
+    padding: 8px 14px; text-align: left; border-bottom: 2px solid var(--border);
+  }
+  .ta-table td {
+    padding: 7px 14px; border-bottom: 1px solid var(--border);
+    color: var(--text-muted); font-family: 'JetBrains Mono', monospace;
+  }
+  .ta-table tr:last-child td { border-bottom: none; }
+
+  .ta-kw     { color: #c792ea; }
+  .ta-num    { color: #f78c6c; }
+  .ta-type   { color: #82aaff; }
+  .ta-method { color: #82aaff; }
+  .ta-cmt    { color: #6b7089; }
+</style>
+
+<div class="card">
+  <div style="margin-bottom:8px;">
+    <span class="badge badge-tag">LeetCode · Easy · Array / Simulation</span>
+  </div>
+  <h1 style="font-size:1.6rem; font-weight:800; margin-bottom:10px;">
+    Teemo Attacking
+  </h1>
+  <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.7;">
+    인터벌 병합(객체화)으로 접근하려다, 단순 계산으로 충분하다는 걸 깨닫고 정리한 회고
+  </p>
+  <div class="meta" style="margin-top: 14px; font-size: 12px; color: var(--text-muted);">
+    <span>언어: Java</span>
+    <span style="margin: 0 8px;">분류: Array / Simulation</span>
+    <span>핵심 기법: 인접한 두 공격 시각의 차이를 duration과 비교</span>
+  </div>
+  <p style="margin-top: 10px;">
+    <a href="https://leetcode.com/problems/teemo-attacking/description/" target="_blank" rel="noopener" style="color: var(--accent); font-size: 13px; text-decoration: none;">
+      leetcode.com/problems/teemo-attacking
+    </a>
+  </p>
+</div>
+
+<!-- 1. 문제와 첫 시도 -->
+<div class="card" id="section-first-try">
+  <div class="ta-section-header">
+    <div class="ta-section-number">1</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">문제와 첫 시도 — 인터벌 병합처럼 접근</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    공격 시각 배열 <code>timeSeries</code>(오름차순)와 한 번의 공격이 지속시키는 <code>duration</code>이 주어진다.
+    각 공격은 그 순간부터 <code>duration</code>초 동안 중독 상태를 유지시키는데, 다음 공격이 그 안에 들어오면
+    중독 시간이 갱신될 뿐 중복으로 더해지지 않는다. 총 중독 상태였던 시간(초)을 구하는 문제다.
+  </p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    처음에는 구간(인터벌) 병합 문제처럼 접근하려고 했다. <code>int end = 0</code>을 두고,
+    <code>[1, 2]</code> 예시(duration=3)를 손으로 그려보면서 "1은 2에서 끝난다(end=2)", "2는 3에서
+    끝난다"처럼 각 공격이 끝나는 지점을 객체처럼 들고 다니다가, 다음 공격 시각이 이전 <code>end</code> 안에
+    들어오는지(<code>end &ge; i</code>)를 비교하는 방식을 떠올렸다.
+  </p>
+  <div class="ta-callout warn">
+    <strong>이 방식이 하려던 것</strong>
+    각 공격을 (시작, 끝) 구간으로 보고, 다음 구간의 시작이 이전 구간의 끝보다 앞이면 겹치는 것으로 처리 —
+    전형적인 "구간 병합" 패턴으로 풀려던 시도였다.
+  </div>
+</div>
+
+<!-- 2. 단순화 -->
+<div class="card" id="section-simplify">
+  <div class="ta-section-header">
+    <div class="ta-section-number">2</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">단순화 — 사실 그냥 계산 문제였다</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    구간 객체를 만들고 <code>end</code>를 갱신하는 로직을 짜다가, 결국 필요한 건 "각 공격과 바로 다음 공격
+    사이의 간격이 <code>duration</code>보다 작은지"만 판단하면 된다는 걸 깨달았다. 즉
+    <code>n<sub>i</sub> - n<sub>i-1</sub> &lt; duration</code>이면 두 공격의 중독 구간이 겹치므로
+    그 차이만큼만 더하고, 겹치지 않으면(간격이 duration 이상이면) duration 전부를 더하면 된다.
+  </p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    <code>[1,2,3,4,5]</code>, duration을 손으로 대입해보며(간격 1이 duration보다 작은 케이스) 값을 하나씩
+    쌓아보니 <code>result</code>가 간격들의 합으로 정확히 맞아떨어지는 걸 확인했다. 객체를 만들어 구간을
+    들고 다닐 필요 없이, 배열을 한 번 순회하며 인접 차이만 비교하면 끝나는 문제였다.
+  </p>
+  <div class="ta-callout ok">
+    <strong>핵심 아이디어</strong>
+    구간을 명시적으로 만들지 않아도, "간격 vs duration" 비교 하나로 겹침 여부와 겹치지 않을 때 더할 값이 동시에
+    결정된다. 마지막 공격의 duration만 루프 밖에서 한 번 더 더해주면 된다.
+  </div>
+</div>
+
+<!-- 3. 최종 코드 -->
+<div class="card" id="section-code">
+  <div class="ta-section-header">
+    <div class="ta-section-number">3</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">최종 코드</h2>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">TeemoAttacking.java</span>
+    </div>
+    <pre><code><span class="ta-kw">public</span> <span class="ta-kw">int</span> <span class="ta-method">findPoisonedDuration</span>(<span class="ta-kw">int</span>[] timeSeries, <span class="ta-kw">int</span> duration) {
+    <span class="ta-kw">int</span> result = <span class="ta-num">0</span>;
+    <span class="ta-kw">for</span> (<span class="ta-kw">int</span> i = <span class="ta-num">1</span>; i &lt; timeSeries.length; i++) {
+        <span class="ta-kw">int</span> num = timeSeries[i] - timeSeries[i - <span class="ta-num">1</span>];
+        <span class="ta-kw">if</span> (num &lt; duration) result += num;
+        <span class="ta-kw">else</span> result += duration;
+    }
+    <span class="ta-kw">return</span> result + duration;
+}</code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    인접한 두 공격 시각의 차이가 <code>duration</code>보다 작으면 그 차이만, 아니면
+    <code>duration</code> 전체를 더한다. 루프는 마지막 공격을 포함하지 않으므로 끝나고
+    <code>duration</code>을 한 번 더 더해 마지막 공격분을 보정한다.
+  </p>
+</div>
+
+<!-- 4. 검증 -->
+<div class="card" id="section-trace">
+  <div class="ta-section-header">
+    <div class="ta-section-number">4</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">검증 — [1,2,3,4,5], duration=5</h2>
+  </div>
+  <table class="ta-table">
+    <tr><th>i</th><th>간격 (n<sub>i</sub> - n<sub>i-1</sub>)</th><th>duration과 비교</th><th>더한 값</th><th>누적 result</th></tr>
+    <tr><td>1</td><td>1</td><td>1 &lt; 5</td><td>1</td><td>1</td></tr>
+    <tr><td>2</td><td>1</td><td>1 &lt; 5</td><td>1</td><td>2</td></tr>
+    <tr><td>3</td><td>1</td><td>1 &lt; 5</td><td>1</td><td>3</td></tr>
+    <tr><td>4</td><td>1</td><td>1 &lt; 5</td><td>1</td><td>4</td></tr>
+  </table>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    루프 종료 후 <code>result(4) + duration(5) = 9</code>. 실제로 [1,5],[2,6],[3,7],[4,8],[5,9]
+    구간의 합집합 길이도 9라서 일치한다.
+  </p>
+</div>
+
+<!-- 5. Takeaway -->
+<div class="card" id="section-takeaway">
+  <div class="ta-section-header">
+    <div class="ta-section-number">5</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">Takeaway</h2>
+  </div>
+  <ul style="padding-left: 20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li>처음엔 구간을 객체(start/end)로 다루는 인터벌 병합 방식으로 접근하려 했다.</li>
+    <li>손으로 [1,2] 예시를 그려보다가, 결국 필요한 건 "간격 vs duration 비교" 하나뿐이라는 걸 깨달았다.</li>
+    <li>간격이 duration보다 작으면 간격만큼, 아니면 duration 전부를 더하는 한 번의 순회로 충분하다.</li>
+    <li>마지막 공격은 다음 값이 없으므로 루프 밖에서 duration을 별도로 더해 보정한다.</li>
+    <li>시간복잡도 O(n), 공간복잡도 O(1) — 별도 자료구조 없이 배열 한 번 순회로 최적해에 도달했다.</li>
+  </ul>
+</div>
