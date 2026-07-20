@@ -1,0 +1,176 @@
+<!-- [2026-07-20] LeetCode 242 - Valid Anagram -->
+<style>
+  .va-section-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+  }
+  .va-section-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .va-callout {
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 16px 0;
+    font-size: 14px; white-space: pre-line;
+  }
+  .va-callout.warn {
+    border-left: 4px solid var(--yellow);
+    background: rgba(245, 158, 11, 0.06);
+  }
+  .va-callout.ok {
+    border-left: 4px solid var(--green);
+    background: rgba(47, 179, 68, 0.05);
+  }
+  .va-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+  .va-hi   { color: var(--accent); font-weight: 700; }
+  .va-hi2  { color: #4ecdc4; font-weight: 700; }
+  .va-bad  { color: var(--red); font-weight: 700; }
+  .va-dim  { color: var(--text-muted); }
+
+  .va-tag {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 3px 10px; border-radius: 6px; margin-right: 6px;
+  }
+  .va-tag-red   { background: rgba(214, 57, 57, 0.12); color: var(--red); }
+  .va-tag-green { background: rgba(47, 179, 68, 0.12); color: var(--green); }
+  .va-tag-blue  { background: rgba(94, 129, 244, 0.12); color: var(--accent); }
+
+  .va-kw     { color: #c792ea; }
+  .va-type   { color: #82aaff; }
+  .va-num    { color: #f78c6c; }
+  .va-method { color: #82aaff; }
+</style>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════ -->
+<div class="card">
+  <div style="margin-bottom:8px;">
+    <span class="badge badge-tag">LeetCode · Easy · Sorting / Hash Table</span>
+  </div>
+  <h1 style="font-size:1.6rem; font-weight:800; margin-bottom:10px;">
+    Valid Anagram
+  </h1>
+  <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.7;">
+    정렬로 먼저 정답을 만들고, 문자 빈도 카운팅으로 더 나은 시간복잡도를 검토한 과정
+  </p>
+  <div class="meta" style="margin-top: 14px; font-size: 12px; color: var(--text-muted);">
+    <span>언어: Java</span>
+    <span style="margin: 0 8px;">분류: 정렬 / 해시맵</span>
+    <span>핵심 기법: 정렬 후 비교 → 빈도 카운팅으로 개선 검토</span>
+  </div>
+  <p style="margin-top: 10px;">
+    <a href="https://leetcode.com/problems/valid-anagram/" target="_blank" rel="noopener" style="color: var(--accent); font-size: 13px; text-decoration: none;">
+      leetcode.com/problems/valid-anagram
+    </a>
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CH 1. 풀이 회고
+══════════════════════════════════════════ -->
+<div class="va-section-header" style="margin: 24px 0 16px;">
+  <span class="badge badge-tag">CH 1</span>
+  <h2 style="font-size:1.1rem; font-weight:800; color:#fff; margin:0;">풀이 회고</h2>
+</div>
+
+<!-- ══════════════════════════════════════════
+     1. 문제 개요
+══════════════════════════════════════════ -->
+<div class="card" id="section-overview">
+  <div class="va-section-header">
+    <div class="va-section-number">1</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">문제 개요</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    문자열 t가 문자열 s의 애너그램(같은 문자들을 다른 순서로 배열한 문자열)인지 판별하는 문제다.<br>
+    두 문자열의 <span class="va-hi">길이가 다르면 애초에 애너그램이 될 수 없고</span>,
+    길이가 같다면 "구성 문자와 각 문자의 개수가 완전히 일치하는가"만 확인하면 된다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     2. 1차 시도 - 정렬 후 비교
+══════════════════════════════════════════ -->
+<div class="card" id="section-sort">
+  <div class="va-section-header">
+    <div class="va-section-number">2</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">1차 시도 — 정렬 후 비교</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    "구성 문자와 개수가 같다"를 가장 직관적으로 확인하는 방법은 두 문자열을 각각 정렬해서<br>
+    같은 위치의 문자가 전부 일치하는지 보는 것이다. 순서가 달라도 정렬하면 같은 배열이 되기 때문이다.
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">ValidAnagram.java</span>
+    </div>
+    <pre><code><span class="va-kw">public</span> <span class="va-kw">boolean</span> <span class="va-method">isAnagram</span>(<span class="va-type">String</span> s, <span class="va-type">String</span> t) {
+    <span class="va-kw">if</span>(s.<span class="va-method">length</span>() != t.<span class="va-method">length</span>()){
+        <span class="va-kw">return</span> <span class="va-kw">false</span>;
+    }
+    <span class="va-kw">char</span>[] first = s.<span class="va-method">toCharArray</span>();
+    <span class="va-kw">char</span>[] second = t.<span class="va-method">toCharArray</span>();
+    <span class="va-type">Arrays</span>.<span class="va-method">sort</span>(first);
+    <span class="va-type">Arrays</span>.<span class="va-method">sort</span>(second);
+
+    <span class="va-kw">for</span>(<span class="va-kw">int</span> i = <span class="va-num">0</span>; i&lt;s.<span class="va-method">length</span>(); i++){
+        <span class="va-kw">if</span>(first[i] != second[i]){
+            <span class="va-kw">return</span> <span class="va-kw">false</span>;
+        }
+    }
+    <span class="va-kw">return</span> <span class="va-kw">true</span>;
+}</code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    길이 검사로 먼저 걸러내고, 남은 두 문자열을 정렬해서 인덱스별로 비교하는 방식으로 정답을 맞았다.<br>
+    다만 <code>Arrays.sort()</code>가 내부적으로 O(n log n)이라, 이 문제가 요구하는 이상으로 비용을 쓰고 있다는 게 마음에 걸렸다.
+  </p>
+  <span class="va-tag va-tag-red">O(n log n)</span>
+  <span class="va-tag va-tag-blue">정답 / 정렬 비용 존재</span>
+</div>
+
+<!-- ══════════════════════════════════════════
+     3. 개선 검토 - 빈도 카운팅
+══════════════════════════════════════════ -->
+<div class="card" id="section-count">
+  <div class="va-section-header">
+    <div class="va-section-number">3</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">개선 검토 — 빈도 카운팅</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    "순서를 맞출 필요 없이 개수만 같으면 된다"는 조건이라면, 굳이 정렬까지 갈 필요가 없다는 생각이 들었다.<br>
+    알파벳 소문자만 대상이라는 제약을 활용하면, 길이 26짜리 배열 하나로 각 문자의 등장 횟수를 세는 게 가능하다.
+  </p>
+  <div class="va-callout ok">
+    <strong>아이디어</strong>
+    s를 순회하며 문자별 카운트를 <span class="va-hi2">+1</span>, t를 순회하며 같은 배열에 <span class="va-hi2">-1</span>한다.
+    두 문자열이 애너그램이면 모든 카운트가 정확히 0으로 돌아온다 - 배열 하나로 양쪽을 동시에 상쇄시키는 방식이다.
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    이렇게 하면 정렬 없이 두 문자열을 한 번씩만 훑는 것으로 끝나서 <span class="va-hi">O(n)</span>이 된다.<br>
+    다만 이번 풀이에서는 정렬 방식이 이미 통과했고 문제 제약(길이 5000 이하)에서 체감 성능 차이가 크지 않아서,
+    실제 코드는 정렬 버전으로 남겨두고 개선 방향만 정리해뒀다.
+  </p>
+  <span class="va-tag va-tag-green">O(n) (검토만)</span>
+</div>
+
+<!-- ══════════════════════════════════════════
+     4. Takeaway
+══════════════════════════════════════════ -->
+<div class="card" id="section-takeaway">
+  <div class="va-section-header">
+    <div class="va-section-number">4</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">Takeaway</h2>
+  </div>
+  <ul style="padding-left: 20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li>"순서 무관, 구성만 같으면 된다"는 조건은 정렬(O(n log n))보다 카운팅(O(n))이 더 잘 맞는 신호다.</li>
+    <li>길이 검사를 가장 먼저 넣어두면 이후 로직에서 인덱스 범위를 신경 쓸 필요가 없어진다.</li>
+    <li>+1/-1로 같은 배열을 양쪽에서 상쇄시키는 패턴은 "두 컬렉션의 구성이 같은가"를 확인할 때 자주 재사용할 수 있다.</li>
+  </ul>
+</div>

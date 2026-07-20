@@ -1,5 +1,17 @@
 [
   {
+    "date": "2026-07-20",
+    "title": "[코딩테스트] LeetCode 242 - Valid Anagram (정렬/해시맵, Java)",
+    "file": "dev/algorithm/leetcode_242_validanagram",
+    "category": "algorithm"
+  },
+  {
+    "date": "2026-07-20",
+    "title": "[코딩테스트] LeetCode 202 - Happy Number (해시맵, Java)",
+    "file": "dev/algorithm/leetcode_202_happynumber",
+    "category": "algorithm"
+  },
+  {
     "date": "2026-07-15",
     "title": "Frontend — 카드 리스트 렌더링 메모이제이션 최적화",
     "file": "dev/frontend_card_render_memoization",
