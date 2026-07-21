@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-07-21",
+    "title": "Tomcat 커넥터 스레드 모델 — Acceptor/Poller/Worker",
+    "file": "dev/tomcat_connector_thread_model",
+    "category": "record"
+  },
+  {
     "date": "2026-07-20",
     "title": "[코딩테스트] LeetCode 242 - Valid Anagram (정렬/해시맵, Java)",
     "file": "dev/algorithm/leetcode_242_validanagram",
