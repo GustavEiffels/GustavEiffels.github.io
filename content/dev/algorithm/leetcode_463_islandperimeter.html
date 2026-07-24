@@ -1,0 +1,287 @@
+<!-- [2026-07-24] LeetCode 463 - Island Perimeter -->
+<style>
+  .ip-section-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+  }
+  .ip-section-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .ip-callout {
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 16px 0;
+    font-size: 14px; white-space: pre-line;
+  }
+  .ip-callout.warn {
+    border-left: 4px solid var(--yellow);
+    background: rgba(245, 158, 11, 0.06);
+  }
+  .ip-callout.ok {
+    border-left: 4px solid var(--green);
+    background: rgba(47, 179, 68, 0.05);
+  }
+  .ip-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+  .ip-hi   { color: var(--accent); font-weight: 700; }
+  .ip-hi2  { color: #4ecdc4; font-weight: 700; }
+  .ip-dim  { color: var(--text-muted); }
+
+  .ip-tag {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 3px 10px; border-radius: 6px; margin-right: 6px;
+  }
+  .ip-tag-red   { background: rgba(214, 57, 57, 0.12); color: var(--red); }
+  .ip-tag-green { background: rgba(47, 179, 68, 0.12); color: var(--green); }
+  .ip-tag-blue  { background: rgba(94, 129, 244, 0.12); color: var(--accent); }
+
+  .ip-kw     { color: #c792ea; }
+  .ip-type   { color: #82aaff; }
+  .ip-num    { color: #f78c6c; }
+  .ip-method { color: #82aaff; }
+
+  .ip-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .ip-table th {
+    background: var(--surface2); color: var(--accent); font-weight: 700;
+    padding: 8px 14px; text-align: left; border-bottom: 2px solid var(--border);
+  }
+  .ip-table td {
+    padding: 7px 14px; border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .ip-table td code { font-family: 'JetBrains Mono', monospace; }
+  .ip-table tr:last-child td { border-bottom: none; }
+
+  .ip-result-grid {
+    display: flex; gap: 40px; flex-wrap: wrap; margin-top: 10px;
+  }
+  .ip-result-label { font-size: 12px; color: var(--text-muted); }
+  .ip-result-value { font-size: 20px; font-weight: 800; color: #fff; margin-top: 2px; }
+</style>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════ -->
+<div class="card">
+  <div style="margin-bottom:8px;">
+    <span class="badge badge-tag">LeetCode · Easy · DFS</span>
+  </div>
+  <h1 style="font-size:1.6rem; font-weight:800; margin-bottom:10px;">
+    Island Perimeter
+  </h1>
+  <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.7;">
+    DFS + marker 배열로 통과는 했지만 Runtime Beats 5.92%가 나와서, 왜 느린지 원인을 뜯어보고 O(n·m) 단일 순회로 다시 푼 회고
+  </p>
+  <div class="meta" style="margin-top: 14px; font-size: 12px; color: var(--text-muted);">
+    <span>언어: Java</span>
+    <span style="margin: 0 8px;">분류: DFS / 배열</span>
+    <span>핵심 기법: 재귀 DFS → 단일 순회 + 인접 카운팅</span>
+  </div>
+  <p style="margin-top: 10px;">
+    <a href="https://leetcode.com/problems/island-perimeter/description/" target="_blank" rel="noopener" style="color: var(--accent); font-size: 13px; text-decoration: none;">
+      leetcode.com/problems/island-perimeter
+    </a>
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CH 1. 첫 풀이 - DFS + marker
+══════════════════════════════════════════ -->
+<div class="ip-section-header" style="margin: 24px 0 16px;">
+  <span class="badge badge-tag">CH 1</span>
+  <h2 style="font-size:1.1rem; font-weight:800; color:#fff; margin:0;">첫 풀이 — DFS로 섬 하나를 순회하며 변 개수 세기</h2>
+</div>
+
+<!-- ══════════════════════════════════════════
+     1. 문제 개요
+══════════════════════════════════════════ -->
+<div class="card" id="section-overview">
+  <div class="ip-section-header">
+    <div class="ip-section-number">1</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">문제 개요</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    0/1로 이루어진 그리드가 주어지고, 섬(연결된 1의 덩어리)은 정확히 하나만 존재하며 호수는 없다고 가정한다.
+    이 섬 전체의 <span class="ip-hi2">둘레(perimeter)</span>를 구하는 문제다.
+  </p>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    육지 칸 하나는 상하좌우 4변을 가지는데, 이웃한 칸도 육지면 그 변은 바다와 접하지 않으므로 둘레에서 빠져야 한다.
+    즉 <span class="ip-hi">"땅과 땅이 맞닿은 경계는 둘레가 아니다"</span>가 핵심 규칙이다.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     2. 풀이 - DFS + marker
+══════════════════════════════════════════ -->
+<div class="card" id="section-dfs">
+  <div class="ip-section-header">
+    <div class="ip-section-number">2</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">풀이 — 시작점을 찾아 DFS로 섬 전체를 순회</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    그리드를 훑어 처음 나오는 육지 칸을 시작점으로 잡고, 그 칸부터 DFS로 인접한 육지 칸을 전부 방문한다.
+    각 칸에서 기본값 4를 더한 뒤, 그리드 경계가 아닌 각 방향에 대해 <code>directionDfs</code>로 이웃을 확인한다 —
+    이웃이 바다면 0, 육지면 <code>-1</code>(맞닿은 변 제외) 하고 아직 방문 안 한 육지면 그 칸에서 재귀를 이어간다.
+    <code>marker</code> 배열로 이미 방문한 칸은 중복 재귀하지 않도록 막는다.
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">N463_IslandPerimeter.java - 첫 풀이</span>
+    </div>
+    <pre><code><span class="ip-kw">public</span> <span class="ip-kw">int</span> <span class="ip-method">islandPerimeter</span>(<span class="ip-kw">int</span>[][] grid) {
+    <span class="ip-kw">int</span> row = grid.length;
+    <span class="ip-kw">int</span> col = grid[<span class="ip-num">0</span>].length;
+    <span class="ip-kw">int</span>[][] marker = <span class="ip-kw">new</span> <span class="ip-kw">int</span>[row][col];
+    <span class="ip-kw">int</span> startX = <span class="ip-num">0</span>, startY = <span class="ip-num">0</span>;
+
+    <span class="ip-dim">// 첫 육지 칸을 시작점으로 탐색</span>
+    <span class="ip-kw">for</span> (<span class="ip-kw">int</span> i = <span class="ip-num">0</span>; i &lt; row; i++) {
+        <span class="ip-kw">for</span> (<span class="ip-kw">int</span> j = <span class="ip-num">0</span>; j &lt; col; j++) {
+            <span class="ip-kw">if</span> (grid[i][j] == <span class="ip-num">1</span>) {
+                startX = i; startY = j;
+            }
+        }
+    }
+    <span class="ip-kw">return</span> <span class="ip-method">dfs</span>(grid, marker, startX, startY, row, col);
+}
+
+<span class="ip-kw">public</span> <span class="ip-kw">int</span> <span class="ip-method">dfs</span>(<span class="ip-kw">int</span>[][] grid, <span class="ip-kw">int</span>[][] marker, <span class="ip-kw">int</span> x, <span class="ip-kw">int</span> y, <span class="ip-kw">int</span> xSize, <span class="ip-kw">int</span> ySize) {
+    <span class="ip-kw">int</span> result = <span class="ip-num">4</span>;
+    marker[x][y] = <span class="ip-num">1</span>;
+
+    <span class="ip-kw">if</span> (y != <span class="ip-num">0</span>)        result += <span class="ip-method">directionDfs</span>(grid, marker, x, y - <span class="ip-num">1</span>, xSize, ySize);
+    <span class="ip-kw">if</span> (y != ySize - <span class="ip-num">1</span>) result += <span class="ip-method">directionDfs</span>(grid, marker, x, y + <span class="ip-num">1</span>, xSize, ySize);
+    <span class="ip-kw">if</span> (x != <span class="ip-num">0</span>)        result += <span class="ip-method">directionDfs</span>(grid, marker, x - <span class="ip-num">1</span>, y, xSize, ySize);
+    <span class="ip-kw">if</span> (x != xSize - <span class="ip-num">1</span>) result += <span class="ip-method">directionDfs</span>(grid, marker, x + <span class="ip-num">1</span>, y, xSize, ySize);
+    <span class="ip-kw">return</span> result;
+}
+
+<span class="ip-kw">public</span> <span class="ip-kw">int</span> <span class="ip-method">directionDfs</span>(<span class="ip-kw">int</span>[][] grid, <span class="ip-kw">int</span>[][] marker, <span class="ip-kw">int</span> x, <span class="ip-kw">int</span> y, <span class="ip-kw">int</span> xSize, <span class="ip-kw">int</span> ySize) {
+    <span class="ip-kw">if</span> (grid[x][y] != <span class="ip-num">1</span>) <span class="ip-kw">return</span> <span class="ip-num">0</span>;
+    <span class="ip-kw">int</span> result = -<span class="ip-num">1</span>;
+    <span class="ip-kw">if</span> (marker[x][y] != <span class="ip-num">1</span>) {
+        result += <span class="ip-method">dfs</span>(grid, marker, x, y, xSize, ySize);
+    }
+    <span class="ip-kw">return</span> result;
+}</code></pre>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     3. 제출 결과 - 왜 느렸나
+══════════════════════════════════════════ -->
+<div class="card" id="section-result">
+  <div class="ip-section-header">
+    <div class="ip-section-number">3</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">제출 결과 — Accepted인데 왜 하위권일까</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    <span class="ip-hi2">Accepted</span> — 5833 / 5833 testcases passed. 로직 자체는 정확했지만 순위가 낮게 나왔다.
+  </p>
+  <div class="ip-result-grid">
+    <div>
+      <div class="ip-result-label">Runtime</div>
+      <div class="ip-result-value">25 ms <span class="ip-tag ip-tag-red">Beats 5.92%</span></div>
+    </div>
+    <div>
+      <div class="ip-result-label">Memory</div>
+      <div class="ip-result-value">47.65 MB <span class="ip-tag ip-tag-blue">Beats 11.68%</span></div>
+    </div>
+  </div>
+  <div class="ip-callout warn">
+    <strong>느린 원인</strong>
+    ① <code>dfs</code> → <code>directionDfs</code> → <code>dfs</code>로 이어지는 재귀 콜스택 오버헤드
+    ② 호출마다 <code>int[][] marker</code>를 새로 할당
+    ③ 디버깅용 <code>System.out.println</code>이 제출 코드에 그대로 남아 매 호출마다 I/O 비용 발생
+    — 알고리즘이 틀린 게 아니라 구현상의 오버헤드가 누적된 결과였다.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CH 2. 성능 개선
+══════════════════════════════════════════ -->
+<div class="ip-section-header" style="margin: 24px 0 16px;">
+  <span class="badge badge-tag">CH 2</span>
+  <h2 style="font-size:1.1rem; font-weight:800; color:#fff; margin:0;">성능 개선 — DFS 없이 단일 순회로</h2>
+</div>
+
+<!-- ══════════════════════════════════════════
+     4. 최적화 풀이
+══════════════════════════════════════════ -->
+<div class="card" id="section-optimized">
+  <div class="ip-section-header">
+    <div class="ip-section-number">4</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">최적화 풀이 — 인접 카운팅 방식</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    "섬이 하나뿐"이라는 조건을 이용하면 굳이 연결 관계를 따라갈 필요가 없다.
+    그리드를 한 번만 훑으면서 육지 칸마다 <span class="ip-hi">+4</span>를 더하고,
+    <span class="ip-hi2">왼쪽 또는 위쪽</span>이 이미 육지라면 그 경계가 두 칸 모두에서 중복 계산되므로 <span class="ip-hi">-2</span>씩 빼는 방식이다.
+    각 칸을 한 번씩만 보므로 재귀도 <code>marker</code> 배열도 필요 없다.
+  </p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">N463_IslandPerimeter.java - islandPerimeterFast</span>
+    </div>
+    <pre><code><span class="ip-dim">// DFS/재귀/marker 배열 없이 단일 순회로 계산.
+// 육지 칸마다 +4, 왼쪽/위쪽이 육지면 그 경계가 중복 계산되므로 -2씩 차감.</span>
+<span class="ip-kw">public</span> <span class="ip-kw">int</span> <span class="ip-method">islandPerimeterFast</span>(<span class="ip-kw">int</span>[][] grid) {
+    <span class="ip-kw">int</span> row = grid.length;
+    <span class="ip-kw">int</span> col = grid[<span class="ip-num">0</span>].length;
+    <span class="ip-kw">int</span> result = <span class="ip-num">0</span>;
+
+    <span class="ip-kw">for</span> (<span class="ip-kw">int</span> i = <span class="ip-num">0</span>; i &lt; row; i++) {
+        <span class="ip-kw">for</span> (<span class="ip-kw">int</span> j = <span class="ip-num">0</span>; j &lt; col; j++) {
+            <span class="ip-kw">if</span> (grid[i][j] != <span class="ip-num">1</span>) <span class="ip-kw">continue</span>;
+            result += <span class="ip-num">4</span>;
+            <span class="ip-kw">if</span> (i &gt; <span class="ip-num">0</span> &amp;&amp; grid[i - <span class="ip-num">1</span>][j] == <span class="ip-num">1</span>) result -= <span class="ip-num">2</span>;
+            <span class="ip-kw">if</span> (j &gt; <span class="ip-num">0</span> &amp;&amp; grid[i][j - <span class="ip-num">1</span>] == <span class="ip-num">1</span>) result -= <span class="ip-num">2</span>;
+        }
+    }
+    <span class="ip-kw">return</span> result;
+}</code></pre>
+  </div>
+  <div class="ip-callout ok">
+    <strong>왜 왼쪽 · 위쪽만 확인해도 되는가</strong>
+    순회 순서상 오른쪽·아래쪽 이웃은 아직 방문 전이라 나중 칸을 볼 때 그 칸 기준으로 다시 왼쪽/위쪽 검사에 걸린다.
+    즉 모든 인접 쌍이 "나중에 순회되는 칸의 왼쪽 또는 위쪽 검사"에서 정확히 한 번씩 걸러지므로 네 방향을 다 볼 필요가 없다.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     5. 두 풀이 비교
+══════════════════════════════════════════ -->
+<div class="card" id="section-compare">
+  <div class="ip-section-header">
+    <div class="ip-section-number">5</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">두 풀이 비교</h2>
+  </div>
+  <table class="ip-table">
+    <tr><th>항목</th><th>DFS + marker</th><th>단일 순회 (islandPerimeterFast)</th></tr>
+    <tr><td>시간복잡도</td><td><code>O(row · col)</code>, 재귀 호출 포함</td><td><code>O(row · col)</code>, 순수 반복문</td></tr>
+    <tr><td>추가 공간</td><td><code>marker</code> 배열 <code>O(row · col)</code></td><td>없음 (<code>O(1)</code>)</td></tr>
+    <tr><td>재귀 콜스택</td><td>있음 (섬 크기만큼 깊어질 수 있음)</td><td>없음</td></tr>
+    <tr><td>전제 조건</td><td>섬 연결 여부와 무관하게 동작</td><td>"섬이 정확히 하나"라는 문제 조건에 의존</td></tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════
+     6. Takeaway
+══════════════════════════════════════════ -->
+<div class="card" id="section-takeaway">
+  <div class="ip-section-header">
+    <div class="ip-section-number">6</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">Takeaway</h2>
+  </div>
+  <ul style="padding-left: 20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li>Accepted가 떴다고 성능까지 좋은 건 아니다 — Beats 5.92%는 로직이 아니라 구현 오버헤드(재귀, 배열 재할당, 남은 println)를 의심할 신호다.</li>
+    <li>DFS로 연결 요소를 순회하는 접근은 일반적이지만, "섬이 하나뿐"이라는 문제 제약을 쓰면 연결을 따라갈 필요 자체가 없어진다.</li>
+    <li>인접 칸 검사를 왼쪽·위쪽 두 방향으로만 좁혀도 모든 경계 쌍이 정확히 한 번씩 걸러진다 — 순회 순서를 이용하면 검사량을 절반으로 줄일 수 있다.</li>
+    <li>제출 전에 디버그용 <code>System.out.println</code> 같은 흔적을 지우는 습관이 필요하다.</li>
+  </ul>
+</div>
