@@ -1,0 +1,685 @@
+<!-- [2026-07-22] SSE Tomcat 스레드 모델 — 시작 / 실행 / 종료 -->
+<style>
+/* ── TOC ── */
+.report-toc {
+  position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+  background: var(--surface); border-left: 1px solid var(--border);
+  padding: 40px 25px; z-index: 1001;
+  transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+}
+.report-toc.active { right: 0; }
+.report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.report-toc ul { list-style: none; padding: 0; margin: 0; }
+.report-toc li { margin-bottom: 12px; line-height: 1.4; }
+.report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+.report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+.toc-backdrop {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+  z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+}
+.toc-backdrop.active { display: block; opacity: 1; }
+.toc-toggle-btn {
+  position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+  background: var(--accent); color: #fff; border: none; border-radius: 50%;
+  font-size: 1.5rem; cursor: pointer; z-index: 1002;
+  box-shadow: 0 4px 15px var(--accent-glow);
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+}
+.toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); box-shadow: 0 6px 20px var(--accent-glow); }
+@media (max-width: 768px) {
+  .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+}
+
+/* ── SSE Thread Model: scoped styles ── */
+.sse-intro p { margin-top: 14px; color: var(--text-muted); font-size: 14px; }
+
+.sse-chapter { display: flex; align-items: center; gap: 14px; margin: 40px 0 20px; padding-bottom: 12px; border-bottom: 2px solid var(--border); }
+.sse-chapter:first-of-type { margin-top: 0; }
+.sse-ch-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--accent); color: #fff; font-size: 11px;
+  font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 6px; flex-shrink: 0;
+}
+.sse-chapter h2 { margin: 0; border: none; padding: 0; font-size: 1.05rem; font-weight: 800; color: #fff; }
+
+.sse-callout {
+  border-left: 4px solid var(--accent); background: rgba(94,129,244,0.05);
+  border-radius: 0 10px 10px 0; padding: 14px 18px; margin: 16px 0; font-size: 13.5px;
+}
+.sse-callout.warn { border-color: var(--yellow); background: rgba(245,158,11,0.05); }
+.sse-callout.ok   { border-color: var(--green);  background: rgba(47,179,68,0.05); }
+.sse-callout.bad  { border-color: var(--red);    background: rgba(214,57,57,0.05); }
+.sse-callout strong { display: block; margin-bottom: 5px; color: #fff; font-size: 12px; }
+
+.sse-sub { font-size: .95rem; font-weight: 700; color: #4ecdc4; margin: 22px 0 10px; padding-left: 10px; border-left: 3px solid #4ecdc4; }
+
+.sse-tab-bar { display: flex; gap: 8px; margin-bottom: 20px; }
+.sse-tab-btn {
+  flex: 1; padding: 12px 20px; border-radius: 10px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text-muted); font-weight: 800; font-size: 14px;
+  font-family: inherit; cursor: pointer; text-align: center;
+  transition: background .15s, color .15s;
+}
+.sse-tab-btn small { display: block; font-weight: 400; font-size: 11.5px; margin-top: 2px; }
+.sse-tab-btn.active { color: #fff; }
+.sse-tab-btn.active.sse-t-bio { background: #4a3030; border-color: var(--red); }
+.sse-tab-btn.active.sse-t-nio { background: #1e3a52; border-color: #4ecdc4; }
+.sse-tab-panel { display: none; }
+.sse-tab-panel.active { display: block; }
+
+.sse-cast {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 16px;
+}
+.sse-cast .sse-who { font-size: 11px; color: var(--text-muted); width: 100%; font-weight: 700; letter-spacing: 1px; }
+
+.sse-chip {
+  display: inline-block; padding: 3px 12px; border-radius: 16px;
+  font-size: 12px; font-weight: 800; white-space: nowrap;
+  background: var(--bg); border: 2px solid currentColor;
+  vertical-align: middle;
+}
+.sse-c-client   { color: var(--text); }
+.sse-c-kernel   { color: var(--text-muted); }
+.sse-c-acceptor { color: var(--accent); }
+.sse-c-poller   { color: #4ecdc4; }
+.sse-c-worker   { color: var(--yellow); }
+.sse-c-app      { color: var(--green); }
+.sse-c-danger   { color: var(--red); }
+.sse-c-ok       { color: var(--green); }
+
+.sse-step {
+  display: flex; gap: 16px; align-items: flex-start;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 14px; padding: 16px 18px; margin-bottom: 10px;
+  position: relative;
+}
+.sse-step::after {
+  content: ""; position: absolute; left: 31px; bottom: -11px;
+  border-left: 5px solid transparent; border-right: 5px solid transparent;
+  border-top: 10px solid var(--border); z-index: 1;
+}
+.sse-step.sse-last::after { display: none; }
+
+.sse-num {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: #fff; font-weight: 800; font-size: 13px;
+  display: flex; align-items: center; justify-content: center; margin-top: 2px;
+}
+.sse-step-body { flex: 1; min-width: 0; }
+
+.sse-flow { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; flex-wrap: wrap; }
+.sse-flow.sse-solo { margin-bottom: 0; }
+.sse-arrow { flex: 1; min-width: 90px; position: relative; height: 18px; }
+.sse-arrow .sse-act {
+  position: absolute; top: -8px; left: 0; right: 0;
+  text-align: center; font-size: 11.5px; font-weight: 700; color: currentColor;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sse-arrow .sse-bar { position: absolute; bottom: 0; left: 0; right: 8px; border-bottom: 2px solid currentColor; }
+.sse-arrow .sse-bar::after {
+  content: ""; position: absolute; right: -9px; top: -5px;
+  border-top: 4px solid transparent; border-bottom: 4px solid transparent;
+  border-left: 9px solid currentColor;
+}
+
+.sse-desc { font-size: 13.5px; color: var(--text); margin: 0 0 8px; }
+.sse-desc b { color: #fff; }
+
+.sse-where {
+  margin-top: 8px; display: inline-block;
+  background: var(--surface2); border: 1px dashed var(--border);
+  border-radius: 8px; padding: 3px 12px;
+  font-size: 12px; color: var(--text-muted);
+}
+.sse-where b { color: #4ecdc4; font-weight: 700; }
+.sse-where.sse-bad b { color: var(--red); }
+
+.sse-band {
+  background: rgba(136,146,176,.08);
+  border: 1px dashed var(--border); border-radius: 12px;
+  padding: 10px 18px; text-align: center;
+  font-size: 12.5px; color: var(--text-muted); margin: 14px 0 10px;
+}
+
+.sse-case {
+  display: flex; gap: 12px; align-items: center;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 16px; margin-bottom: 8px;
+}
+.sse-case .sse-chip { flex-shrink: 0; }
+.sse-case p { font-size: 13.5px; margin: 0; }
+
+.sse-duo { display: flex; gap: 12px; margin: 14px 0; flex-wrap: wrap; }
+.sse-duo-card { flex: 1; min-width: 240px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+.sse-duo-card h4 { font-size: 13px; font-weight: 800; margin-bottom: 8px; }
+.sse-duo-card p { font-size: 13px; margin: 0; color: var(--text-muted); }
+@media (max-width: 700px) { .sse-duo { flex-direction: column; } }
+
+.sse-summary {
+  background: linear-gradient(135deg, rgba(94,129,244,0.08), rgba(78,205,196,0.08));
+  border: 1px solid rgba(94,129,244,0.25); border-radius: 12px; padding: 24px 28px; margin-bottom: 24px;
+}
+.sse-summary h3 { color: #4ecdc4; font-size: .85rem; font-weight: 700; margin-bottom: 14px; letter-spacing: 1px; text-transform: uppercase; }
+.sse-summary ul { padding-left: 0; list-style: none; }
+.sse-summary ul li { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text); }
+.sse-summary ul li:last-child { border-bottom: none; }
+.sse-summary ul li::before { content: "→ "; color: #4ecdc4; font-weight: 700; }
+
+/* code syntax tokens (재사용, 이 문서 코드 블록에서만) */
+.sse-tok-kw   { color: var(--accent); font-weight: 700; }
+.sse-tok-type { color: #4ecdc4; }
+.sse-tok-str  { color: var(--green); }
+.sse-tok-com  { color: var(--text-muted); font-style: italic; }
+.sse-tok-ann  { color: var(--yellow); }
+.sse-tok-num  { color: var(--yellow); }
+</style>
+
+
+<h1>SSE Tomcat 스레드 모델 — 시작 / 실행 / 종료</h1>
+
+<div class="card sse-intro" style="text-align:center; background: linear-gradient(135deg, var(--surface), var(--surface2));">
+  <span class="badge badge-tag">Concurrency</span>
+  <span class="badge badge-tag">SSE</span>
+  <span class="badge badge-tag">Tomcat</span>
+  <span class="badge badge-tag">Async</span>
+  <span class="badge badge-date">2026-07-22</span>
+  <p>Tomcat 커넥터 스레드 모델 위에서, SSE는 어디서 같고 어디서 달라지는가</p>
+</div>
+
+
+<div class="sse-chapter" id="ch1">
+  <span class="sse-ch-badge">Chapter 1</span>
+  <h2>SSE 연결의 시작 — 일반 HTTP 요청과 100% 동일</h2>
+</div>
+
+<div class="card">
+  <p>
+    SSE(<code>EventSource</code>)는 최초 연결 단계에서 일반 HTTP 요청과 다른 점이 전혀 없다.
+    클라이언트는 <code>GET /api/sse</code>를 <b>딱 1번</b> 보낼 뿐, 그 뒤로 이 URL을 다시 호출하지 않는다.
+  </p>
+  <pre>클라이언트 GET /api/sse (딱 1번)
+    |
+TCP 3-way handshake -&gt; Acceptor accept() -&gt; Poller 등록 큐 -&gt; Poller register()
+    |
+(idle) 실제 요청 바이트 도착 -&gt; Poller가 readable 감지 -&gt; Worker 작업 큐에 알림
+    |
+Worker가 take() -&gt; socket.read() -&gt; HTTP 파싱 -&gt; 컨트롤러 진입</pre>
+  <p>여기까지는 Tomcat 커넥터 스레드 모델(Acceptor/Poller/Worker)의 NIO Step 1~10과 완전히 같다.</p>
+  <div class="sse-callout ok">
+    <strong>차이는 딱 하나</strong>
+    응답 헤더가 <code>Content-Type: text/event-stream</code>이고, 이 응답의 몸통(body)이 논리적으로
+    "끝나지 않는다"는 것뿐이다. 그 의미는 Chapter 3에서 다룬다.
+  </div>
+</div>
+
+<div class="sse-chapter" id="ch2">
+  <span class="sse-ch-badge">Chapter 2</span>
+  <h2>나이브(Blocking) vs Async — 여기서 갈라진다</h2>
+</div>
+
+<div class="card">
+  <div class="sse-cast">
+    <span class="sse-who">노드</span>
+    <span class="sse-chip sse-c-worker">Worker — Tomcat 소유, maxThreads로 제한</span>
+    <span class="sse-chip sse-c-app">별도 스레드 — application이 직접 관리, 개수 자유</span>
+  </div>
+
+  <div class="sse-tab-bar">
+    <button class="sse-tab-btn sse-t-bio active" data-sse-tab="naive">나이브<small>startAsync() 미사용 — 안티패턴</small></button>
+    <button class="sse-tab-btn sse-t-nio" data-sse-tab="async">Async<small>startAsync() 사용 — 정석</small></button>
+  </div>
+
+  <!-- ===== 나이브 탭 ===== -->
+  <div class="sse-tab-panel active" id="sse-tab-naive">
+    <pre><span class="sse-tok-ann">@RestController</span>
+<span class="sse-tok-kw">public class</span> <span class="sse-tok-type">SseController</span> {
+
+    <span class="sse-tok-ann">@GetMapping</span>(value = <span class="sse-tok-str">"/api/sse"</span>, produces = <span class="sse-tok-type">MediaType</span>.TEXT_EVENT_STREAM_VALUE)
+    <span class="sse-tok-kw">public void</span> stream(<span class="sse-tok-type">HttpServletResponse</span> response) <span class="sse-tok-kw">throws</span> <span class="sse-tok-type">IOException</span> {
+        <span class="sse-tok-type">PrintWriter</span> writer = response.getWriter();
+
+        <span class="sse-tok-kw">while</span> (연결이_살아있는_동안) {
+            <span class="sse-tok-type">String</span> event = eventQueue.take();   <span class="sse-tok-com">// 여기서 블로킹</span>
+            writer.write(<span class="sse-tok-str">"data: "</span> + event + <span class="sse-tok-str">"\n\n"</span>);
+            writer.flush();
+        }
+    }
+}</pre>
+    <div class="sse-step">
+      <div class="sse-num">1</div>
+      <div class="sse-step-body">
+        <div class="sse-flow sse-c-worker">
+          <span class="sse-chip sse-c-worker">Worker#1</span>
+          <span class="sse-arrow"><span class="sse-act">컨트롤러 진입, while문 시작</span><span class="sse-bar"></span></span>
+          <span class="sse-chip sse-c-danger">메서드가 리턴 안 함</span>
+        </div>
+        <p class="sse-desc"><code>startAsync()</code>를 호출한 적이 없으므로, 이 메서드가 실행되는 동안 Worker#1은 이 호출 스택 안에 그대로 갇혀 있다.</p>
+      </div>
+    </div>
+    <div class="sse-step sse-last">
+      <div class="sse-num">2</div>
+      <div class="sse-step-body">
+        <div class="sse-flow sse-c-danger">
+          <span class="sse-chip sse-c-danger">연결이 끊길 때까지</span>
+          <span class="sse-arrow"><span class="sse-act">while 탈출 -&gt; 메서드 리턴</span><span class="sse-bar"></span></span>
+          <span class="sse-chip sse-c-worker">그제서야 반납</span>
+        </div>
+        <p class="sse-desc">클라이언트 200명이 붙으면(maxThreads=200 기준) 그 순간 Worker 풀 전체가 SSE 연결 유지에만 소진된다. 이후 들어오는 모든 일반 HTTP 요청도 대기열에서 굶는다.</p>
+      </div>
+    </div>
+    <div class="sse-callout bad">
+      <strong>C10K 문제의 재발</strong>
+      NIO가 해결했던 "idle 연결이 Worker 하나씩 영구 점유"하던 문제가, SSE 레이어에서 똑같이 재발한다.
+    </div>
+  </div>
+
+  <!-- ===== Async 탭 ===== -->
+  <div class="sse-tab-panel" id="sse-tab-async">
+    <pre><span class="sse-tok-ann">@GetMapping</span>(<span class="sse-tok-str">"/sse"</span>)
+<span class="sse-tok-type">SseEmitter</span> stream() {
+    <span class="sse-tok-type">SseEmitter</span> emitter = <span class="sse-tok-kw">new</span> <span class="sse-tok-type">SseEmitter</span>(<span class="sse-tok-num">0L</span>);
+    emitters.put(userId, emitter);   <span class="sse-tok-com">// application이 직접 관리 (Chapter 7 참고)</span>
+    <span class="sse-tok-kw">return</span> emitter;                  <span class="sse-tok-com">// 메서드 즉시 리턴</span>
+}</pre>
+    <div class="sse-step">
+      <div class="sse-num">1</div>
+      <div class="sse-step-body">
+        <div class="sse-flow sse-c-worker">
+          <span class="sse-chip sse-c-worker">Worker#1</span>
+          <span class="sse-arrow"><span class="sse-act">startAsync() 호출</span><span class="sse-bar"></span></span>
+          <span class="sse-chip sse-c-poller">AsyncContext 생성</span>
+        </div>
+        <p class="sse-desc">Spring이 <code>SseEmitter</code>를 리턴받으면 내부적으로 <code>request.startAsync()</code>를 자동으로 걸어준다. "이 응답 아직 진행 중"이라는 상태가 소켓에 매달려 저장된다.</p>
+      </div>
+    </div>
+    <div class="sse-step">
+      <div class="sse-num">2</div>
+      <div class="sse-step-body">
+        <div class="sse-flow sse-c-worker">
+          <span class="sse-chip sse-c-worker">Worker#1</span>
+          <span class="sse-arrow"><span class="sse-act">메서드 즉시 리턴</span><span class="sse-bar"></span></span>
+          <span class="sse-chip sse-c-ok">Tomcat 풀로 즉시 반납</span>
+        </div>
+        <p class="sse-desc">Worker#1이 이 연결에 매여 있던 시간은 딱 "요청 진입 ~ startAsync() 호출"까지 — 일반 요청과 다를 바 없이 짧다. 연결 자체는 안 끊긴 채 그대로 열려 있다.</p>
+      </div>
+    </div>
+    <div class="sse-band">( Worker#1은 이제 이 연결과 완전히 무관 — 다른 요청 처리하러 감. 이 소켓은 emitters 맵에 참조로만 남아있음 )</div>
+    <div class="sse-step sse-last">
+      <div class="sse-num">3</div>
+      <div class="sse-step-body">
+        <div class="sse-flow sse-c-app">
+          <span class="sse-chip sse-c-app">별도 스레드 (Worker 아님)</span>
+          <span class="sse-arrow"><span class="sse-act">emitters.get(userId).send(이벤트)</span><span class="sse-bar"></span></span>
+          <span class="sse-chip sse-c-client">클라이언트</span>
+        </div>
+        <p class="sse-desc">시간이 흘러 이벤트가 발생하면, <b>Worker#1이 아니라</b> 그 이벤트를 발생시킨 스레드(스케줄러, 또는 다른 요청을 처리하던 Worker)가 emitters 맵에서 참조를 꺼내 직접 write한다. Acceptor/Poller의 dispatch 경로를 타지 않는다 — 자세한 두 갈래는 Chapter 4 참고.</p>
+        <span class="sse-where">write 실행 주체: <b>emitter.send()를 호출한 바로 그 스레드</b> — Worker#1과는 무관</span>
+      </div>
+    </div>
+    <div class="sse-callout ok">
+      <strong>핵심</strong>
+      push를 실행하는 건 Worker#1이 아니다. Worker#1은 이미 반납되어 전혀 다른 요청을
+      처리하러 갔을 수 있다. 누가 push하는지는 Chapter 4에서 더 자세히 다룬다.
+    </div>
+  </div>
+</div>
+
+<div class="sse-chapter" id="ch3">
+  <span class="sse-ch-badge">Chapter 3</span>
+  <h2>"응답 body가 안 끝난다" — SocketInfo 상태값과 백그라운드 순찰</h2>
+</div>
+
+<div class="card">
+  <p>
+    TCP는 바이트 스트림일 뿐이라 "메시지가 여기서 끝났다"는 개념이 없다. 그건 HTTP가
+    <code>Content-Length</code> 또는 <code>Transfer-Encoding: chunked</code>로 정의한다. SSE는
+    길이를 미리 모르므로 chunked를 쓰는데, <b>그 종료 마커(<code>0\r\n\r\n</code>)를 서버가
+    일부러 안 보낸다.</b> Tomcat은 소켓마다 "이 요청 완료됐나?"라는 상태값을 하나 들고 있고
+    (단순화하면 <code>SocketInfo&lt;Long, Boolean&gt;</code> 정도로 생각해도 된다), 이 값이
+    <b>완료(true)로 바뀌어야만</b> 그 소켓이 "idle 대기 그룹"에 들어가서 이후 keepAliveTimeout
+    검사 대상이 된다.
+  </p>
+
+  <div class="sse-cast">
+    <span class="sse-who">노드</span>
+    <span class="sse-chip sse-c-poller">SocketInfo — 소켓마다 Tomcat이 들고 있는 "완료 여부" 상태</span>
+    <span class="sse-chip sse-c-kernel">백그라운드 순찰 — Worker와 무관하게 주기적으로 도는 타임아웃 체크</span>
+  </div>
+
+  <div class="sse-tab-bar">
+    <button class="sse-tab-btn active" data-sse-tab="normal">일반 요청<small>완료 마커 전송 -&gt; idle 그룹 편입</small></button>
+    <button class="sse-tab-btn" data-sse-tab="sse">SSE 요청<small>완료 마커 미전송 -&gt; idle 그룹 미편입</small></button>
+  </div>
+
+  <!-- ===== 일반 요청 탭 ===== -->
+  <div class="sse-tab-panel active" id="sse-tab-normal">
+    <div class="sse-step">
+      <div class="sse-num">1</div>
+      <div class="sse-step-body">
+        <div class="sse-flow sse-c-poller">
+          <span class="sse-chip sse-c-poller">Poller</span>
+          <span class="sse-arrow"><span class="sse-act">register() 호출 시점</span><span class="sse-bar"></span></span>
+          <span class="sse-chip sse-c-poller">SocketInfo 생성</span>
+        </div>
+        <p class="sse-desc">소켓이 감시 목록에 등록되는 그 순간, "완료 여부" 상태값도 함께 생성된다.</p>
+      </div>
+    </div>
+    <div class="sse-step">
+      <div class="sse-num">2</div>
+      <div class="sse-step-body">
+        <div class="sse-flow sse-c-worker">
+          <span class="sse-chip sse-c-worker">Worker</span>
+          <span class="sse-arrow"><span class="sse-act">요청 처리, 응답 작성</span><span class="sse-bar"></span></span>
+          <span class="sse-chip sse-c-client">클라이언트</span>
+        </div>
+        <p class="sse-desc">Content-Length만큼 다 쓰거나, chunked라면 종료 마커(<code>0\r\n\r\n</code>)까지 전송하고 메서드가 리턴된다.</p>
+      </div>
+    </div>
+    <div class="sse-step">
+      <div class="sse-num">3</div>
+      <div class="sse-step-body">
+        <div class="sse-flow sse-c-ok">
+          <span class="sse-chip sse-c-ok">SocketInfo</span>
+          <span class="sse-arrow"><span class="sse-act">상태값 -&gt; 완료(true)로 전환</span><span class="sse-bar"></span></span>
+          <span class="sse-chip sse-c-poller">idle 대기 그룹 편입</span>
+        </div>
+        <p class="sse-desc">응답이 완료됐다는 사실이 확정되는 순간, 이 소켓은 "idle 대기 그룹" 목록에 들어간다.</p>
+      </div>
+    </div>
+    <div class="sse-band">( idle 구간 — Worker의 write와는 완전히 무관하게, 별도로 도는 백그라운드 순찰이 계속 주기적으로 실행 중 )</div>
+    <div class="sse-step sse-last">
+      <div class="sse-num">4</div>
+      <div class="sse-step-body">
+        <div class="sse-flow sse-c-kernel">
+          <span class="sse-chip sse-c-kernel">백그라운드 순찰</span>
+          <span class="sse-arrow"><span class="sse-act">idle 그룹 훑으며 확인</span><span class="sse-bar"></span></span>
+          <span class="sse-chip sse-c-danger">keepAliveTimeout 초과?</span>
+        </div>
+        <p class="sse-desc">순찰이 이 소켓의 마지막 활동 시각과 현재 시각 차이를 계산한다. <code>keepAliveTimeout</code>을 넘었으면 순찰이 직접 <code>socket.close()</code>를 호출한다.</p>
+        <span class="sse-where">검사 주체: <b>Worker가 아니라 별도의 백그라운드 순찰</b></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SSE 요청 탭 ===== -->
+  <div class="sse-tab-panel" id="sse-tab-sse">
+    <div class="sse-step">
+      <div class="sse-num">1</div>
+      <div class="sse-step-body">
+        <div class="sse-flow sse-c-poller">
+          <span class="sse-chip sse-c-poller">Poller</span>
+          <span class="sse-arrow"><span class="sse-act">register() 호출 시점</span><span class="sse-bar"></span></span>
+          <span class="sse-chip sse-c-poller">SocketInfo 생성</span>
+        </div>
+        <p class="sse-desc">일반 요청과 완전히 동일 — 소켓 등록 시 상태값도 똑같이 생성된다.</p>
+      </div>
+    </div>
+    <div class="sse-step">
+      <div class="sse-num">2</div>
+      <div class="sse-step-body">
+        <div class="sse-flow sse-c-worker">
+          <span class="sse-chip sse-c-worker">Worker</span>
+          <span class="sse-arrow"><span class="sse-act">startAsync() 호출 후 즉시 반납</span><span class="sse-bar"></span></span>
+          <span class="sse-chip sse-c-app">응답은 아직 진행 중</span>
+        </div>
+        <p class="sse-desc">Worker는 반납되지만, 응답 자체는 "아직 안 끝남" 상태로 남는다 (Chapter 2 참고).</p>
+      </div>
+    </div>
+    <div class="sse-step">
+      <div class="sse-num">3</div>
+      <div class="sse-step-body">
+        <div class="sse-flow sse-c-danger">
+          <span class="sse-chip sse-c-danger">종료 마커(0\r\n\r\n)</span>
+          <span class="sse-arrow"><span class="sse-act">emitter.complete() 전까지 미전송</span><span class="sse-bar"></span></span>
+          <span class="sse-chip sse-c-danger">SocketInfo 계속 미완료(false)</span>
+        </div>
+        <p class="sse-desc">이벤트가 몇 개가 오가든 이 종료 마커만 안 나가면, Tomcat 입장에서 이 요청은 계속 "안 끝남" 상태다.</p>
+      </div>
+    </div>
+    <div class="sse-band">( SocketInfo가 계속 false -&gt; 이 소켓은 "idle 대기 그룹" 명단에 이름을 올린 적이 없음 )</div>
+    <div class="sse-step sse-last">
+      <div class="sse-num">4</div>
+      <div class="sse-step-body">
+        <div class="sse-flow sse-c-kernel">
+          <span class="sse-chip sse-c-kernel">백그라운드 순찰</span>
+          <span class="sse-arrow"><span class="sse-act">idle 그룹만 훑음</span><span class="sse-bar"></span></span>
+          <span class="sse-chip sse-c-danger">이 소켓은 목록에 없음</span>
+        </div>
+        <p class="sse-desc">순찰 자체는 똑같이 계속 돌지만, 검사 대상 목록(idle 그룹)에 이 소켓이 없어서 <code>keepAliveTimeout</code> 초과 여부를 검사받을 기회 자체가 없다. Worker가 write를 했는지 안 했는지와는 무관한 결과다.</p>
+        <span class="sse-where sse-bad">검사 대상 포함 여부: <b>SocketInfo가 완료(true)로 안 바뀌는 한 영원히 제외</b></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sse-callout ok">
+    <strong>정리</strong>
+    "완료 여부"라는 상태값 하나가 idle 그룹 편입을 가른다. Worker가 write하는 시점과 백그라운드
+    순찰이 검사하는 시점은 서로 다른 주체가 하는 서로 무관한 사건이며, SSE는 그 상태값을 계속
+    false로 남겨두기 때문에 순찰 대상 자체에 포함되지 못할 뿐 — keep-alive가 없는 게 아니라
+    검사받을 자격 자체가 없는 것이다.
+  </div>
+
+  <div class="sse-callout warn">
+    <strong>그래서 SSE에 heartbeat가 필요하다</strong>
+    keepAliveTimeout이 이 소켓을 검사 대상에서 원천 제외한다는 건, 뒤집어 보면 <b>Tomcat이 이
+    연결의 생사를 자동으로 확인해주는 안전장치가 이 소켓에는 아예 없다</b>는 뜻이다. 일반 요청은
+    idle 그룹에 들어가 있으니 백그라운드 순찰이 알아서 죽은 연결을 걸러주지만, SSE 소켓은 그 순찰
+    대상 목록에 이름을 올린 적이 없어서 아무도 대신 확인해주지 않는다. 클라이언트가 탭을 닫거나
+    네트워크가 끊겨도 이 소켓 쪽에서는 아무 자동 감지가 안 일어난다.
+
+    그래서 애플리케이션이 스스로 주기적으로 <code>: ping\n\n</code> 같은 heartbeat를 보내 write를
+    강제로 발생시켜야 한다 — Tomcat의 순찰이 안 해주는 "이 연결 아직 살아있나?" 확인을, 애플리케이션이
+    write 성공/실패로 직접 떠맡는 것이다. 이 write가 실패하는 순간 죽은 연결을 조기 발견해 정리로
+    이어지는 자세한 메커니즘은 Chapter 5 참고.
+  </div>
+</div>
+
+<div class="sse-chapter" id="ch4">
+  <span class="sse-ch-badge">Chapter 4</span>
+  <h2>Push를 실제로 실행하는 스레드 — Worker가 아니라 "그 순간 send()를 호출한 스레드"</h2>
+</div>
+
+<div class="card">
+  <p>
+    <code>emitter.send()</code> 호출은 Poller의 OP_READ 감지도, Worker 큐 알림도 아니다. 새로운
+    요청이 아니므로 <b>Acceptor/Poller의 dispatch 경로 자체를 타지 않는다.</b> 이미 확보된 채널에
+    그냥 직접 쓸 뿐이다.
+  </p>
+  <pre>emitter.send(이벤트) 호출
+    |
+이 호출을 실행한 스레드가 그 자체로 write 수행
+    |
+소켓 버퍼 여유 있음 -&gt; 그 자리에서 write 완료
+소켓 버퍼 꽉 참    -&gt; Poller에 OP_WRITE 등록해두고 나중에 이어서 완료 (Worker 재할당 아님)</pre>
+
+  <p class="sse-sub">이 write를 실행하는 스레드는 트리거에 따라 둘 중 하나</p>
+
+  <div class="sse-case">
+    <span class="sse-chip sse-c-app">별도 스레드풀</span>
+    <p>트리거가 시간/외부 이벤트인 경우(주기적 heartbeat, 주가 업데이트 등) — HTTP 요청과 자연스럽게 안 엮여 있으므로, 개발자가 별도로 관리하는 스레드풀(스케줄러, ExecutorService — <code>maxThreads</code>와 무관한 자원)이 담당</p>
+  </div>
+  <div class="sse-case">
+    <span class="sse-chip sse-c-worker">다른 요청의 Worker</span>
+    <p>트리거가 다른 사람의 HTTP 요청인 경우(예: 채팅에서 B가 메시지 보내면 A에게 push) — B의 요청을 처리하던 Worker가 자기 컨트롤러 로직 안에서 그대로 <code>emitters.get(A).send(...)</code> 호출. 이때는 Worker 자신이 push의 write까지 수행</p>
+  </div>
+
+  <div class="sse-callout ok">
+    <strong>공통점은 하나뿐</strong>
+    최초에 그 SSE 연결을 열었던 그 Worker가 다시 돌아와서 push하는 일은 없다 — 이미 반납되어
+    전혀 다른 요청을 처리하러 갔을 수 있다. "커스텀 풀을 안 만들면 자동으로 Worker가 대신
+    일해준다"는 폴백 메커니즘도 존재하지 않는다.
+  </div>
+</div>
+
+<div class="sse-chapter" id="ch5">
+  <span class="sse-ch-badge">Chapter 5</span>
+  <h2>SSE 종료 로직 — 4가지 트리거</h2>
+</div>
+
+<div class="card">
+  <p>SSE는 idle 타이머로 저절로 안 끝난다. 아래 사건 중 하나가 실제로 발생해야 끝난다.</p>
+
+  <div class="sse-case">
+    <span class="sse-chip sse-c-ok">① 명시적 완료</span>
+    <p><code>emitter.complete()</code> 호출. 컨테이너가 chunked 종료 마커 전송 + <code>socket.close()</code>까지 수행.</p>
+  </div>
+  <div class="sse-case">
+    <span class="sse-chip sse-c-danger">② 클라이언트 이탈</span>
+    <p>클라이언트가 FIN을 보내도 서버 커널은 즉시 <code>CLOSE_WAIT</code>로만 전환할 뿐, 애플리케이션이 다음 <code>send()</code> 시도에서 <code>IOException</code>(Broken pipe)을 맞아야 비로소 알아챈다.</p>
+  </div>
+  <div class="sse-case">
+    <span class="sse-chip sse-c-worker">③ 타임아웃</span>
+    <p><code>SseEmitter(timeoutMillis)</code> 또는 <code>spring.mvc.async.request-timeout</code>(Spring 기본 30초!) 경과 시 <code>onTimeout()</code> 콜백 실행.</p>
+  </div>
+  <div class="sse-case">
+    <span class="sse-chip sse-c-kernel">④ 컨테이너 종료</span>
+    <p>Tomcat 셧다운 시 강제 종료.</p>
+  </div>
+
+  <p class="sse-sub">②번이 위험한 이유 — CLOSE_WAIT 누적</p>
+  <pre>클라이언트 FIN 전송
+    |
+서버 커널: CLOSE_WAIT로 전환 (여기서 자동으로 안 끝남, TCB는 그대로 살아있음)
+    |
+애플리케이션이 write를 시도한 적이 없으면 -&gt; 이 사실을 영원히 모름
+    |
+CLOSE_WAIT 상태로 무한정 쌓일 수 있음 (fd 누수)</pre>
+  <div class="sse-callout warn">
+    <strong>그래서 heartbeat가 필요하다</strong>
+    실무에서는 주기적으로 <code>: ping\n\n</code> 같은 heartbeat를 보내 write를 강제로 발생시킨다.
+    이 write가 실패하는 순간 죽은 연결을 조기 발견해 <code>onError()</code> -&gt; 정리로 이어진다.
+    (일부 컨테이너 구현은 OP_READ로 EOF를 감지해 write 실패보다 먼저 알아채는 경로도 제공하지만,
+    타이밍 신뢰도가 낮아 heartbeat가 표준 관행이다.)
+  </div>
+</div>
+
+<div class="sse-chapter" id="ch6">
+  <span class="sse-ch-badge">Chapter 6</span>
+  <h2>OS 소켓은 HTTP든 SSE든 WebSocket이든 구분하지 않는다</h2>
+</div>
+
+<div class="card">
+  <p>
+    3-way handshake(SYN/SYN-ACK/ACK)는 연결을 "여는" 절차, 4-way handshake(FIN/ACK/FIN/ACK)는
+    "닫는" 절차다. <b>프로토콜 종류와 무관하게 모든 TCP 연결이 동일하게 밟는다.</b>
+  </p>
+  <div class="sse-duo">
+    <div class="sse-duo-card">
+      <h4><span class="sse-chip sse-c-ok">3-way</span> — 연결 열기</h4>
+      <p>HTTP든 SSE든 WebSocket이든 전부 동일한 절차</p>
+    </div>
+    <div class="sse-duo-card">
+      <h4><span class="sse-chip sse-c-danger">4-way</span> — 연결 닫기</h4>
+      <p>마찬가지로 전부 동일한 절차</p>
+    </div>
+  </div>
+
+  <p class="sse-sub">WebSocket이 "특별해 보이는" 지점 — TCP가 아니라 HTTP 레이어</p>
+  <pre>1. TCP 3-way handshake (여기까진 그냥 TCP)
+2. HTTP 요청 1개: GET /chat, Upgrade: websocket, Connection: Upgrade
+3. 서버 응답: 101 Switching Protocols
+    |
+   이 순간부터 "같은 소켓, 같은 바이트 스트림"을 애플리케이션이
+   "이제부터 WebSocket 프레임으로 해석하겠다"고 자기들끼리 약속한 것뿐</pre>
+
+  <div class="sse-callout ok">
+    <strong>커널에는 구분 플래그가 없다</strong>
+    커널은 fd, 소켓 상태(ESTABLISHED/CLOSE_WAIT/...), 수신·송신 버퍼만 안다. 그 바이트를
+    HTTP 요청으로 볼지, SSE 텍스트로 볼지, WebSocket 프레임으로 볼지는 전적으로
+    유저스페이스(Tomcat + 애플리케이션 코드)의 해석이다. Tomcat이 101 응답 이후 그 소켓을
+    처리하는 Processor 객체를 WebSocket 전용으로 갈아끼우는 건 JVM 메모리 안의 일일 뿐,
+    커널이 소켓에 뭔가를 표시하는 게 아니다.
+  </div>
+</div>
+
+<div class="sse-chapter" id="ch7">
+  <span class="sse-ch-badge">Chapter 7</span>
+  <h2>소켓 정보 저장 위치 — Tomcat(JVM) 관리 vs Application 관리</h2>
+</div>
+
+<div class="card">
+  <p>"JVM이냐 application이냐"는 사실 두 레이어로 나뉜다.</p>
+  <table>
+    <tr><th>레이어</th><th>저장하는 것</th><th>관리 주체</th></tr>
+    <tr>
+      <td>저수준 배관</td>
+      <td>실제 소켓(fd, SocketChannel), Poller의 Selector 등록(SelectionKey), <code>AsyncContext</code> 객체</td>
+      <td><span class="sse-chip sse-c-poller">Tomcat(컨테이너)</span></td>
+    </tr>
+    <tr>
+      <td>커널</td>
+      <td>TCB(순서 번호, 윈도우 크기, 버퍼)</td>
+      <td><span class="sse-chip sse-c-kernel">OS 커널</span></td>
+    </tr>
+    <tr>
+      <td>비즈니스 매핑</td>
+      <td>"이 emitter가 어느 유저 것이었는지"를 기억하는 저장소 (예: <code>Map&lt;userId, SseEmitter&gt;</code>)</td>
+      <td><span class="sse-chip sse-c-app">Application(개발자 코드)</span></td>
+    </tr>
+  </table>
+  <div class="sse-callout ok">
+    <strong>Tomcat은 비즈니스 개념을 모른다</strong>
+    Tomcat은 "이 소켓이 비동기 응답 진행 중"이라는 사실은 알지만, "userId=42한테 push해줘" 같은
+    비즈니스 개념은 전혀 모른다. 그래서 나중에 특정 유저에게 이벤트를 보내려면, 개발자가 직접
+    <code>Map&lt;userId, SseEmitter&gt;</code> 같은 저장소에 그 참조를 넣어뒀다가 이벤트 발생 시
+    꺼내 써야 한다. 이 저장소를 안 만들어두면 Tomcat 쪽엔 아무 문제가 없어도 애플리케이션
+    입장에서는 그 연결을 다시 찾을 방법이 없다.
+  </div>
+</div>
+
+<div class="sse-summary">
+  <h3>한 줄 정리</h3>
+  <ul>
+    <li>SSE 최초 연결은 일반 HTTP 요청과 완전히 동일 — 다른 건 Content-Type과 body가 안 끝난다는 것뿐</li>
+    <li>body가 "안 끝난다"는 건 chunked encoding의 종료 마커(0\r\n\r\n)를 서버가 일부러 안 보낸다는 뜻</li>
+    <li>나이브 구현(startAsync() 미사용)은 Worker를 연결 수명 내내 붙잡음 -&gt; C10K 문제 재발</li>
+    <li>Async 구현은 최초 요청 처리 후 Worker를 즉시 반납 -&gt; 이후 push는 Acceptor/Poller의 dispatch 경로를 안 탐</li>
+    <li>push를 실행하는 스레드는 트리거에 따라 다름 — 별도 스레드풀(시간/외부 이벤트 기반)이거나, 다른 요청을 처리하던 Worker(요청 기반 트리거) 그 자신</li>
+    <li>SSE 종료는 idle 타이머가 아니라 complete()/write 실패 발견/타임아웃/컨테이너 종료 중 하나의 사건으로 트리거됨 — 클라이언트 FIN만으로는 CLOSE_WAIT에 머물 뿐 완전히 안 지워짐</li>
+    <li>3-way/4-way handshake는 프로토콜별 차이가 아니라 모든 TCP 연결의 open/close 절차 — WebSocket 구분은 HTTP 레이어의 Upgrade 협상일 뿐, 커널에 프로토콜 구분 플래그는 없음</li>
+    <li>저수준 배관(소켓, Selector 등록, AsyncContext)은 Tomcat이, "이 연결이 누구 것인지"는 application이 각자 저장</li>
+  </ul>
+</div>
+
+<p style="text-align:right; font-size:0.8rem; color:var(--text-muted); margin-top:30px;">
+  © 2026 Gustav Lab Technical Study Log
+</p>
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#ch1" onclick="toggleTOC()">1. SSE 연결의 시작</a></li>
+    <li><a href="#ch2" onclick="toggleTOC()">2. 나이브 vs Async 스토리보드</a></li>
+    <li><a href="#ch3" onclick="toggleTOC()">3. Body가 안 끝난다 / 백그라운드 순찰</a></li>
+    <li><a href="#ch4" onclick="toggleTOC()">4. Push 실행 주체</a></li>
+    <li><a href="#ch5" onclick="toggleTOC()">5. SSE 종료 로직</a></li>
+    <li><a href="#ch6" onclick="toggleTOC()">6. OS 소켓은 프로토콜을 안 가림</a></li>
+    <li><a href="#ch7" onclick="toggleTOC()">7. 소켓 정보 저장 위치</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>
+
+<script>
+  document.querySelectorAll('.sse-tab-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var scope = btn.closest('.card') || document;
+      scope.querySelectorAll('.sse-tab-btn').forEach(function (b) { b.classList.remove('active'); });
+      scope.querySelectorAll('.sse-tab-panel').forEach(function (p) { p.classList.remove('active'); });
+      btn.classList.add('active');
+      scope.querySelector('#sse-tab-' + btn.dataset.sseTab).classList.add('active');
+    });
+  });
+</script>

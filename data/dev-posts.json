@@ -1,5 +1,17 @@
 [
   {
+    "date": "2026-07-23",
+    "title": "PostgreSQL Advisory Lock — 분산 락의 원리와 한계",
+    "file": "dev/postgresql_advisory_lock",
+    "category": "record"
+  },
+  {
+    "date": "2026-07-22",
+    "title": "SSE Tomcat 스레드 모델 — 시작 / 실행 / 종료",
+    "file": "dev/sse_thread_model",
+    "category": "record"
+  },
+  {
     "date": "2026-07-21",
     "title": "[코딩테스트] LeetCode 94 - Binary Tree Inorder Traversal (트리/DFS, Java)",
     "file": "dev/algorithm/leetcode_94_binarytreeinordertraversal",

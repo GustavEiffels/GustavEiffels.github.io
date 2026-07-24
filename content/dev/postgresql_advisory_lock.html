@@ -1,0 +1,742 @@
+<!-- [2026-07-23] PostgreSQL Advisory Lock — 분산 락의 원리와 한계 -->
+<style>
+  /* ── TOC ── */
+  .report-toc {
+    position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+    background: var(--surface); border-left: 1px solid var(--border);
+    padding: 40px 25px; z-index: 1001;
+    transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+  }
+  .report-toc.active { right: 0; }
+  .report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .report-toc ul { list-style: none; padding: 0; margin: 0; }
+  .report-toc li { margin-bottom: 12px; line-height: 1.4; }
+  .report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+  .report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+  .toc-backdrop {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+    z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+  }
+  .toc-backdrop.active { display: block; opacity: 1; }
+  .toc-toggle-btn {
+    position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+    background: var(--accent); color: #fff; border: none; border-radius: 50%;
+    font-size: 1.5rem; cursor: pointer; z-index: 1002;
+    box-shadow: 0 4px 15px var(--accent-glow);
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+  }
+  .toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); }
+  @media (max-width: 768px) {
+    .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+  }
+
+  /* ── 챕터 헤더 ── */
+  .adv-ch-label {
+    display: flex; align-items: center; gap: 14px;
+    margin: 44px 0 16px; padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+  }
+  .adv-ch-label:first-of-type { margin-top: 0; }
+  .adv-ch-badge {
+    display: inline-flex; align-items: center;
+    background: var(--accent); color: #fff;
+    font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+    padding: 4px 12px; border-radius: 6px; flex-shrink: 0;
+  }
+  .adv-ch-label h2 { font-size: 1.1rem; font-weight: 800; color: #fff; margin: 0; }
+
+  .adv-sub-title {
+    font-size: .95rem; font-weight: 700; color: #4ecdc4;
+    margin: 22px 0 10px; padding-left: 10px;
+    border-left: 3px solid #4ecdc4;
+  }
+
+  /* ── callout ── */
+  .adv-callout {
+    border-left: 4px solid var(--accent);
+    background: var(--surface2);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 18px 0; font-size: 13.5px;
+    white-space: pre-line;
+  }
+  .adv-callout.warn { border-color: var(--yellow); }
+  .adv-callout.ok   { border-color: var(--green); }
+  .adv-callout.bad  { border-color: var(--red); }
+  .adv-callout strong { display: block; margin-bottom: 5px; color: #fff; font-size: 12.5px; }
+
+  /* ── 다이어그램 ── */
+  .adv-diagram {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px; margin: 16px 0; overflow-x: auto;
+  }
+  .adv-diagram svg { width: 100%; height: auto; display: block; min-width: 620px; }
+  .adv-diagram-caption { text-align: center; color: var(--text-muted); font-size: 0.82rem; margin-top: 10px; }
+
+  /* ── 요약 칩 그리드 ── */
+  .adv-chip-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 14px; margin: 18px 0; }
+  .adv-chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; font-size: 0.85rem; }
+  .adv-chip b { display: block; color: #fff; margin-bottom: 4px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* ── 케이스 태그 ── */
+  .adv-case-tag { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; margin-bottom: 6px; }
+  .adv-case-tag.push { background: rgba(47,179,68,0.18); color: var(--green); }
+  .adv-case-tag.poll { background: rgba(214,57,57,0.18); color: var(--red); }
+  tr.adv-row-push td:first-child { border-left: 4px solid var(--green); }
+  tr.adv-row-poll td:first-child { border-left: 4px solid var(--red); }
+
+  .badge-danger { background: rgba(214,57,57,0.1); color: var(--red); border-color: rgba(214,57,57,0.3); }
+  .badge-muted  { background: rgba(136,146,176,0.1); color: var(--text-muted); border-color: rgba(136,146,176,0.3); }
+
+  .adv-steps { padding-left: 22px; }
+  .adv-steps li { margin-bottom: 9px; font-size: 0.92rem; }
+</style>
+
+<div style="text-align:center; margin-bottom: 40px;">
+  <span class="badge badge-date">2026-07-23 학습 정리</span>
+  <h1 style="font-size: 2rem; font-weight: 800; margin: 14px 0 8px; background: linear-gradient(90deg, var(--accent), #4ecdc4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">PostgreSQL Advisory Lock — 분산 락의 원리와 한계</h1>
+  <p style="color: var(--text-muted); font-size: 14px;">DB 커넥션의 실체부터 크래시 시 회수 여부, 반대 방향(DB가 죽었을 때), 타 DB 비교까지</p>
+</div>
+
+<!-- ── 1. 정의 ── -->
+<div class="adv-ch-label" id="adv-sec-def">
+  <span class="adv-ch-badge">1</span>
+  <h2>정의</h2>
+</div>
+<div class="card">
+  <p>PostgreSQL이 제공하는 애플리케이션 정의 락이다. 실제 row/table을 잠그는 게 아니라, DB가 관리하는 임의의 정수 키에 대해 "지금 이걸 쓰는 중"이라고 표시하는 방식이다. 데이터에는 아무 잠금도 걸리지 않고, 그 키 값에 대한 동시 접근만 직렬화한다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">advisory lock 기본 사용</span>
+    </div>
+    <pre><code>SELECT pg_advisory_lock(12345);        <span class="lock-com">-- 세션 단위, 명시적 unlock 필요</span>
+SELECT pg_advisory_xact_lock(12345);   <span class="lock-com">-- 트랜잭션 단위, commit/rollback 시 자동 해제</span></code></pre>
+  </div>
+
+  <div class="adv-chip-grid">
+    <div class="adv-chip"><b>분산 락처럼 사용</b>여러 인스턴스가 같은 정수 키를 두고 경쟁하는 방식으로 분산 환경에서도 활용 가능</div>
+    <div class="adv-chip"><b>세션 / 트랜잭션 단위</b>실무에서는 unlock을 깜빡할 위험이 없는 트랜잭션 단위(<code>_xact_</code>)가 기본값</div>
+  </div>
+
+  <div class="adv-callout ok">
+    <strong>검증됨 — 세션 단위 락은 트랜잭션 롤백을 따르지 않는다</strong>
+    트랜잭션 안에서 pg_advisory_lock으로 잡은 락은 그 트랜잭션이 롤백돼도 계속 유지된다.
+    pg_advisory_xact_lock만 트랜잭션 종료(commit/rollback)에 자동으로 묶인다. (출처 1)
+  </div>
+</div>
+
+<!-- ── 2. 왜 필요한가 ── -->
+<div class="adv-ch-label" id="adv-sec-why">
+  <span class="adv-ch-badge">2</span>
+  <h2>왜 필요한가 — 예시: 순번 발급 시스템</h2>
+</div>
+<div class="card">
+  <p>주문번호, 게시글 번호, 예약 번호처럼 "다음 순번"을 매겨야 하는 시스템을 생각해보자. MAX+1 방식은 레이스 컨디션이 있다: 두 트랜잭션이 동시에 <code>SELECT MAX(no)</code>를 하면 둘 다 같은 값을 보고 같은 다음 번호로 INSERT를 시도 -&gt; 충돌 또는 중복이 발생한다.</p>
+  <p>행 락(<code>SELECT ... FOR UPDATE</code>)으로는 막을 수 없다 — "다음 번호"에 해당하는 행이 아직 존재하지 않기 때문이다. 그래서 데이터가 아니라 "번호를 발급하는 행위 자체"에 락을 거는 advisory lock이 맞는 도구다.</p>
+</div>
+
+<!-- ── 3. 한계 ── -->
+<div class="adv-ch-label" id="adv-sec-limits">
+  <span class="adv-ch-badge">3</span>
+  <h2>한계</h2>
+</div>
+<div class="card">
+  <div class="adv-callout warn">
+    <strong>트랜잭션 경계에 종속적</strong>
+    번호 발급 호출과 실제 INSERT가 같은 트랜잭션 안에 있어야 보호된다.
+    트랜잭션이 쪼개져 있으면 락이 먼저 풀려서 경합 구간이 남는다.
+  </div>
+  <div class="adv-callout warn">
+    <strong>Convention 기반, DB가 강제하지 않음</strong>
+    이 락을 거치지 않는 다른 경로(예: 레거시 프로시저가 자체적으로 MAX+1 하는 코드)는 전혀 보호되지 않는다.
+  </div>
+  <div class="adv-callout warn">
+    <strong>키 충돌 가능성</strong>
+    문자열을 hashtext()로 정수 키에 매핑해서 쓰는 경우, 서로 다른 리소스가 우연히 같은 키로 매핑되면 불필요한 직렬화가 발생한다.
+    pg_advisory_lock(classid, objid) 2-인자 버전으로 네임스페이스 분리가 가능하다.
+  </div>
+</div>
+
+<!-- ── 4. 저장 위치 ── -->
+<div class="adv-ch-label" id="adv-sec-storage">
+  <span class="adv-ch-badge">4</span>
+  <h2>저장 위치 — Shared Memory (디스크 아님)</h2>
+</div>
+<div class="card">
+  <p>테이블/파일이 아니라 PostgreSQL 서버 프로세스들이 공유하는 shared memory에만 존재한다 — 이게 뒤에 나올 "크래시 시 사라짐"의 근본 원인이다.</p>
+
+  <div class="adv-diagram">
+    <svg viewBox="0 0 860 200" xmlns="http://www.w3.org/2000/svg">
+      <rect x="50" y="30" width="330" height="140" rx="12" fill="#21253a" stroke="#8892b0" stroke-width="2"/>
+      <text x="215" y="58" text-anchor="middle" fill="#8892b0" font-size="14" font-family="sans-serif" font-weight="bold">Disk (영구 저장)</text>
+      <rect x="80" y="75" width="270" height="34" rx="6" fill="#141824" stroke="#2e3350"/>
+      <text x="215" y="97" text-anchor="middle" fill="#e2e8f0" font-size="13" font-family="sans-serif">테이블 데이터</text>
+      <rect x="80" y="118" width="270" height="34" rx="6" fill="#141824" stroke="#2e3350"/>
+      <text x="215" y="140" text-anchor="middle" fill="#e2e8f0" font-size="13" font-family="sans-serif">WAL(트랜잭션 로그)</text>
+
+      <rect x="480" y="30" width="330" height="140" rx="12" fill="#21253a" stroke="#5e81f4" stroke-width="2"/>
+      <text x="645" y="58" text-anchor="middle" fill="#5e81f4" font-size="14" font-family="sans-serif" font-weight="bold">Shared Memory (휘발성)</text>
+      <rect x="510" y="75" width="270" height="27" rx="6" fill="#141824" stroke="#2e3350"/>
+      <text x="645" y="93" text-anchor="middle" fill="#e2e8f0" font-size="12" font-family="sans-serif">Row Lock / Table Lock</text>
+      <rect x="510" y="107" width="270" height="27" rx="6" fill="#141824" stroke="#2fb344" stroke-width="1.5"/>
+      <text x="645" y="125" text-anchor="middle" fill="#2fb344" font-size="12" font-family="sans-serif" font-weight="bold">Advisory Lock (여기)</text>
+      <text x="645" y="150" text-anchor="middle" fill="#8892b0" font-size="11" font-family="sans-serif">재시작/크래시 시 즉시 소멸</text>
+    </svg>
+    <p class="adv-diagram-caption">Advisory Lock은 디스크(WAL/테이블)가 아니라 Shared Memory의 Lock Manager 안에만 존재한다</p>
+  </div>
+
+  <div class="adv-chip-grid">
+    <div class="adv-chip"><b>같은 Lock Manager 재사용</b>Row/Table lock과 동일한 인프라를 씀(LOCKTAG_ADVISORY 태그로 구분) — 데드락 감지도 일반 락과 동일하게 적용됨</div>
+    <div class="adv-chip"><b>실시간 조회</b><code>SELECT * FROM pg_locks WHERE locktype = 'advisory'</code>로 지금 걸려있는 락을 바로 확인 가능</div>
+    <div class="adv-chip"><b>WAL 미기록 / 복제 안 됨</b>순수 휘발성 런타임 상태라 트랜잭션 로그에 안 남고 replica로도 전파되지 않음</div>
+    <div class="adv-chip"><b>캐시와는 다른 개념</b>shared_buffers(디스크 데이터 캐시)와 달리, 원본 자체가 없는 "지금 이 순간의 락 상태" 그 자체</div>
+  </div>
+</div>
+
+<!-- ── 5. 크래시 시 회수 여부 ── -->
+<div class="adv-ch-label" id="adv-sec-crash">
+  <span class="adv-ch-badge">5</span>
+  <h2>크래시 시 회수 여부 — 분산 환경 핵심 질문</h2>
+</div>
+<div class="card">
+  <p class="adv-sub-title" style="margin-top:0;">결론: 완전히 회수 불가능하진 않지만, 감지 속도는 죽는 방식에 따라 다르다</p>
+
+  <div class="adv-chip-grid">
+    <div class="adv-chip"><b>DB Connection의 정체</b>실제로 열려있는 TCP 소켓 + DB 서버 측 전용 백엔드 프로세스(커넥션 1개당 OS 프로세스 1개, fork)</div>
+    <div class="adv-chip"><b>Lock과의 관계</b>Advisory lock은 이 백엔드 프로세스의 shared memory 상태 — 프로세스가 정리(exit)되는 순간 락도 같이 지워짐</div>
+    <div class="adv-chip"><b>핵심 질문</b>"커넥션이 끊긴 걸 DB가 언제 아느냐" — 죽는 방식에 따라 감지 속도가 완전히 다름</div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>케이스</th><th>상황</th><th>감지 방식</th><th>감지 속도</th></tr>
+    </thead>
+    <tbody>
+      <tr class="adv-row-push">
+        <td><span class="adv-case-tag push">PUSH</span><br><strong>A. 앱 프로세스만 죽음</strong><br>OS 생존</td>
+        <td>graceful shutdown, kill, OOM killer, JVM crash</td>
+        <td>OS가 FD 정리하며 TCP FIN/RST를 능동적으로 전송 -&gt; DB가 다음 read()에서 바로 EOF</td>
+        <td><strong style="color:var(--green);">거의 즉시</strong></td>
+      </tr>
+      <tr class="adv-row-poll">
+        <td><span class="adv-case-tag poll">POLL</span><br><strong>B. 호스트/네트워크</strong><br>자체 단절</td>
+        <td>전원 다운, 커널 패닉, 케이블 단선, 네트워크 파티션</td>
+        <td>FIN 보낼 주체(OS)가 없으므로 상대방은 TCP keepalive로 직접 찔러봐야 앎</td>
+        <td><strong style="color:var(--red);">최악의 경우 몇 시간</strong></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── 5.1 케이스 A ── -->
+<div class="adv-ch-label" id="adv-sec-case-a">
+  <span class="adv-ch-badge">5-1</span>
+  <h2>케이스 A 상세 — Push (능동 통지)</h2>
+</div>
+<div class="card">
+  <p>죽는 쪽(OS)이 살아있는 동안 스스로 상대방에게 알려주는 방식이다. "확인하러 가는" 게 아니라 "알아서 통보"하는 것이 핵심이다.</p>
+
+  <div class="adv-diagram">
+    <svg viewBox="0 0 860 210" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="70" width="150" height="60" rx="10" fill="#21253a" stroke="#5e81f4" stroke-width="2"/>
+      <text x="85" y="95" text-anchor="middle" fill="#ffffff" font-size="15" font-family="sans-serif">App 프로세스</text>
+      <text x="85" y="115" text-anchor="middle" fill="#8892b0" font-size="12" font-family="sans-serif">(crash / kill)</text>
+
+      <rect x="220" y="70" width="150" height="60" rx="10" fill="#21253a" stroke="#5e81f4" stroke-width="2"/>
+      <text x="295" y="95" text-anchor="middle" fill="#ffffff" font-size="14" font-family="sans-serif">OS Kernel</text>
+      <text x="295" y="115" text-anchor="middle" fill="#8892b0" font-size="12" font-family="sans-serif">(Client Host)</text>
+
+      <rect x="430" y="70" width="150" height="60" rx="10" fill="#21253a" stroke="#5e81f4" stroke-width="2"/>
+      <text x="505" y="95" text-anchor="middle" fill="#ffffff" font-size="14" font-family="sans-serif">OS Kernel</text>
+      <text x="505" y="115" text-anchor="middle" fill="#8892b0" font-size="12" font-family="sans-serif">(DB 서버)</text>
+
+      <rect x="640" y="70" width="150" height="60" rx="10" fill="#21253a" stroke="#2fb344" stroke-width="2"/>
+      <text x="715" y="95" text-anchor="middle" fill="#ffffff" font-size="14" font-family="sans-serif">PG Backend</text>
+      <text x="715" y="115" text-anchor="middle" fill="#8892b0" font-size="12" font-family="sans-serif">(lock 해제)</text>
+
+      <defs>
+        <marker id="advArrowA" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 9 3, 0 6" fill="#5e81f4"/>
+        </marker>
+      </defs>
+
+      <line x1="160" y1="100" x2="216" y2="100" stroke="#5e81f4" stroke-width="2" marker-end="url(#advArrowA)"/>
+      <text x="188" y="60" text-anchor="middle" fill="#8892b0" font-size="11" font-family="sans-serif">프로세스 종료</text>
+
+      <line x1="370" y1="100" x2="426" y2="100" stroke="#5e81f4" stroke-width="2" marker-end="url(#advArrowA)"/>
+      <text x="398" y="50" text-anchor="middle" fill="#8892b0" font-size="11" font-family="sans-serif">TCP FIN/RST</text>
+      <text x="398" y="63" text-anchor="middle" fill="#8892b0" font-size="11" font-family="sans-serif">(네트워크 경유)</text>
+
+      <line x1="580" y1="100" x2="636" y2="100" stroke="#5e81f4" stroke-width="2" marker-end="url(#advArrowA)"/>
+      <text x="608" y="55" text-anchor="middle" fill="#8892b0" font-size="11" font-family="sans-serif">read() = EOF</text>
+      <text x="608" y="68" text-anchor="middle" fill="#8892b0" font-size="11" font-family="sans-serif">/ECONNRESET</text>
+
+      <text x="430" y="175" text-anchor="middle" fill="#2fb344" font-size="13" font-family="sans-serif">총 소요 시간: 네트워크 왕복 수준 (수 ms ~ 수백 ms)</text>
+      <text x="430" y="195" text-anchor="middle" fill="#8892b0" font-size="11" font-family="sans-serif">죽는 쪽이 능동적으로 통지 -&gt; 대기(poll) 불필요</text>
+    </svg>
+    <p class="adv-diagram-caption">Case A: 앱 프로세스 종료 -&gt; OS가 FIN/RST 전송 -&gt; DB 서버가 즉시 감지</p>
+  </div>
+
+  <ol class="adv-steps">
+    <li>클라이언트 프로세스가 종료된다(정상 종료, kill -9, OOM killer, 크래시). 단 이 서버의 <strong>OS 자체는 계속 살아있다</strong>는 게 전제다</li>
+    <li>OS 커널이 죽은 프로세스가 들고 있던 자원을 정리하는데, 열려 있던 파일 디스크립터(소켓 포함)도 이 정리 대상에 포함된다</li>
+    <li>소켓을 정리하는 과정에서 커널의 TCP 스택이 상대방에게 종료를 알리는 패킷을 직접 전송한다 — 정상 종료면 FIN, 수신 버퍼에 안 읽은 데이터가 남은 채 강제 종료되면 RST</li>
+    <li>이 패킷은 실제 네트워크를 거쳐 DB 서버에 도달한다(네트워크 왕복 지연만 발생)</li>
+    <li>DB 서버 OS가 패킷을 받아 소켓 상태를 갱신하고, 다음 명령을 기다리며 read()에 블로킹돼 있던 PostgreSQL 백엔드가 즉시 EOF(FIN) 또는 ECONNRESET(RST)을 리턴받는다</li>
+    <li>PostgreSQL 백엔드가 단절을 인지하고 세션 정리(진행 중이던 트랜잭션 롤백, advisory lock 해제)를 수행한 뒤 종료한다</li>
+  </ol>
+
+  <div class="adv-callout ok">
+    <strong>핵심</strong>
+    죽는 쪽이 "알아서 통보"하는 push 방식이라, 별도로 확인하러 갈 필요가 없다.
+    감지 속도는 순수하게 네트워크 지연에만 좌우된다.
+  </div>
+</div>
+
+<!-- ── 5.2 케이스 B ── -->
+<div class="adv-ch-label" id="adv-sec-case-b">
+  <span class="adv-ch-badge">5-2</span>
+  <h2>케이스 B 상세 — Poll (직접 확인)</h2>
+</div>
+<div class="card">
+  <p>통보해 줄 주체(OS) 자체가 사라진 경우다. 상대방이 능동적으로 찔러보기 전까지는 아무도 모르는 침묵 구간이 생긴다.</p>
+
+  <div class="adv-diagram">
+    <svg viewBox="0 0 860 260" xmlns="http://www.w3.org/2000/svg">
+      <rect x="40" y="20" width="740" height="60" rx="8" fill="rgba(245, 158, 11, 0.12)" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="410" y="45" text-anchor="middle" fill="#f59e0b" font-size="13" font-family="sans-serif">침묵 구간 (Silent Zone)</text>
+      <text x="410" y="65" text-anchor="middle" fill="#8892b0" font-size="11" font-family="sans-serif">DB 서버 OS: 소켓 상태 여전히 ESTABLISHED (끊긴 걸 알 방법이 없음, advisory lock도 계속 보유 중)</text>
+
+      <line x1="60" y1="150" x2="800" y2="150" stroke="#8892b0" stroke-width="2"/>
+      <polygon points="800 145, 815 150, 800 155" fill="#8892b0"/>
+
+      <circle cx="80" cy="150" r="5" fill="#d63939"/>
+      <text x="80" y="180" text-anchor="middle" fill="#d63939" font-size="11" font-family="sans-serif">t=0</text>
+      <text x="80" y="195" text-anchor="middle" fill="#d63939" font-size="11" font-family="sans-serif">단절 발생(조용함)</text>
+
+      <circle cx="300" cy="150" r="5" fill="#5e81f4"/>
+      <line x1="300" y1="150" x2="300" y2="115" stroke="#5e81f4" stroke-width="1.5" stroke-dasharray="3,3"/>
+      <text x="300" y="105" text-anchor="middle" fill="#5e81f4" font-size="11" font-family="sans-serif">probe #1 (X 무응답)</text>
+      <text x="300" y="180" text-anchor="middle" fill="#8892b0" font-size="11" font-family="sans-serif">t=tcp_keepalives_idle</text>
+
+      <circle cx="440" cy="150" r="5" fill="#5e81f4"/>
+      <text x="440" y="180" text-anchor="middle" fill="#8892b0" font-size="11" font-family="sans-serif">probe #2 (X)</text>
+
+      <text x="530" y="153" text-anchor="middle" fill="#8892b0" font-size="14" font-family="sans-serif">...</text>
+
+      <circle cx="640" cy="150" r="5" fill="#5e81f4"/>
+      <text x="640" y="180" text-anchor="middle" fill="#8892b0" font-size="11" font-family="sans-serif">probe #N (X)</text>
+
+      <circle cx="760" cy="150" r="6" fill="#d63939"/>
+      <text x="760" y="200" text-anchor="middle" fill="#d63939" font-size="11" font-family="sans-serif">연결 사망 확정</text>
+      <text x="760" y="215" text-anchor="middle" fill="#d63939" font-size="11" font-family="sans-serif">PG Backend 정리</text>
+      <text x="760" y="230" text-anchor="middle" fill="#d63939" font-size="11" font-family="sans-serif">(lock 해제)</text>
+    </svg>
+    <p class="adv-diagram-caption">Case B: 침묵 구간 이후 tcp_keepalives_idle 경과 시 probe 시작 -&gt; count번 재시도 후에야 사망 판정</p>
+  </div>
+
+  <ol class="adv-steps">
+    <li>호스트 전체가 죽거나(전원 다운, 커널 패닉) 네트워크 경로가 끊긴다(케이블 단선, 라우터/방화벽의 조용한 패킷 드롭)</li>
+    <li>이 경우 FIN/RST를 보낼 주체 자체가 없다 — 호스트가 죽었으면 그 OS도 같이 죽어 아무 패킷도 못 보내고, 네트워크 파티션이면 패킷을 보내도 도달하지 못한다</li>
+    <li>DB 서버 입장에서는 아무 신호도 못 받았으므로 소켓 상태가 계속 ESTABLISHED로 남는다 — "연결이 끊겼다"는 정보 자체가 존재하지 않는 침묵 구간</li>
+    <li>이 침묵을 깨는 유일한 방법이 TCP keepalive다: 연결에 일정 시간(tcp_keepalives_idle) 동안 트래픽이 없으면 OS가 스스로 "살아있냐"고 probe 패킷을 보낸다</li>
+    <li>응답(ACK)이 tcp_keepalives_interval 안에 안 오면 재시도하며, 이를 tcp_keepalives_count번 반복한다</li>
+    <li>모든 재시도가 실패하면 그제서야 OS가 연결을 죽은 것으로 판정하고, 이 시점에 PostgreSQL 백엔드가 오류를 받아 세션을 정리(advisory lock 해제)한다</li>
+  </ol>
+
+  <div class="adv-callout bad">
+    <strong>핵심</strong>
+    "확인하러 가는" poll 방식이라 확인 주기 자체가 감지 속도를 결정한다.
+    리눅스 커널 기본값(tcp_keepalive_time=7200초/2시간, tcp_keepalive_intvl=75초, tcp_keepalive_probes=9)을 그대로 쓰면 최악의 경우 7200 + 75 x 9 = 7875초(약 2시간 11분) 동안 advisory lock이 유령 상태로 남을 수 있다.
+    <span class="badge badge-muted" style="margin-top:6px;">일반 지식</span> 이 정확한 수치(7200/75/9)는 Linux 커널 기본값으로 널리 알려진 값이며, 아래 출처 문서가 직접 명시한 내용은 아니다.
+  </div>
+
+  <div class="adv-callout bad">
+    <strong>주의</strong>
+    케이스 B가 실무에서 진짜 무서운 시나리오다.
+    tcp_keepalives_idle을 PostgreSQL이 별도로 짧게 설정해두지 않으면 OS 기본값(위 2시간 11분)을 그대로 따라가고, 그 시간 동안 advisory lock이 유령 상태로 남을 수 있다.
+  </div>
+</div>
+
+<!-- ── 5.3 TCP Keepalive는 누가 설정하는가 ── -->
+<div class="adv-ch-label" id="adv-sec-keepalive">
+  <span class="adv-ch-badge">5-3</span>
+  <h2>TCP Keepalive는 누가 설정하는가</h2>
+</div>
+<div class="card">
+  <p>계층이 여러 개라 "누가"가 상황에 따라 갈린다.</p>
+
+  <table>
+    <thead>
+      <tr><th>계층</th><th>누가 설정</th><th>어느 쪽 소켓</th><th>설정 위치</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>PostgreSQL 서버</strong></td>
+        <td>DBA/인프라 담당자</td>
+        <td>서버 쪽 소켓(클라이언트 죽음 감지용)</td>
+        <td><code>postgresql.conf</code>의 tcp_keepalives_idle/_interval/_count, tcp_user_timeout</td>
+      </tr>
+      <tr>
+        <td><strong>libpq 클라이언트</strong></td>
+        <td>클라이언트 앱(연결 문자열)</td>
+        <td>클라이언트 쪽 소켓(서버 죽음 감지용)</td>
+        <td>커넥션 파라미터 keepalives_idle/_interval/_count</td>
+      </tr>
+      <tr>
+        <td><strong>JDBC(pgjdbc) 클라이언트</strong></td>
+        <td>클라이언트 앱(JDBC URL)</td>
+        <td>클라이언트 쪽 소켓</td>
+        <td><code>tcpKeepAlive=true/false</code> — on/off만 가능, 시간값은 설정 불가</td>
+      </tr>
+      <tr>
+        <td><strong>OS 커널 (fallback)</strong></td>
+        <td>서버/인프라 담당자(sysctl)</td>
+        <td>위 값이 0(기본값)일 때 대신 적용</td>
+        <td>net.ipv4.tcp_keepalive_time/_intvl/_probes</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="adv-callout">
+    <strong>서버용/클라이언트용이 완전히 분리돼 있다</strong>
+    PostgreSQL의 tcp_keepalives_idle은 서버가 클라이언트 죽음을 감지할 때, libpq/JDBC의 keepalives_idle은 클라이언트가 서버 죽음을 감지할 때 쓰는 값이다.
+    케이스 B(DB 서버가 죽은 클라이언트를 감지하는 상황)를 완화하려면 서버 쪽 postgresql.conf를 건드려야 한다 — 애플리케이션 개발자가 아니라 DB 운영 담당자의 몫이다. (출처 6, 8)
+  </div>
+  <div class="adv-callout">
+    <strong>기본값 0의 의미</strong>
+    "PostgreSQL이 값을 강제하지 않고 OS 기본값을 그대로 쓴다"는 뜻이다. (출처 6)
+  </div>
+  <div class="adv-callout ok">
+    <strong>검증됨 — pgjdbc는 시간값을 아예 못 정한다</strong>
+    Spring Boot에서 흔히 쓰는 JDBC 드라이버 pgjdbc의 tcpKeepAlive 파라미터는 켜고 끄는 boolean뿐이고, idle/interval/count는 OS 기본값에 위임된다.
+    애플리케이션 코드나 HikariCP 설정만으로는 클라이언트 쪽 keepalive 타이밍을 세밀 제어할 수 없다. (출처 7)
+  </div>
+
+  <p class="adv-sub-title">완화 방법</p>
+  <ul>
+    <li>tcp_keepalives_idle / tcp_keepalives_interval / tcp_keepalives_count 단축(서버 쪽 postgresql.conf)</li>
+    <li>idle_in_transaction_session_timeout — 트랜잭션 열어놓고 멈춘 세션 강제 종료(xact lock 쓸 때 특히 중요)</li>
+    <li>statement_timeout — 쿼리 자체 무한 대기 방지</li>
+  </ul>
+
+  <div class="adv-callout warn">
+    <strong>풀러(PgBouncer) 사용 시 주의</strong>
+    transaction/statement pooling 모드에서는 "세션" 개념이 물리 커넥션과 1:1이 아니게 된다 — pg_advisory_lock(세션 단위)은 이 모드에서 깨진다.
+    pg_advisory_xact_lock은 트랜잭션 경계 안에서 끝나므로 상대적으로 안전하다.
+  </div>
+</div>
+
+<!-- ── 5.4 반대 방향 ── -->
+<div class="adv-ch-label" id="adv-sec-reverse">
+  <span class="adv-ch-badge">5-4</span>
+  <h2>반대 방향 — Advisory Lock을 쥔 채 DB가 죽으면</h2>
+</div>
+<div class="card">
+  <p>지금까지는 "DB는 살아있고 클라이언트가 죽었을 때"를 다뤘다. 반대로 서비스(클라이언트)는 멀쩡히 살아있는데 DB가 죽으면 advisory lock은 어떻게 되는가?</p>
+
+  <div class="adv-callout bad">
+    <strong>흔한 오해 — "서비스가 죽어서 상관없다"는 틀렸다</strong>
+    DB가 죽어도 애플리케이션 프로세스(JVM)는 대부분 계속 살아있다. DB로 가는 요청만 막힐 뿐이다.
+    오히려 이 케이스가 실무에서 더 흔하고 더 위험하다 — 앱은 계속 트래픽을 받는데 DB 의존 요청만 하나둘 멈추기 시작하면서 스레드/커넥션 풀이 서서히 고갈되는 장애로 번진다.
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>케이스</th><th>상황</th><th>클라이언트의 감지 방식</th></tr>
+    </thead>
+    <tbody>
+      <tr class="adv-row-push">
+        <td><span class="adv-case-tag push">PUSH</span><br><strong>A'. DB 프로세스만 종료</strong><br>호스트 생존</td>
+        <td>graceful shutdown, DB 재시작</td>
+        <td>DB 서버의 OS가 FIN 전송 -&gt; 클라이언트가 즉시 "connection closed" 류 에러 수신</td>
+      </tr>
+      <tr class="adv-row-poll">
+        <td><span class="adv-case-tag poll">POLL</span><br><strong>B'. DB 호스트/네트워크</strong><br>자체 단절</td>
+        <td>DB 서버 전원 다운, 네트워크 파티션</td>
+        <td>클라이언트도 똑같이 "침묵 구간"에 빠짐 — 응답을 무한정 기다리게 됨</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>구조는 케이스 A/B와 완전히 동일하다 — 방향만 반대다. 다만 실무에서 케이스 B'를 실제로 구하는 건 클라이언트 쪽 TCP keepalive가 아니라 <code>socketTimeout</code>이다. Keepalive는 "유휴 상태"를 전제로 도는데, 쿼리를 보내고 응답을 기다리는 중인 소켓은 이미 "무언가를 기다리는 중"이라 keepalive 판정이 애매하고 느리다.</p>
+
+  <p class="adv-sub-title">socketTimeout의 정확한 동작</p>
+  <p>socketTimeout은 커넥션을 "닫는" 타이머가 아니라, 이미 연결된 소켓에서 read()가 응답 데이터를 기다리는(=readable해지기를 기다리는) 시간의 상한이다. 내부적으로 OS의 SO_RCVTIMEO 소켓 옵션으로 구현된다.</p>
+
+  <ol class="adv-steps">
+    <li>쿼리 전송 후 응답을 기다리며 read()가 블로킹된다</li>
+    <li>socketTimeout 초과 시 SocketTimeoutException 발생 — 이 시점에 소켓이 자동으로 닫히는 건 아니다</li>
+    <li>pgjdbc가 이를 SQLException으로 감싸고, HikariCP가 "이 커넥션은 못 믿는다"고 판단해 풀에 반납하지 않고 즉시 evict(폐기)한다</li>
+    <li>Evict 과정에서 HikariCP가 물리 소켓을 close()한다 — 이게 케이스 A(push)를 그대로 발생시켜 DB가 빠르게 감지한다</li>
+    <li>그 커넥션에 물려있던 트랜잭션과 advisory lock이 통째로 무효화된다</li>
+  </ol>
+
+  <div class="adv-callout bad">
+    <strong>핵심</strong>
+    타임아웃난 커넥션은 프로토콜 상태를 신뢰할 수 없어 재시도하지 않고 통째로 폐기한다.
+    "타임아웃 = close"가 아니라 "타임아웃 = 대기 포기 신호, close는 그다음 별개 단계"다.
+  </div>
+
+  <p class="adv-sub-title">Advisory Lock 관점의 함의</p>
+  <div class="adv-callout warn">
+    <strong>설계 주의</strong>
+    DB가 죽으면(혹은 failover) advisory lock은 shared memory와 함께 즉시 사라진다.
+    하지만 앱은 "나 아직 이 락을 갖고 있다"고 메모리상으로 믿는 상태가 다음 DB 접근 시점까지 지속된다. 그 사이 다른 인스턴스가 새 DB에 락을 새로 잡으면, 두 인스턴스가 동시에 "내가 락 소유자"라고 믿는 창구가 생길 수 있다.
+    pg_advisory_xact_lock을 쓰면 이 위험이 줄어든다 — 커넥션이 끊기면 그 트랜잭션 자체가 무효화되어 다음 쿼리 시도에서 바로 에러가 나기 때문이다. 단, 이 "빠르게"가 실제로 빠르려면 socketTimeout이 짧게 잡혀 있어야 한다 — 무제한(기본값)이면 앱은 이미 사라진 락을 계속 살아있다고 착각한 채 무한정 대기할 수 있다.
+  </div>
+</div>
+
+<div class="card">
+  <p class="adv-sub-title" style="margin-top:0;">세 가지 타임아웃 구분</p>
+  <p>쿼리 실행은 여러 단계로 나뉘고, 각 단계를 서로 다른 타임아웃이 지킨다. 헷갈리기 가장 쉬운 지점이다.</p>
+
+  <div class="adv-diagram">
+    <svg viewBox="0 0 900 210" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="70" width="160" height="60" rx="10" fill="#21253a" stroke="#5e81f4" stroke-width="2"/>
+      <text x="90" y="95" text-anchor="middle" fill="#ffffff" font-size="14" font-family="sans-serif">Worker Thread</text>
+      <text x="90" y="115" text-anchor="middle" fill="#8892b0" font-size="12" font-family="sans-serif">(커넥션 요청)</text>
+
+      <rect x="255" y="70" width="160" height="60" rx="10" fill="#21253a" stroke="#f59e0b" stroke-width="2"/>
+      <text x="335" y="95" text-anchor="middle" fill="#ffffff" font-size="14" font-family="sans-serif">HikariCP Pool</text>
+      <text x="335" y="115" text-anchor="middle" fill="#8892b0" font-size="12" font-family="sans-serif">(대기열)</text>
+
+      <rect x="500" y="70" width="180" height="60" rx="10" fill="#21253a" stroke="#5e81f4" stroke-width="2"/>
+      <text x="590" y="95" text-anchor="middle" fill="#ffffff" font-size="14" font-family="sans-serif">물리 Connection</text>
+      <text x="590" y="115" text-anchor="middle" fill="#8892b0" font-size="12" font-family="sans-serif">(이미 연결된 소켓)</text>
+
+      <rect x="730" y="70" width="150" height="60" rx="10" fill="#21253a" stroke="#d63939" stroke-width="2"/>
+      <text x="805" y="95" text-anchor="middle" fill="#ffffff" font-size="14" font-family="sans-serif">DB 서버</text>
+      <text x="805" y="115" text-anchor="middle" fill="#8892b0" font-size="12" font-family="sans-serif">(응답 대기)</text>
+
+      <defs>
+        <marker id="advArrowC" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 9 3, 0 6" fill="#8892b0"/>
+        </marker>
+      </defs>
+
+      <line x1="170" y1="100" x2="251" y2="100" stroke="#8892b0" stroke-width="2" marker-end="url(#advArrowC)"/>
+
+      <line x1="415" y1="100" x2="496" y2="100" stroke="#f59e0b" stroke-width="2" marker-end="url(#advArrowC)"/>
+      <text x="455" y="55" text-anchor="middle" fill="#f59e0b" font-size="12" font-family="sans-serif">connectionTimeout</text>
+      <text x="455" y="68" text-anchor="middle" fill="#8892b0" font-size="11" font-family="sans-serif">기본 30000ms</text>
+
+      <line x1="680" y1="100" x2="726" y2="100" stroke="#d63939" stroke-width="2" marker-end="url(#advArrowC)"/>
+      <text x="703" y="55" text-anchor="middle" fill="#d63939" font-size="12" font-family="sans-serif">socketTimeout</text>
+      <text x="703" y="68" text-anchor="middle" fill="#8892b0" font-size="11" font-family="sans-serif">기본 0(무제한)</text>
+
+      <text x="450" y="175" text-anchor="middle" fill="#8892b0" font-size="12" font-family="sans-serif">connectTimeout(기본 10초)은 별도: 풀이 신규 물리 커넥션을 만들 때(3-way handshake)만 적용</text>
+      <text x="450" y="195" text-anchor="middle" fill="#8892b0" font-size="11" font-family="sans-serif">connectionTimeout = 풀 내부 대기 / socketTimeout = 실제 네트워크 I/O 대기</text>
+    </svg>
+    <p class="adv-diagram-caption">쿼리 실행의 두 단계: 풀에서 커넥션 획득(connectionTimeout) -&gt; 획득한 커넥션으로 쿼리 실행 및 응답 대기(socketTimeout)</p>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>이름</th><th>소유 계층</th><th>의미</th><th>기본값</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>connectionTimeout</code></td>
+        <td>HikariCP</td>
+        <td>풀에서 커넥션을 "빌리기" 위해 기다리는 상한. 네트워크와 무관, 순수 풀 내부 대기열 문제</td>
+        <td>30000ms(30초)</td>
+      </tr>
+      <tr>
+        <td><code>connectTimeout</code></td>
+        <td>pgjdbc</td>
+        <td>신규 물리 커넥션을 만들 때 TCP 3-way handshake 대기 상한</td>
+        <td>10초 (출처 7)</td>
+      </tr>
+      <tr>
+        <td><code>socketTimeout</code></td>
+        <td>pgjdbc</td>
+        <td>이미 연결된 소켓에서 쿼리 응답을 읽을 때(read()) 대기 상한</td>
+        <td>0(무제한, 비활성화) (출처 7)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="adv-sub-title">Spring Boot에서의 실제 설정</p>
+  <p>socketTimeout은 HikariCP 기능이 아니라 pgjdbc 드라이버 자체의 커넥션 파라미터라서, Spring Boot/HikariCP가 대신 켜주지 않는다. 기본값이 0(무제한)이라는 걸 놓치면 케이스 B'에서 스레드가 무한 대기하다 커넥션 풀이 고갈되는 장애로 직결된다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">application.yml</span>
+    </div>
+    <pre><code><span class="lock-com"># 방법 1: JDBC URL에 직접</span>
+spring:
+  datasource:
+    url: jdbc:postgresql://host:5432/db?socketTimeout=10&amp;connectTimeout=5
+
+<span class="lock-com"># 방법 2: Hikari data-source-properties</span>
+spring:
+  datasource:
+    hikari:
+      data-source-properties:
+        socketTimeout: 10
+        connectTimeout: 5</code></pre>
+  </div>
+
+  <div class="adv-callout warn">
+    <strong>단위 주의</strong>
+    pgjdbc의 socketTimeout/connectTimeout은 초 단위다.
+    HikariCP 자체 설정(connection-timeout, max-lifetime 등)은 전부 밀리초 단위라서 섞어 쓰다가 자릿수를 착각하기 쉽다.
+  </div>
+
+  <p class="adv-sub-title">용도별 풀 분리</p>
+  <p>하나의 풀, 하나의 socketTimeout 값으로는 "빠른 조회"와 "advisory lock을 오래 쥐고 있는 배치"를 동시에 만족시킬 수 없다. 짧게 잡으면 정상적인 배치가 중간에 잘리고, 길게(또는 무제한으로) 잡으면 진짜 장애 시 스레드가 무한 대기한다.</p>
+
+  <table>
+    <thead>
+      <tr><th>풀</th><th>socketTimeout</th><th>풀 크기</th><th>용도</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Fast pool</strong></td>
+        <td>짧게(5~10초)</td>
+        <td>크게</td>
+        <td>일반 요청 처리 — DB 이상 시 빠르게 fail-fast</td>
+      </tr>
+      <tr>
+        <td><strong>Batch/Long pool</strong></td>
+        <td>길게 또는 미설정</td>
+        <td>작게(1~5개)</td>
+        <td>advisory lock을 오래 쥐고 있는 배치/리포트 등 원래 오래 걸리는 작업</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── 6. 언제 쓰는가 ── -->
+<div class="adv-ch-label" id="adv-sec-usecase">
+  <span class="adv-ch-badge">6</span>
+  <h2>언제 쓰는가 — 실무 사용처</h2>
+</div>
+<div class="card">
+  <div class="adv-chip-grid">
+    <div class="adv-chip"><b>순번 발급 / 시퀀스 대체</b>다음 값이 아직 존재하지 않는 리소스에 대한 직렬화</div>
+    <div class="adv-chip"><b>배치/크론 중복 실행 방지(leader election)</b>여러 인스턴스 중 하나만 특정 작업을 실행하도록 — ShedLock 라이브러리가 이 패턴을 표준화. Quartz의 DB 락 방식도 같은 계열</div>
+    <div class="adv-chip"><b>마이그레이션 동시 실행 방지</b>Flyway, Liquibase가 내부적으로 advisory lock을 써서 여러 인스턴스의 동시 마이그레이션 실행을 막음</div>
+    <div class="adv-chip"><b>임계 구역 보호</b>특정 로우에 매핑 안 되는 작업 — 파일 업로드 처리, 외부 API 호출 직렬화 등 "한 번에 하나만" 요구되는 곳</div>
+    <div class="adv-chip"><b>Job 큐 처리(제한적)</b>중복 처리 방지 목적으로도 쓰이지만, 여러 워커가 여러 작업을 나눠 갖는 상황엔 SELECT ... FOR UPDATE SKIP LOCKED가 더 적합한 경우가 많음</div>
+  </div>
+</div>
+
+<!-- ── 7. 추가로 알아둘 내용 ── -->
+<div class="adv-ch-label" id="adv-sec-extra">
+  <span class="adv-ch-badge">7</span>
+  <h2>추가로 알아둘 내용</h2>
+</div>
+<div class="card">
+  <ul>
+    <li><strong>pg_try_advisory_lock</strong>: non-blocking 버전. 락을 못 잡으면 대기하지 않고 즉시 false 반환 — "이미 실행 중이면 스킵" 패턴에 적합. _shared(공유 모드), _xact_(트랜잭션 단위)와 조합해 총 12개 함수 제공 (출처 2)</li>
+    <li><strong>SELECT ... FOR UPDATE SKIP LOCKED와의 차이</strong>: advisory lock은 "이름표 하나를 잠그는" 방식이라 임의 리소스에 적합하다. 여러 워커가 큐 테이블에서 서로 다른 로우를 나눠 가져가는 상황은 이 패턴이 표준이다</li>
+    <li><strong>pg_advisory_lock(classid, objid) 2-인자 버전</strong>: 서로 다른 서브시스템이 같은 정수 키를 우연히 재사용하는 걸 막는 네임스페이스 분리 용도</li>
+    <li><strong>Redis 기반 분산 락(Redlock 등)과의 비교</strong>: Redis는 TTL/lease를 애플리케이션이 직접 설계해야 한다(클라이언트 생사를 Redis가 모르기 때문). Advisory lock은 커넥션 생명주기에 자동으로 묶여있어 TTL 설계가 필요 없다는 장점이 있는 대신, 케이스 B(네트워크 파티션)에서의 감지 지연이라는 다른 트레이드오프가 있다</li>
+  </ul>
+</div>
+
+<!-- ── 8. 다른 DB의 유사 기능 ── -->
+<div class="adv-ch-label" id="adv-sec-otherdb">
+  <span class="adv-ch-badge">8</span>
+  <h2>다른 DB의 유사 기능</h2>
+</div>
+<div class="card">
+  <p>"커넥션 생명주기에 묶인 애플리케이션 정의 락"이라는 개념은 PostgreSQL만의 것이 아니라 주요 RDBMS가 각자 이름만 다르게 제공한다.</p>
+
+  <table>
+    <thead>
+      <tr><th>DB</th><th>이름</th><th>사용법</th><th>특징</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>PostgreSQL</strong></td>
+        <td>Advisory Lock</td>
+        <td><code>pg_advisory_lock(key)</code></td>
+        <td>정수 키(bigint 또는 int 쌍) (출처 1, 2)</td>
+      </tr>
+      <tr>
+        <td><strong>MySQL</strong></td>
+        <td>Named Lock</td>
+        <td><code>GET_LOCK('key', timeout)</code> / <code>RELEASE_LOCK('key')</code></td>
+        <td>문자열 키(최대 64자), 5.7.5부터 세션당 다중 락 지원. commit/rollback으로는 안 풀리고 세션 종료 시에만 풀림 — 트랜잭션 단위 옵션 자체가 없음 (출처 3)</td>
+      </tr>
+      <tr>
+        <td><strong>SQL Server</strong></td>
+        <td>Application Lock</td>
+        <td><code>sp_getapplock @Resource='key', @LockOwner='Session'/'Transaction'</code></td>
+        <td>문자열 키(내부적으로 해시), @LockOwner 기본값이 'Transaction'. 데드락으로 선택되면(-3 반환) 자동 롤백 안 됨, 애플리케이션이 직접 처리해야 함 (출처 4)</td>
+      </tr>
+      <tr>
+        <td><strong>Oracle</strong></td>
+        <td>User Lock</td>
+        <td><code>DBMS_LOCK.ALLOCATE_UNIQUE</code> + <code>DBMS_LOCK.REQUEST</code></td>
+        <td>이름 -&gt; 핸들 변환 후 요청, release_on_commit 기본값 FALSE. ALLOCATE_UNIQUE가 내부적으로 COMMIT을 수행하므로 진행 중이던 트랜잭션에 영향을 줄 수 있음 (출처 5)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>넷 다 공통점: 실제 row/table 데이터와 무관하게 DB가 관리하는 "이름표"만 잠금, DB 자체의 lock manager를 재사용(데드락 감지도 동일 적용), 세션/커넥션 생명주기에 자동으로 묶여 크래시 시 자동 해제된다.</p>
+
+  <div class="adv-callout">
+    <strong>다른 계열 — 구분해서 알아둘 것</strong>
+  </div>
+  <ul>
+    <li><strong>Redis 기반 분산 락(Redlock, SET NX PX)</strong>: 커넥션 생명주기가 아니라 TTL/lease로 관리</li>
+    <li><strong>ZooKeeper / etcd / Consul</strong>: RDBMS 기능이 아니라 별도 분산 코디네이터. 폴리글랏 환경(여러 DB/언어에 걸쳐 락 필요)에서 사용. Ephemeral node/lease 기반이라 원리상 Redis 계열에 더 가까움</li>
+    <li><strong>MongoDB</strong>: 네이티브 advisory lock 없음, 보통 unique index + TTL collection으로 흉내냄</li>
+  </ul>
+
+  <p><strong>정리:</strong> PostgreSQL/MySQL/SQL Server/Oracle은 "DB 벤더가 제공하는 연결 생명주기 기반 분산 락" 카테고리이고, Redis/ZooKeeper 계열은 "TTL/lease 기반 분산 락" 카테고리다.</p>
+</div>
+
+<!-- ── 9. 출처 ── -->
+<div class="adv-ch-label" id="adv-sec-sources">
+  <span class="adv-ch-badge">9</span>
+  <h2>출처</h2>
+</div>
+<div class="card">
+  <p style="color: var(--text-muted); font-size: 0.88rem;">2026-07-23 세션에서 WebFetch로 각 공식 문서를 직접 열람해 검증했다.</p>
+  <ol style="font-size: 0.9rem; line-height: 1.9;">
+    <li>PostgreSQL — "13.3.5. Advisory Locks", <em>PostgreSQL Documentation</em>.<br><a href="https://www.postgresql.org/docs/current/explicit-locking.html#ADVISORY-LOCKS" target="_blank" rel="noopener">postgresql.org/docs/current/explicit-locking.html</a></li>
+    <li>PostgreSQL — "9.28.10. Advisory Lock Functions" (Table 9.109), <em>PostgreSQL Documentation</em>.<br><a href="https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-ADVISORY-LOCKS-TABLE" target="_blank" rel="noopener">postgresql.org/docs/current/functions-admin.html</a></li>
+    <li>MySQL — "14.14 Locking Functions" (GET_LOCK / RELEASE_LOCK), <em>MySQL 8.0 Reference Manual</em>.<br><a href="https://dev.mysql.com/doc/refman/8.0/en/locking-functions.html" target="_blank" rel="noopener">dev.mysql.com/doc/refman/8.0/en/locking-functions.html</a></li>
+    <li>SQL Server — "sys.sp_getapplock (Transact-SQL)", <em>Microsoft Learn</em>.<br><a href="https://learn.microsoft.com/en-us/sql/relational-databases/system-stored-procedures/sp-getapplock-transact-sql" target="_blank" rel="noopener">learn.microsoft.com/.../sp-getapplock-transact-sql</a></li>
+    <li>Oracle — "108.6.1 ALLOCATE_UNIQUE Procedure" / "108.6.5 REQUEST Function" / "108.5 DBMS_LOCK Operational Notes", <em>Oracle Database PL/SQL Packages and Types Reference (19c)</em>.<br><a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/arpls/DBMS_LOCK.html" target="_blank" rel="noopener">docs.oracle.com/.../DBMS_LOCK.html</a></li>
+    <li>PostgreSQL — "19.3.2. TCP Settings" (tcp_keepalives_idle 등 서버 측 설정), <em>PostgreSQL Documentation</em>.<br><a href="https://www.postgresql.org/docs/current/runtime-config-connection.html#RUNTIME-CONFIG-TCP-SETTINGS" target="_blank" rel="noopener">postgresql.org/docs/current/runtime-config-connection.html</a></li>
+    <li>PostgreSQL JDBC Driver — "Connecting to the Database" (tcpKeepAlive / socketTimeout / connectTimeout 파라미터), <em>PgJDBC Documentation</em>.<br><a href="https://jdbc.postgresql.org/documentation/use/" target="_blank" rel="noopener">jdbc.postgresql.org/documentation/use/</a></li>
+    <li>PostgreSQL — "34.1.2. Parameter Key Words" (keepalives / keepalives_idle / keepalives_interval / keepalives_count, libpq 클라이언트 측 설정), <em>PostgreSQL Documentation</em>.<br><a href="https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-KEEPALIVES" target="_blank" rel="noopener">postgresql.org/docs/current/libpq-connect.html</a></li>
+  </ol>
+  <p style="margin-top: 16px; font-size: 0.85rem; color: var(--text-muted); border-top: 1px dashed var(--border); padding-top: 14px;">케이스 A/B(TCP FIN push vs keepalive poll), shared memory lock manager 저장 구조, connection pooling 개념은 PostgreSQL 내부 구현·네트워킹 일반 지식 기반 설명이며 위 문서들이 명시적으로 다루는 내용은 아니다.</p>
+</div>
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#adv-sec-def" onclick="toggleTOC()">1. 정의</a></li>
+    <li><a href="#adv-sec-why" onclick="toggleTOC()">2. 왜 필요한가</a></li>
+    <li><a href="#adv-sec-limits" onclick="toggleTOC()">3. 한계</a></li>
+    <li><a href="#adv-sec-storage" onclick="toggleTOC()">4. 저장 위치</a></li>
+    <li><a href="#adv-sec-crash" onclick="toggleTOC()">5. 크래시 시 회수 여부</a></li>
+    <li><a href="#adv-sec-case-a" onclick="toggleTOC()">5-1. 케이스 A (Push)</a></li>
+    <li><a href="#adv-sec-case-b" onclick="toggleTOC()">5-2. 케이스 B (Poll)</a></li>
+    <li><a href="#adv-sec-keepalive" onclick="toggleTOC()">5-3. Keepalive는 누가 설정하나</a></li>
+    <li><a href="#adv-sec-reverse" onclick="toggleTOC()">5-4. 반대 방향(DB가 죽으면)</a></li>
+    <li><a href="#adv-sec-usecase" onclick="toggleTOC()">6. 언제 쓰는가</a></li>
+    <li><a href="#adv-sec-extra" onclick="toggleTOC()">7. 추가로 알아둘 내용</a></li>
+    <li><a href="#adv-sec-otherdb" onclick="toggleTOC()">8. 다른 DB의 유사 기능</a></li>
+    <li><a href="#adv-sec-sources" onclick="toggleTOC()">9. 출처</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>
