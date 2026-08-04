@@ -1,0 +1,215 @@
+<!-- [2026-08-04] LeetCode 141 - Linked List Cycle -->
+<style>
+  .llc-section-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+  }
+  .llc-section-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .llc-callout {
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 16px 0;
+    font-size: 14px; white-space: pre-line;
+  }
+  .llc-callout.warn {
+    border-left: 4px solid var(--yellow);
+    background: rgba(245, 158, 11, 0.06);
+  }
+  .llc-callout.ok {
+    border-left: 4px solid var(--green);
+    background: rgba(47, 179, 68, 0.05);
+  }
+  .llc-callout strong { display: block; margin-bottom: 6px; color: #fff; font-size: 13px; }
+
+  .llc-hi   { color: var(--accent); font-weight: 700; }
+  .llc-hi2  { color: #4ecdc4; font-weight: 700; }
+  .llc-bad  { color: var(--red); font-weight: 700; }
+  .llc-dim  { color: var(--text-muted); }
+
+  .llc-kw     { color: #c792ea; }
+  .llc-type   { color: #82aaff; }
+  .llc-num    { color: #f78c6c; }
+  .llc-method { color: #82aaff; }
+  .llc-cmt    { color: var(--text-muted); }
+
+  .llc-ring {
+    font-family: 'Consolas', 'Fira Code', monospace;
+    white-space: pre;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+</style>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════ -->
+<div class="card">
+  <div style="margin-bottom:8px;">
+    <span class="badge badge-tag">LeetCode · Easy · Linked List / Hash Table</span>
+  </div>
+  <h1 style="font-size:1.6rem; font-weight:800; margin-bottom:10px;">
+    Linked List Cycle
+  </h1>
+  <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.7;">
+    "같은 노드를 다시 밟았는가"를 HashSet으로 판별한 과정, 그리고 문제 번호부터 헷갈렸던 이유
+  </p>
+  <div class="meta" style="margin-top: 14px; font-size: 12px; color: var(--text-muted);">
+    <span>언어: Java</span>
+    <span style="margin: 0 8px;">분류: 연결 리스트 / 해시셋</span>
+    <span>핵심 기법: 참조(identity) 기준 재방문 노드 감지</span>
+  </div>
+  <p style="margin-top: 10px;">
+    <a href="https://leetcode.com/problems/linked-list-cycle/" target="_blank" rel="noopener" style="color: var(--accent); font-size: 13px; text-decoration: none;">
+      leetcode.com/problems/linked-list-cycle
+    </a>
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CH 1. 풀이 회고
+══════════════════════════════════════════ -->
+<div class="llc-section-header" style="margin: 24px 0 16px;">
+  <span class="badge badge-tag">CH 1</span>
+  <h2 style="font-size:1.1rem; font-weight:800; color:#fff; margin:0;">풀이 회고</h2>
+</div>
+
+<!-- ══════════════════════════════════════════
+     1. 문제 개요 + 번호 오기재
+══════════════════════════════════════════ -->
+<div class="card" id="section-overview">
+  <div class="llc-section-header">
+    <div class="llc-section-number">1</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">문제 개요</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    연결 리스트를 따라가다가 어떤 노드가 이전 노드를 다시 가리켜서
+    <span class="llc-hi">순환(cycle)</span>이 생기는지 boolean으로 판별하는 문제다.
+    사이클이 있으면 next를 계속 따라가도 리스트 끝(null)에 절대 도달하지 못한다.
+  </p>
+  <div class="llc-callout warn">
+    <strong>먼저 짚을 것 — 문제 번호 오기재</strong>
+    처음엔 LeetCode 142로 착각하고 풀었는데, 실제로 짠 로직(사이클 유무만 반환)은
+    141(Linked List Cycle)이었다. 142는 "Linked List Cycle II" — 사이클이 시작되는
+    노드 자체를 찾아 반환하는 상위 버전이라 요구사항이 다르다. 헷갈림은 여기서부터 시작된 것 같다.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     2. 접근 - HashSet으로 방문 노드 추적
+══════════════════════════════════════════ -->
+<div class="card" id="section-approach">
+  <div class="llc-section-header">
+    <div class="llc-section-number">2</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">접근 — HashSet에 노드 자체를 담아 추적</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    값이 아니라 <span class="llc-hi">노드 객체 자체</span>를 HashSet에 넣고, 다음으로 넘어가기 전마다
+    "이 노드를 이미 담은 적 있는가"를 확인하는 방식으로 접근했다.
+  </p>
+  <div class="llc-callout ok">
+    <strong>HashSet.contains()가 보는 건 값이 아니라 참조다</strong>
+    ListNode는 equals()/hashCode()를 오버라이드하지 않았다. 그래서 contains()는
+    기본 Object 동작 그대로 "같은 메모리 주소를 가리키는 객체인가"를 기준으로 판단한다.
+    val이 우연히 같은 서로 다른 노드를 같다고 오판하면 안 되는 문제라서, 오히려 이 기본 동작이 정답에 필요한 조건이다.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     3. 최종 코드
+══════════════════════════════════════════ -->
+<div class="card" id="section-code">
+  <div class="llc-section-header">
+    <div class="llc-section-number">3</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">최종 코드</h2>
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">N142_LinkedListCycle.java</span>
+    </div>
+    <pre><code><span class="llc-kw">public</span> <span class="llc-kw">boolean</span> <span class="llc-method">hasCycle</span>(<span class="llc-type">ListNode</span> head) {
+
+    <span class="llc-type">HashSet</span>&lt;<span class="llc-type">ListNode</span>&gt; visitedNodes = <span class="llc-kw">new</span> <span class="llc-type">HashSet</span>&lt;&gt;();
+    <span class="llc-kw">if</span>(head == <span class="llc-kw">null</span>){
+        <span class="llc-kw">return</span> <span class="llc-kw">false</span>;
+    }
+
+    <span class="llc-type">ListNode</span> curr = head;
+    <span class="llc-kw">while</span> (curr != <span class="llc-kw">null</span>) {
+        <span class="llc-kw">if</span> (visitedNodes.<span class="llc-method">contains</span>(curr)) {
+            <span class="llc-kw">return</span> <span class="llc-kw">true</span>;
+        }
+        visitedNodes.<span class="llc-method">add</span>(curr);
+        curr = curr.next;
+    }
+
+    <span class="llc-kw">return</span> <span class="llc-kw">false</span>;
+}</code></pre>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    head → 1 → 2 → 3 → 4 이고 4가 다시 2를 가리키는 경우를 따라가면, curr가 4번째 스텝까지는
+    매번 새 노드라 contains()가 false지만 다시 2번 노드로 돌아오는 순간 true로 확정된다.
+  </p>
+  <div class="llc-ring" style="color:var(--text-muted); margin-top:10px;">1 -&gt; 2 -&gt; 3 -&gt; 4
+   ^         |
+   +---------+
+
+visitedNodes: {1} -&gt; {1,2} -&gt; {1,2,3} -&gt; {1,2,3,4}
+curr = 4.next = 2  =&gt;  contains(2) == true  =&gt;  hasCycle() = true</div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     4. 아쉬운 점 - 공간 복잡도
+══════════════════════════════════════════ -->
+<div class="card" id="section-improve">
+  <div class="llc-section-header">
+    <div class="llc-section-number">4</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">아쉬운 점 — O(n) 공간을 O(1)로 줄이기</h2>
+  </div>
+  <p style="font-size:14px; color:var(--text-muted); line-height:1.8;">
+    HashSet 방식은 시간 O(n) / 공간 O(n)이다. LeetCode 원문에 O(1) 추가 공간으로 푸는
+    Follow up이 명시되어 있어서, 면접에서는 <span class="llc-hi2">Floyd's Tortoise and Hare</span>
+    (두 포인터) 풀이까지 요구받을 가능성이 높다.
+  </p>
+<pre><code><span class="llc-kw">public</span> <span class="llc-kw">boolean</span> <span class="llc-method">hasCycle</span>(<span class="llc-type">ListNode</span> head) {
+    <span class="llc-type">ListNode</span> slow = head;
+    <span class="llc-type">ListNode</span> fast = head;
+
+    <span class="llc-kw">while</span> (fast != <span class="llc-kw">null</span> &amp;&amp; fast.next != <span class="llc-kw">null</span>) {
+        slow = slow.next;          <span class="llc-cmt">// 한 칸씩</span>
+        fast = fast.next.next;     <span class="llc-cmt">// 두 칸씩</span>
+        <span class="llc-kw">if</span> (slow == fast) {
+            <span class="llc-kw">return</span> <span class="llc-kw">true</span>;
+        }
+    }
+    <span class="llc-kw">return</span> <span class="llc-kw">false</span>;
+}</code></pre>
+  <div class="llc-callout warn">
+    <strong>왜 결국 만나는가</strong>
+    사이클이 없으면 fast가 먼저 null에 도달해 끝난다. 사이클이 있으면 두 포인터 모두 사이클 안으로
+    들어가는데, 매 스텝마다 fast가 slow보다 한 칸씩 더 좁혀 들어간다(상대 거리가 1씩 줄어듦).
+    사이클 길이가 유한하므로 그 거리는 결국 0이 되고, 그 시점에 slow == fast가 성립한다 —
+    "따라잡힌다"기보다 "간격이 줄어들다 반드시 겹친다"는 구조다.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     5. Takeaway
+══════════════════════════════════════════ -->
+<div class="card" id="section-takeaway">
+  <div class="llc-section-header">
+    <div class="llc-section-number">5</div>
+    <h2 style="font-size:1.2rem; font-weight:800; margin:0;">Takeaway</h2>
+  </div>
+  <ul style="padding-left: 20px; font-size:14px; color:var(--text-muted); line-height:1.9;">
+    <li>실제로 푼 건 LeetCode 141(사이클 유무 판별) — 142는 사이클 시작 노드를 반환하는 별도 문제, 착수 전 번호부터 확인하는 습관이 필요하다.</li>
+    <li>equals/hashCode를 오버라이드하지 않은 객체를 HashSet에 담으면 참조(identity) 비교가 된다는 것 — 이 문제에서는 그게 정확히 필요한 동작이었다.</li>
+    <li>HashSet은 직관적이지만 O(n) 공간을 쓴다. Floyd's Tortoise and Hare는 두 포인터의 상대 거리가 매 스텝 좁혀지다가 반드시 겹친다는 논리로 O(1) 공간에 푼다.</li>
+    <li>다음 단계(142, 사이클 시작 노드 찾기)로 이어서 풀 때는 Floyd 방식에서 만난 지점 이후 한쪽을 head로 되돌려 같은 속도로 다시 이동시키는 후속 로직이 필요하다.</li>
+  </ul>
+</div>
