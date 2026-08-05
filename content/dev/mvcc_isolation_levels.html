@@ -1,0 +1,402 @@
+<!-- [2026-08-05] MVCC와 격리 수준 — xmin/xmax부터 READ COMMITTED까지 -->
+<style>
+  /* ── TOC ── */
+  .report-toc {
+    position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+    background: var(--surface); border-left: 1px solid var(--border);
+    padding: 40px 25px; z-index: 1001;
+    transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: -10px 0 30px rgba(0,0,0,0.5); overflow-y: auto;
+  }
+  .report-toc.active { right: 0; }
+  .report-toc h3 { font-size: 1.1rem; color: var(--accent); margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .report-toc ul { list-style: none; padding: 0; margin: 0; }
+  .report-toc li { margin-bottom: 12px; line-height: 1.4; }
+  .report-toc a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; display: block; padding: 5px 0; }
+  .report-toc a:hover { color: var(--accent); transform: translateX(5px); }
+  .toc-backdrop {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+    z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease;
+  }
+  .toc-backdrop.active { display: block; opacity: 1; }
+  .toc-toggle-btn {
+    position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px;
+    background: var(--accent); color: #fff; border: none; border-radius: 50%;
+    font-size: 1.5rem; cursor: pointer; z-index: 1002;
+    box-shadow: 0 4px 15px var(--accent-glow);
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+  }
+  .toc-toggle-btn:hover { transform: scale(1.1) rotate(5deg); }
+  @media (max-width: 768px) {
+    .toc-toggle-btn { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 1.2rem; }
+  }
+
+  /* ── 챕터 헤더 ── */
+  .mvcc-ch-label {
+    display: flex; align-items: center; gap: 14px;
+    margin: 44px 0 16px; padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+  }
+  .mvcc-ch-label:first-of-type { margin-top: 0; }
+  .mvcc-ch-badge {
+    display: inline-flex; align-items: center;
+    background: var(--accent); color: #fff;
+    font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+    padding: 4px 12px; border-radius: 6px; flex-shrink: 0;
+  }
+  .mvcc-ch-label h2 { font-size: 1.1rem; font-weight: 800; color: #fff; margin: 0; }
+
+  .mvcc-sub-title {
+    font-size: .95rem; font-weight: 700; color: #4ecdc4;
+    margin: 22px 0 10px; padding-left: 10px;
+    border-left: 3px solid #4ecdc4;
+  }
+
+  /* ── callout ── */
+  .mvcc-callout {
+    border-left: 4px solid var(--accent);
+    background: var(--surface2);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; margin: 18px 0; font-size: 13.5px;
+    white-space: pre-line;
+  }
+  .mvcc-callout.warn { border-color: var(--yellow); }
+  .mvcc-callout.ok   { border-color: var(--green); }
+  .mvcc-callout.bad  { border-color: var(--red); }
+  .mvcc-callout strong { display: block; margin-bottom: 5px; color: #fff; font-size: 12.5px; }
+
+  /* ── 요약 칩 그리드 ── */
+  .mvcc-chip-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 14px; margin: 18px 0; }
+  .mvcc-chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; font-size: 0.85rem; }
+  .mvcc-chip b { display: block; color: #fff; margin-bottom: 4px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* ── 튜플 상태 태그 ── */
+  .mvcc-tuple-tag { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; margin-bottom: 6px; }
+  .mvcc-tuple-tag.alive { background: rgba(47,179,68,0.18); color: var(--green); }
+  .mvcc-tuple-tag.dead  { background: rgba(214,57,57,0.18); color: var(--red); }
+  tr.mvcc-row-alive td:first-child { border-left: 4px solid var(--green); }
+  tr.mvcc-row-dead  td:first-child { border-left: 4px solid var(--red); }
+
+  .mvcc-steps { padding-left: 22px; }
+  .mvcc-steps li { margin-bottom: 9px; font-size: 0.92rem; }
+</style>
+
+<div style="text-align:center; margin-bottom: 40px;">
+  <span class="badge badge-date">2026-08-05 학습 정리</span>
+  <h1 style="font-size: 2rem; font-weight: 800; margin: 14px 0 8px; background: linear-gradient(90deg, var(--accent), #4ecdc4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">MVCC와 격리 수준 — xmin/xmax부터 READ COMMITTED까지</h1>
+  <p style="color: var(--text-muted); font-size: 14px;">기술 면접 대비 중 "MVCC 기반 읽기/쓰기 비블로킹" 주장을 파고들며 정리한 노트. Q&amp;A로 개념을 다지는 방식으로 진행됨</p>
+</div>
+
+<!-- ── 1. 배경 ── -->
+<div class="mvcc-ch-label" id="mvcc-sec-why">
+  <span class="mvcc-ch-badge">1</span>
+  <h2>배경 — 왜 필요한가</h2>
+</div>
+<div class="card">
+  <p>DB 락을 통해 동시성 제어를 수행할 때, 어떤 행에 대해 UPDATE 트랜잭션이 진행 중이면 다른 트랜잭션이 그 행을 조회하려면 UPDATE 트랜잭션이 끝날 때까지 <strong>기다려야</strong> 한다. 즉, 수정이 끝나기 전까지는 조회를 하지 못하게 된다.</p>
+
+  <div class="mvcc-callout ok">
+    <strong>MVCC의 해법 — 덮어쓰기가 아니라 버전 추가</strong>
+    MVCC(Multi-Version Concurrency Control)는 이 문제를 튜플로 해결한다.
+    하나의 행에 지속적으로 덮어쓰는 방법이 아니라, 하나의 행에 여러 개의 튜플을 두어 수정할 때마다 수정 버전을 새롭게 생성하는 방식이다.
+    이전 버전을 제거하지 않기 때문에, 수정 트랜잭션이 진행되더라도 다른 트랜잭션이 해당 행을 읽을 수 있다.
+  </div>
+</div>
+
+<!-- ── 2. 튜플이란 ── -->
+<div class="mvcc-ch-label" id="mvcc-sec-tuple">
+  <span class="mvcc-ch-badge">2</span>
+  <h2>튜플(tuple)이란 — 행(row)과의 관계</h2>
+</div>
+<div class="card">
+  <p>튜플은 행과 별개의 것이 아니라 <strong>행이 디스크에 물리적으로 저장된 실체를 가리키는 내부 용어</strong>다.</p>
+
+  <div class="mvcc-chip-grid">
+    <div class="mvcc-chip"><b>논리적 관점 (SQL 사용자)</b>테이블 안에 행(row)이 있다</div>
+    <div class="mvcc-chip"><b>물리적 관점 (Postgres 엔진)</b>테이블 파일(페이지들의 집합) 안에 튜플이 있다</div>
+  </div>
+
+  <p>평소엔 행 : 튜플 = 1 : 1이라 구분할 필요가 없지만, UPDATE를 N번 하면 <strong>물리적으로 튜플이 총 N+1개까지 쌓일 수 있다</strong>. 논리적으로는 여전히 행 1개지만, 물리적으로는 그 행에 대한 튜플이 여러 개 존재하게 되는 것 — 그중 유효한 건 항상 1개뿐이고 나머지 N개는 죽은 튜플이다.</p>
+</div>
+
+<!-- ── 3. xmin / xmax ── -->
+<div class="mvcc-ch-label" id="mvcc-sec-xminxmax">
+  <span class="mvcc-ch-badge">3</span>
+  <h2>xmin / xmax — 정의</h2>
+</div>
+<div class="card">
+  <p>행마다 붙는 숨겨진 시스템 컬럼이다. <code>x</code>는 트랜잭션(transaction)을 뜻하는 Postgres 내부 접두사다.</p>
+
+  <table>
+    <thead>
+      <tr><th>컬럼</th><th>뜻</th><th>언제 찍히나</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>xmin</code></td>
+        <td>이 튜플을 <strong>만든</strong> 트랜잭션 ID</td>
+        <td>INSERT할 때, 또는 UPDATE가 새 버전을 만들 때</td>
+      </tr>
+      <tr>
+        <td><code>xmax</code></td>
+        <td>이 튜플을 <strong>무효화한</strong> 트랜잭션 ID</td>
+        <td>UPDATE가 이 버전을 밀어낼 때, 또는 DELETE할 때 (비어있으면 아직 안 지워짐)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="mvcc-chip-grid">
+    <div class="mvcc-chip"><b>암기</b>xmin = 태어난 시점, xmax = 죽은 시점</div>
+    <div class="mvcc-chip"><b>xmin</b>INSERT 또는 UPDATE로 튜플이 새로 생성되는 시점에, 그 트랜잭션 ID가 xmin에 할당된다</div>
+    <div class="mvcc-chip"><b>xmax</b>UPDATE(또는 DELETE) 트랜잭션이 그 튜플을 밀어낼 때 xmax에 트랜잭션 ID가 할당된다</div>
+  </div>
+</div>
+
+<!-- ── 4. UPDATE = INSERT + 표시 ── -->
+<div class="mvcc-ch-label" id="mvcc-sec-update">
+  <span class="mvcc-ch-badge">4</span>
+  <h2>UPDATE는 내부적으로 INSERT + 표시</h2>
+</div>
+<div class="card">
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">users 테이블 예시</span>
+    </div>
+    <pre><code>INSERT INTO users VALUES (1, 'A');    <span class="lock-com">-- T1이 실행</span>
+UPDATE users SET name='B' WHERE id=1; <span class="lock-com">-- T2가 실행</span></code></pre>
+  </div>
+
+  <p>T2 실행 후 테이블 파일 안에는 물리적으로 튜플이 2개 남는다:</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">물리적 상태</span>
+    </div>
+    <pre><code>튜플#1(옛 버전): name='A', xmin=T1, xmax=T2   <span class="lock-com">// 무효화됨(죽은 튜플)</span>
+튜플#2(새 버전): name='B', xmin=T2, xmax=없음  <span class="lock-com">// 지금 유효(살아있는 튜플)</span></code></pre>
+  </div>
+
+  <div class="mvcc-callout ok">
+    <strong>핵심</strong>
+    UPDATE는 "그 자리 수정"이 아니라 "새 튜플 INSERT + 옛 튜플에 xmax 표시"로 동작한다.
+  </div>
+</div>
+
+<!-- ── 5. 가시성 규칙 ── -->
+<div class="mvcc-ch-label" id="mvcc-sec-visibility">
+  <span class="mvcc-ch-badge">5</span>
+  <h2>가시성 규칙(Visibility Rule)</h2>
+</div>
+<div class="card">
+  <p>어떤 튜플이 사용자에게 보이려면, 아래 두 조건을 <strong>모두</strong> 만족해야 한다.</p>
+
+  <ol class="mvcc-steps">
+    <li>xmin에 트랜잭션 ID가 할당돼 있고, 그 트랜잭션이 <strong>커밋</strong>됨</li>
+    <li>그리고 xmax에 트랜잭션 ID가 <strong>할당 안 됐거나</strong>, 할당됐어도 그 트랜잭션이 <strong>아직 커밋 안 됨</strong></li>
+  </ol>
+
+  <div class="mvcc-callout ok">
+    <strong>트랜잭션 커밋 여부로 가시성이 판단된다</strong>
+    xmax는 UPDATE 시 트랜잭션 ID가 할당되지만, 커밋되기 전까지 다른 트랜잭션에게는 아직 유효한 튜플이라고 인식된다.
+  </div>
+
+  <p class="mvcc-sub-title" style="margin-top:0;">UPDATE가 아직 커밋 안 됐을 때 다른 트랜잭션이 조회하면</p>
+
+  <table>
+    <thead>
+      <tr><th>튜플</th><th>상태</th><th>다른 트랜잭션에서</th></tr>
+    </thead>
+    <tbody>
+      <tr class="mvcc-row-alive">
+        <td><span class="mvcc-tuple-tag alive">보임</span><br><strong>옛 튜플</strong>(name='A')</td>
+        <td>xmax=T2 있지만 T2 아직 미커밋</td>
+        <td>여전히 <strong style="color:var(--green);">보임</strong></td>
+      </tr>
+      <tr class="mvcc-row-dead">
+        <td><span class="mvcc-tuple-tag dead">안 보임</span><br><strong>새 튜플</strong>(name='B')</td>
+        <td>xmin=T2인데 T2 아직 미커밋</td>
+        <td><strong style="color:var(--red);">안 보임</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="mvcc-callout">
+    <strong>T2가 커밋되는 순간</strong>
+    새 튜플이 보이기 시작하고 옛 튜플이 안 보이기 시작한다.
+    UPDATE가 커밋 전이든 후든, 조회하는 쪽은 락에 걸려 대기하는 게 아니라 그 순간에 해당하는 버전을 즉시 읽고 종료된다.
+  </div>
+</div>
+
+<!-- ── 6. 유니크 제약과 HOT ── -->
+<div class="mvcc-ch-label" id="mvcc-sec-unique">
+  <span class="mvcc-ch-badge">6</span>
+  <h2>물리적으로 겹쳐도 유니크 제약이 안 깨지는 이유</h2>
+</div>
+<div class="card">
+  <p>동일한 PK를 가진 튜플 여러 개가 동시에 존재해도, 중복 키 에러가 발생하지 않는 이유다.</p>
+
+  <div class="mvcc-callout ok">
+    <strong>유니크 제약도 "보이는 것"만 검사한다</strong>
+    Postgres가 중복 키 위반을 검사할 때, MVCC 가시성 규칙을 동일하게 적용하여 visible한 튜플이 2개 이상이면 위반으로 판단한다.
+    이전 버전의 튜플은 죽은 것으로 취급하여 중복 판정에서 벗어난다.
+    그래서 물리적으로 PK가 일치해도 논리적으로 충돌이 발생하지 않는다.
+  </div>
+
+  <p class="mvcc-sub-title">HOT(Heap-Only Tuple) update</p>
+  <p><strong>일반적인 UPDATE가 비싼 이유:</strong> UPDATE는 새 튜플을 물리적으로 다른 위치에 생성한다. 문제는 인덱스가 물리적 위치를 매핑하고 있는데, 튜플이 변경되었으니 해당 테이블에 걸린 인덱스 전부 새 위치로 다시 가리키도록 갱신해야 한다. 바뀐 컬럼이 인덱스와 무관해도 튜플 자체가 이동했으니 이 비용은 똑같이 든다.</p>
+
+  <p><strong>HOT이 하는 일:</strong> 아래 두 조건이 맞으면 이 인덱스 갱신을 통째로 생략한다.</p>
+  <ol class="mvcc-steps">
+    <li>UPDATE가 건드린 컬럼이 어떤 인덱스에도 안 걸려있음</li>
+    <li>새 튜플을 같은 페이지(디스크의 같은 8KB 블록) 안에 넣을 공간이 있음</li>
+  </ol>
+  <p>이 두 조건이 맞으면, 이전 튜플 위치에 내부 포인터만 남겨두어 인덱스 수정이 발생하지 않는다. 인덱스로 조회 시 이전 튜플 위치에서 체인을 따라서 최신 버전을 찾는다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">HOT 적용 여부 비교</span>
+    </div>
+    <pre><code><span class="lock-com">-- users(id PK/인덱스, name 인덱스, last_login 인덱스 없음)</span>
+
+UPDATE users SET last_login = now() WHERE id = 1;
+<span class="lock-com">-- last_login엔 인덱스가 없음 -> HOT 적용, id/name 인덱스 둘 다 안 건드림</span>
+
+UPDATE users SET name = 'B' WHERE id = 1;
+<span class="lock-com">-- name엔 인덱스가 있음 -> HOT 불가, name 인덱스에 새 항목 추가 필요</span></code></pre>
+  </div>
+
+  <div class="mvcc-callout warn">
+    <strong>왜 중요한가</strong>
+    인덱스가 여러 개 걸린 테이블에서, 자주 바뀌지만 인덱스는 안 걸린 컬럼(updated_at, last_login, 카운터 등)을 UPDATE할 때마다 모든 인덱스를 갱신하면 쓰기 비용이 커진다.
+    HOT은 그 낭비를 막아준다.
+  </div>
+</div>
+
+<!-- ── 7. 죽은 튜플과 VACUUM ── -->
+<div class="mvcc-ch-label" id="mvcc-sec-vacuum">
+  <span class="mvcc-ch-badge">7</span>
+  <h2>부수 효과 — 죽은 튜플 누적과 VACUUM</h2>
+</div>
+<div class="card">
+  <p>INSERT 1번 + UPDATE N번을 하면, 튜플이 총 N+1개 생기고 그중 살아있는 건 1개뿐이다. 나머지 N개는 xmin·xmax가 둘 다 채워진 죽은 튜플로 테이블 파일 안에 그대로 남는다.</p>
+
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">튜플 누적 과정</span>
+    </div>
+    <pre><code>T1: INSERT       -> 튜플A(xmin=T1, xmax=없음)              [살아있음]
+T2: UPDATE       -> 튜플A(xmin=T1, xmax=T2) [죽음]         튜플B(xmin=T2, xmax=없음) [살아있음]
+T3: UPDATE       -> 튜플B(xmin=T2, xmax=T3) [죽음]         튜플C(xmin=T3, xmax=없음) [살아있음]
+T4: UPDATE       -> 튜플C(xmin=T3, xmax=T4) [죽음]         튜플D(xmin=T4, xmax=없음) [살아있음]
+T5: UPDATE       -> 튜플D(xmin=T4, xmax=T5) [죽음]         튜플E(xmin=T5, xmax=없음) [살아있음]
+
+최종: 튜플 5개 물리적 존재, 살아있는 건 E 1개뿐, A~D는 죽은 튜플</code></pre>
+  </div>
+
+  <div class="mvcc-callout bad">
+    <strong>죽은 튜플은 테이블 파일 자체 용량에 포함된다</strong>
+    같은 테이블 안에 포함되기 때문에 방치하면 테이블 스캔 범위가 커진다.
+    VACUUM(보통 autovacuum)이 죽은 튜플을 제거하여 공간을 회수한다.
+  </div>
+</div>
+
+<!-- ── 8. 격리 수준과의 관계 ── -->
+<div class="mvcc-ch-label" id="mvcc-sec-isolation">
+  <span class="mvcc-ch-badge">8</span>
+  <h2>격리 수준(Isolation Level)과의 관계</h2>
+</div>
+<div class="card">
+  <div class="mvcc-callout">
+    <strong>MVCC 자체는 항상 동작한다</strong>
+    "스냅샷을 얼마나 자주 새로 뜨느냐"가 격리 수준의 차이일 뿐이다.
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>격리 수준</th><th>스냅샷 갱신 시점</th><th>동작</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>READ COMMITTED</strong><br><span style="color:var(--text-muted); font-size:0.8rem;">PostgreSQL 기본값</span></td>
+        <td>문장(statement)마다</td>
+        <td>같은 트랜잭션 안에서도 SELECT할 때마다 최신 커밋 내용이 반영됨</td>
+      </tr>
+      <tr>
+        <td><strong>REPEATABLE READ</strong></td>
+        <td>트랜잭션 시작 시 1번</td>
+        <td>트랜잭션이 끝날 때까지 처음 본 데이터로 계속 봄 (그 사이 남이 커밋해도 안 보임)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="mvcc-sub-title">READ COMMITTED 예시</p>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <span class="terminal-title">동일 트랜잭션, 두 번의 SELECT</span>
+    </div>
+    <pre><code>BEGIN;
+SELECT name FROM users WHERE id=1;  <span class="lock-com">-- 'A' 조회 (이 시점 스냅샷)</span>
+
+<span class="lock-com">-- (다른 세션에서 UPDATE name='B' 실행 후 커밋)</span>
+
+SELECT name FROM users WHERE id=1;  <span class="lock-com">-- 'B' 조회 (문장마다 새 스냅샷이라 반영됨)</span>
+COMMIT;</code></pre>
+  </div>
+
+  <div class="mvcc-callout">
+    <strong>REPEATABLE READ였다면</strong>
+    두 번째 SELECT도 여전히 'A'를 봤을 것이다 — 트랜잭션 시작 시점 스냅샷을 끝까지 고정해서 쓰기 때문.
+  </div>
+
+  <p class="mvcc-sub-title">MVCC가 못 막는 것 — Writer 간의 충돌</p>
+  <div class="mvcc-callout bad">
+    <strong>읽기-쓰기만 비블로킹, 쓰기-쓰기는 여전히 막힌다</strong>
+    MVCC는 읽기 vs 쓰기 블로킹만 제거하지, 쓰기 vs 쓰기는 여전히 막아야 한다.
+    두 writer 트랜잭션이 같은 행을 동시에 수정하려면, 하나의 트랜잭션이 종료될 때까지 다른 트랜잭션은 대기해야 한다.
+  </div>
+</div>
+
+<!-- ── 9. tl;dr ── -->
+<div class="mvcc-ch-label" id="mvcc-sec-tldr">
+  <span class="mvcc-ch-badge">9</span>
+  <h2>tl;dr</h2>
+</div>
+<div class="card">
+  <div class="mvcc-chip-grid">
+    <div class="mvcc-chip"><b>튜플</b>행이 디스크에 물리적으로 저장된 실체. 평소엔 행=튜플이지만 UPDATE 직후엔 한 행에 튜플이 여러 개 존재할 수 있음</div>
+    <div class="mvcc-chip"><b>xmin / xmax</b>xmin=만들어진 트랜잭션, xmax=무효화한 트랜잭션. 가시성은 필드 존재 여부가 아니라 그 트랜잭션의 커밋 여부로 결정</div>
+    <div class="mvcc-chip"><b>UPDATE의 실체</b>내부적으로 "새 튜플 INSERT + 옛 튜플에 xmax 표시" — 그래서 읽는 쪽이 락을 기다릴 필요가 없음</div>
+    <div class="mvcc-chip"><b>유니크 제약</b>가시성 규칙을 그대로 적용해서, 물리적으로 겹쳐도 논리적 충돌은 안 남</div>
+    <div class="mvcc-chip"><b>비용</b>죽은 튜플이 쌓이는 게 MVCC의 비용 — VACUUM이 청소</div>
+    <div class="mvcc-chip"><b>격리 수준</b>READ COMMITTED(문장마다 스냅샷 갱신) vs REPEATABLE READ(트랜잭션 시작 시 1번 고정) — MVCC는 항상 동작하고, 격리 수준은 "스냅샷을 얼마나 자주 새로 뜨느냐"의 차이일 뿐</div>
+    <div class="mvcc-chip"><b>한계</b>MVCC는 쓰기-쓰기 충돌까지는 못 막음 — 그건 여전히 락/재시도가 필요</div>
+  </div>
+</div>
+
+<!-- TOC Backdrop -->
+<div id="toc-backdrop" class="toc-backdrop" onclick="toggleTOC()"></div>
+
+<!-- TOC Panel -->
+<nav id="report-toc" class="report-toc">
+  <h3>📑 목차</h3>
+  <ul>
+    <li><a href="#mvcc-sec-why" onclick="toggleTOC()">1. 배경 — 왜 필요한가</a></li>
+    <li><a href="#mvcc-sec-tuple" onclick="toggleTOC()">2. 튜플이란</a></li>
+    <li><a href="#mvcc-sec-xminxmax" onclick="toggleTOC()">3. xmin / xmax 정의</a></li>
+    <li><a href="#mvcc-sec-update" onclick="toggleTOC()">4. UPDATE = INSERT + 표시</a></li>
+    <li><a href="#mvcc-sec-visibility" onclick="toggleTOC()">5. 가시성 규칙</a></li>
+    <li><a href="#mvcc-sec-unique" onclick="toggleTOC()">6. 유니크 제약 & HOT</a></li>
+    <li><a href="#mvcc-sec-vacuum" onclick="toggleTOC()">7. 죽은 튜플과 VACUUM</a></li>
+    <li><a href="#mvcc-sec-isolation" onclick="toggleTOC()">8. 격리 수준과의 관계</a></li>
+    <li><a href="#mvcc-sec-tldr" onclick="toggleTOC()">9. tl;dr</a></li>
+  </ul>
+</nav>
+
+<!-- Floating TOC Button -->
+<button class="toc-toggle-btn" onclick="toggleTOC()">📑</button>

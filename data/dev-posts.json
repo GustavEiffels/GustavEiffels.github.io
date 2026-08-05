@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-08-05",
+    "title": "MVCC와 격리 수준 — xmin/xmax부터 READ COMMITTED까지",
+    "file": "dev/mvcc_isolation_levels",
+    "category": "record"
+  },
+  {
     "date": "2026-08-04",
     "title": "[코딩테스트] LeetCode 141 - Linked List Cycle (해시셋/투 포인터, Java)",
     "file": "dev/algorithm/leetcode_141_linkedlistcycle",
